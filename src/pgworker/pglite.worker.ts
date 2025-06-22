@@ -48,7 +48,7 @@ worker({
 			const { fsBundle, wasmModule, vectorExtensionBundlePath } =
 				await loadPGliteResources()
 
-			db = await PGlite.create('idb://infio-db', {
+			db = await PGlite.create('opfs-ahp://infio-db', {
 				relaxedDurability: true,
 				fsBundle: fsBundle,
 				wasmModule: wasmModule,

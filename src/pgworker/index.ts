@@ -16,6 +16,6 @@ export const createAndInitDb = async () => {
 			},
 		},
 	)
-	console.log('PGlite DB created')
+	console.log('PGlite DB created in opfs-ahp://infio-db')
 	return pg
 }
