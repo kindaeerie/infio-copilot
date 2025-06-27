@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error - parse5 and JSON5 types are not perfectly aligned with the dynamic parsing logic
 import JSON5 from 'json5'
 import { parseFragment } from 'parse5'
 
@@ -94,8 +94,40 @@ export type ParsedMsgBlock =
 		parameters: Record<string, unknown>,
 		finish: boolean
 	} | {
+		type: 'dataview_query'
+		query: string
+		outputFormat: string
+		finish: boolean
+	} | {
 		type: 'tool_result'
 		content: string
+	} | {
+		type: 'analyze_paper'
+		path: string
+		finish: boolean
+	} | {
+		type: 'key_insights'
+		path: string
+		finish: boolean
+	} | {
+		type: 'dense_summary'
+		path: string
+		finish: boolean
+	} | {
+		type: 'reflections'
+		path: string
+		finish: boolean
+	} | {
+		type: 'table_of_contents'
+		path: string
+		depth?: number
+		format?: string
+		include_summary?: boolean
+		finish: boolean
+	} | {
+		type: 'simple_summary'
+		path: string
+		finish: boolean
 	}
 
 export function parseMsgBlocks(
@@ -191,8 +223,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'recursive' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						const recursiveValue = childNode.childNodes[0].value
 						recursive = recursiveValue ? recursiveValue.toLowerCase() === 'true' : false
 					}
@@ -220,6 +254,7 @@ export function parseMsgBlocks(
 				let path: string | undefined
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					}
 				}
@@ -248,8 +283,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'query' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						query = childNode.childNodes[0].value
 					}
 				}
@@ -278,8 +315,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'regex' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						regex = childNode.childNodes[0].value
 					}
 				}
@@ -308,8 +347,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'query' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						query = childNode.childNodes[0].value
 					}
 				}
@@ -339,13 +380,15 @@ export function parseMsgBlocks(
 				// 处理子标签
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'content' && childNode.childNodes.length > 0) {
 						// 如果内容有多个子节点，需要合并它们
-						content = childNode.childNodes.map(n => n.value || '').join('')
+						content = childNode.childNodes.map(n => (n as any).value || '').join('')
 					} else if (childNode.nodeName === 'line_count' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						const lineCountStr = childNode.childNodes[0].value
-						lineCount = lineCountStr ? parseInt(lineCountStr) : undefined
+						lineCount = lineCountStr ? parseInt(lineCountStr as string) : undefined
 					}
 				}
 				parsedResult.push({
@@ -375,11 +418,13 @@ export function parseMsgBlocks(
 				// 处理子标签
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'operations' && childNode.childNodes.length > 0) {
 						try {
+							// @ts-expect-error - parse5 node value type
 							const operationsJson = childNode.childNodes[0].value
-							const operations = JSON5.parse(operationsJson)
+							const operations = JSON5.parse(operationsJson as string)
 							if (Array.isArray(operations) && operations.length > 0) {
 								const operation = operations[0]
 								startLine = operation.start_line || 1
@@ -417,12 +462,13 @@ export function parseMsgBlocks(
 				// 处理子标签
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'operations' && childNode.childNodes.length > 0) {
 						try {
-							// @ts-ignore
+							// @ts-expect-error - parse5 node value type
 							content = childNode.childNodes[0].value
-							operations = JSON5.parse(content)
+							operations = JSON5.parse(content as string)
 						} catch (error) {
 							console.error('Failed to parse operations JSON', error)
 						}
@@ -454,10 +500,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-ignore
+						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'diff' && childNode.childNodes.length > 0) {
-						// @ts-ignore
+						// @ts-expect-error - parse5 node value type
 						diff = childNode.childNodes[0].value
 					}
 				}
@@ -484,7 +530,7 @@ export function parseMsgBlocks(
 				let result: string | undefined
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'result' && childNode.childNodes.length > 0) {
-						// @ts-ignore
+						// @ts-expect-error - parse5 node value type
 						result = childNode.childNodes[0].value
 					}
 				}
@@ -509,7 +555,7 @@ export function parseMsgBlocks(
 				let question: string | undefined
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'question' && childNode.childNodes.length > 0) {
-						// @ts-ignore
+						// @ts-expect-error - parse5 node value type
 						question = childNode.childNodes[0].value
 					}
 				}
@@ -537,10 +583,10 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'mode_slug' && childNode.childNodes.length > 0) {
-						// @ts-ignore - 忽略 value 属性的类型错误
+						// @ts-expect-error - parse5 node value type
 						mode = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'reason' && childNode.childNodes.length > 0) {
-						// @ts-ignore - 忽略 value 属性的类型错误
+						// @ts-expect-error - parse5 node value type
 						reason = childNode.childNodes[0].value
 					}
 				}
@@ -567,7 +613,7 @@ export function parseMsgBlocks(
 				let query: string | undefined
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'query' && childNode.childNodes.length > 0) {
-						// @ts-ignore
+						// @ts-expect-error - parse5 node value type
 						query = childNode.childNodes[0].value
 					}
 				}
@@ -595,9 +641,9 @@ export function parseMsgBlocks(
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'urls' && childNode.childNodes.length > 0) {
 						try {
-							// @ts-ignore
+							// @ts-expect-error - parse5 node value type
 							const urlsJson = childNode.childNodes[0].value
-							const parsedUrls = JSON5.parse(urlsJson)
+							const parsedUrls = JSON5.parse(urlsJson as string)
 							if (Array.isArray(parsedUrls)) {
 								urls = parsedUrls
 							}
@@ -632,19 +678,19 @@ export function parseMsgBlocks(
 
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'server_name' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - 忽略 value 属性的类型错误
+						// @ts-expect-error - parse5 node value type
 						server_name = childNode.childNodes[0].value
 					} else if (childNode.nodeName === 'tool_name' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - 忽略 value 属性的类型错误
+						// @ts-expect-error - parse5 node value type
 						tool_name = childNode.childNodes[0].value
 					} else if ((childNode.nodeName === 'parameters'
 						|| childNode.nodeName === 'input'
 						|| childNode.nodeName === 'arguments')
 						&& childNode.childNodes.length > 0) {
 						try {
-							// @ts-expect-error - 忽略 value 属性的类型错误
+							// @ts-expect-error - parse5 node value type
 							const parametersJson = childNode.childNodes[0].value
-							parameters = JSON5.parse(parametersJson)
+							parameters = JSON5.parse(parametersJson as string)
 						} catch (error) {
 							console.debug('Failed to parse parameters JSON', error)
 						}
@@ -658,6 +704,209 @@ export function parseMsgBlocks(
 					parameters,
 					finish: node.sourceCodeLocation.endTag !== undefined
 				})	
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'dataview_query') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+
+				let query: string = ''
+				let outputFormat: string = 'table'
+
+				// 解析子节点
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'query' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						query = childNode.childNodes[0].value || ''
+					} else if (childNode.nodeName === 'output_format' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						outputFormat = childNode.childNodes[0].value || 'table'
+					}
+				}
+
+				parsedResult.push({
+					type: 'dataview_query',
+					query,
+					outputFormat,
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'analyze_paper') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					}
+				}
+				parsedResult.push({
+					type: 'analyze_paper',
+					path: path || '',
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'key_insights') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					}
+				}
+				parsedResult.push({
+					type: 'key_insights',
+					path: path || '',
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'dense_summary') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					}
+				}
+				parsedResult.push({
+					type: 'dense_summary',
+					path: path || '',
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'reflections') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					}
+				}
+				parsedResult.push({
+					type: 'reflections',
+					path: path || '',
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'table_of_contents') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				let depth: number | undefined
+				let format: string | undefined
+				let include_summary: boolean | undefined
+
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					} else if (childNode.nodeName === 'depth' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						const depthStr = childNode.childNodes[0].value
+						depth = depthStr ? parseInt(depthStr as string) : undefined
+					} else if (childNode.nodeName === 'format' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						format = childNode.childNodes[0].value
+					} else if (childNode.nodeName === 'include_summary' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						const summaryValue = childNode.childNodes[0].value
+						include_summary = summaryValue ? (summaryValue as string).toLowerCase() === 'true' : false
+					}
+				}
+
+				parsedResult.push({
+					type: 'table_of_contents',
+					path: path || '',
+					depth,
+					format,
+					include_summary,
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'simple_summary') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+				let path: string | undefined
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						path = childNode.childNodes[0].value
+					}
+				}
+				parsedResult.push({
+					type: 'simple_summary',
+					path: path || '',
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
 				lastEndOffset = endOffset
 			} else if (node.nodeName === 'tool_result') {
 				if (!node.sourceCodeLocation) {

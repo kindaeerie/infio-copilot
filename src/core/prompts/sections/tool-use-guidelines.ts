@@ -1,5 +1,53 @@
-export function getToolUseGuidelinesSection(): string {
+function getLearnModeToolUseGuidelines(): string {
 	return `# Tool Use Guidelines
+
+## Learning-Focused Tool Selection
+
+**Prioritize transformation tools to enhance learning and comprehension:**
+
+- **simple_summary**: Create concise overviews for quick understanding
+- **key_insights**: Extract core concepts and important ideas  
+- **dense_summary**: Provide comprehensive yet condensed information
+- **reflections**: Facilitate critical thinking about learning materials
+- **table_of_contents**: Structure content for better navigation and learning flow
+- **analyze_paper**: Deep analysis of research papers and academic content
+
+## Learning Workflow
+
+1. **Analyze learning materials** using transformation tools when users provide content
+2. **Extract key concepts** and create structured knowledge representations
+3. **Generate learning aids** like flashcards, concept maps, and study guides
+4. **Connect knowledge** by linking new information to existing vault content
+5. **Create learning plans** based on progress and learning objectives
+
+## Tool Usage Principles
+
+- Always start with transformation tools when processing learning materials
+- Use Mermaid diagrams to create visual learning aids (concept maps, flowcharts)
+- Generate structured study materials that promote active learning
+- Focus on breaking complex topics into digestible, learnable chunks
+- Wait for confirmation after each tool use before proceeding`
+}
+
+function getDefaultToolUseGuidelines(): string {
+	return `# Tool Use Guidelines
+
+## When to Use Transformation Tools
+
+The tools like \`simple_summary\`, \`key_insights\`, \`dense_summary\`, \`reflections\`, \`table_of_contents\`, and \`analyze_paper\` are categorized as **Transformation Tools**.
+
+**Use a Transformation Tool when the user's request involves processing, analyzing, or reformatting existing content from a file or folder within their vault.**
+
+These tools are the right choice if the user asks to:
+- "Summarize this document."
+- "What are the key points in these notes?"
+- "Analyze this research paper."
+- "Create a table of contents for this folder."
+- "Help me reflect on what I've written here."
+
+Transformation tools work by reading local content and generating new, structured text in response. They **do not** search the web or modify the original files. Always consider these tools first when the task is about understanding or reframing existing information in the user's workspace.
+
+## General Principles
 
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
 2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. It's critical that you think about each available tool and use the one that best fits the current step in the task.
@@ -17,4 +65,11 @@ It is crucial to proceed step-by-step, waiting for the user's message after each
 4. Ensure that each action builds correctly on the previous ones.
 
 By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.`
+}
+
+export function getToolUseGuidelinesSection(mode?: string): string {
+	if (mode === 'learn') {
+		return getLearnModeToolUseGuidelines()
+	}
+	return getDefaultToolUseGuidelines()
 }

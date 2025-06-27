@@ -12,20 +12,24 @@ export const TOOL_DISPLAY_NAMES = {
 	apply_diff: "apply changes",
 	search_files: "search files",
 	list_files: "list files",
-	// list_code_definition_names: "list definitions",
-	browser_action: "use a browser",
 	use_mcp_tool: "use mcp tools",
 	access_mcp_resource: "access mcp resources",
 	ask_followup_question: "ask questions",
 	attempt_completion: "complete tasks",
 	switch_mode: "switch modes",
 	new_task: "create new task",
+	analyze_paper: "analyze papers",
+	key_insights: "extract key insights",
+	dense_summary: "create dense summaries",
+	reflections: "generate reflections",
+	table_of_contents: "create table of contents",
+	simple_summary: "create simple summaries",
 } as const
 
 // Define available tool groups
 export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	read: {
-		tools: ["read_file", "list_files", "search_files"],
+		tools: ["read_file", "list_files", "search_files", "dataview_query"],
 	},
 	edit: {
 		tools: ["apply_diff", "write_to_file", "insert_content", "search_and_replace"],
@@ -33,12 +37,9 @@ export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	research: {
 		tools: ["search_web", "fetch_urls_content"],
 	},
-	// browser: {
-	// 	tools: ["browser_action"],
-	// },
-	// command: {
-	// 	tools: ["execute_command"],
-	// },
+	transformations: {
+		tools: ["analyze_paper", "key_insights", "dense_summary", "reflections", "table_of_contents", "simple_summary"],
+	},
 	mcp: {
 		tools: ["use_mcp_tool", "access_mcp_resource"],
 	},

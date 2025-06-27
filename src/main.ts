@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { EditorView } from '@codemirror/view'
 // import { PGlite } from '@electric-sql/pglite'
-import { Editor, MarkdownView, Notice, Plugin, TFile } from 'obsidian'
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile } from 'obsidian'
 
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
@@ -31,6 +31,7 @@ import {
 	InfioSettings,
 	parseInfioSettings,
 } from './types/settings'
+import { createDataviewManager, DataviewManager } from './utils/dataview'
 import { getMentionableBlockData } from './utils/obsidian'
 import './utils/path'
 import { onEnt } from './utils/web-search'
@@ -50,6 +51,7 @@ export default class InfioPlugin extends Plugin {
 	ragEngine: RAGEngine | null = null
 	inlineEdit: InlineEdit | null = null
 	diffStrategy?: DiffStrategy
+	dataviewManager: DataviewManager | null = null
 
 	async onload() {
 		// load settings
@@ -64,6 +66,9 @@ export default class InfioPlugin extends Plugin {
 		// add settings tab
 		this.settingTab = new InfioSettingTab(this.app, this)
 		this.addSettingTab(this.settingTab)
+
+		// initialize dataview manager
+		this.dataviewManager = createDataviewManager(this.app)
 
 		// add icon to ribbon
 		this.addRibbonIcon('wand-sparkles', t('main.openInfioCopilot'), () =>
@@ -373,6 +378,44 @@ export default class InfioPlugin extends Plugin {
 				editor.replaceRange(customBlock, insertPos);
 			},
 		});
+
+		// 添加简单测试命令
+		this.addCommand({
+			id: 'test-dataview-simple',
+			name: '测试 Dataview（简单查询）',
+			callback: async () => {
+				console.log('开始测试 Dataview...');
+				
+				if (!this.dataviewManager) {
+					new Notice('DataviewManager 未初始化');
+					return;
+				}
+
+				if (!this.dataviewManager.isDataviewAvailable()) {
+					new Notice('Dataview 插件未安装或未启用');
+					console.log('Dataview API 不可用');
+					return;
+				}
+
+				console.log('Dataview API 可用，执行简单查询...');
+				
+				try {
+					// 执行一个最简单的查询
+					const result = await this.dataviewManager.executeQuery('LIST FROM ""');
+					
+					if (result.success) {
+						new Notice('Dataview 查询成功！结果已在控制台输出');
+						console.log('查询结果:', result.data);
+					} else {
+						new Notice(`查询失败: ${result.error}`);
+						console.error('查询错误:', result.error);
+					}
+				} catch (error) {
+					console.error('执行测试查询失败:', error);
+					new Notice('执行测试查询时发生错误');
+				}
+			},
+		});
 	}
 
 	onunload() {
@@ -389,6 +432,8 @@ export default class InfioPlugin extends Plugin {
 		// MCP Hub cleanup
 		this.mcpHub?.dispose()
 		this.mcpHub = null
+		// Dataview cleanup
+		this.dataviewManager = null
 	}
 
 	async loadSettings() {

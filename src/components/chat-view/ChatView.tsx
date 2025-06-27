@@ -2,7 +2,7 @@ import * as path from 'path'
 
 import { BaseSerializedNode } from '@lexical/clipboard/clipboard'
 import { useMutation } from '@tanstack/react-query'
-import { CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
+import { Box, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
 import { App, Notice, TFile, WorkspaceLeaf } from 'obsidian'
 import {
 	forwardRef,
@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { ApplyView, ApplyViewState } from '../../ApplyView'
 import { APPLY_VIEW_TYPE } from '../../constants'
 import { useApp } from '../../contexts/AppContext'
+import { useDataview } from '../../contexts/DataviewContext'
 import { useDiffStrategy } from '../../contexts/DiffStrategyContext'
 import { useLLM } from '../../contexts/LLMContext'
 import { useMcpHub } from '../../contexts/McpHubContext'
@@ -33,6 +34,7 @@ import {
 	LLMBaseUrlNotSetException,
 	LLMModelNotSetException,
 } from '../../core/llm/exception'
+import { TransformationType, runTransformation } from '../../core/transformations/run_trans'
 import { useChatHistory } from '../../hooks/use-chat-history'
 import { useCustomModes } from '../../hooks/use-custom-mode'
 import { t } from '../../lang/helpers'
@@ -73,6 +75,8 @@ import SearchView from './SearchView'
 import SimilaritySearchResults from './SimilaritySearchResults'
 import UserMessageView from './UserMessageView'
 import WebsiteReadResults from './WebsiteReadResults'
+import WorkspaceSelect from './WorkspaceSelect'
+import WorkspaceView from './WorkspaceView'
 
 // Add an empty line here
 const getNewInputMessage = (app: App, defaultMention: string): ChatUserMessage => {
@@ -115,6 +119,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 	const { settings, setSettings } = useSettings()
 	const { getRAGEngine } = useRAG()
 	const diffStrategy = useDiffStrategy()
+	const dataviewManager = useDataview()
 	const { getMcpHub } = useMcpHub()
 	const { customModeList, customModePrompts } = useCustomModes()
 
@@ -179,7 +184,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		}
 	}
 
-	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history'>('chat')
+	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'workspace'>('chat')
 
 	const [selectedSerializedNodes, setSelectedSerializedNodes] = useState<BaseSerializedNode[]>([])
 
@@ -792,6 +797,124 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 							mentionables: [],
 						}
 					}
+				} else if (toolArgs.type === 'dataview_query') {
+					if (!dataviewManager) {
+						throw new Error('DataviewManager 未初始化')
+					}
+
+					if (!dataviewManager.isDataviewAvailable()) {
+						throw new Error('Dataview 插件未安装或未启用，请先安装并启用 Dataview 插件')
+					}
+
+					// 执行 Dataview 查询
+					const result = await dataviewManager.executeQuery(toolArgs.query)
+					
+					let formattedContent: string;
+					if (result.success) {
+						formattedContent = `[dataview_query] 查询成功:\n${result.data}`;
+					} else {
+						formattedContent = `[dataview_query] 查询失败:\n${result.error}`;
+					}
+					
+					return {
+						type: 'dataview_query',
+						applyMsgId,
+						applyStatus: result.success ? ApplyStatus.Applied : ApplyStatus.Failed,
+						returnMsg: {
+							role: 'user',
+							applyStatus: ApplyStatus.Idle,
+							content: null,
+							promptContent: formattedContent,
+							id: uuidv4(),
+							mentionables: [],
+						}
+					}
+				} else if (toolArgs.type === 'analyze_paper' || 
+						   toolArgs.type === 'key_insights' || 
+						   toolArgs.type === 'dense_summary' || 
+						   toolArgs.type === 'reflections' || 
+						   toolArgs.type === 'table_of_contents' || 
+						   toolArgs.type === 'simple_summary') {
+					// 处理文档转换工具
+					console.log('toolArgs', toolArgs)
+					
+					try {
+						// 获取文件
+						const targetFile = app.vault.getFileByPath(toolArgs.path)
+						if (!targetFile) {
+							throw new Error(`文件未找到: ${toolArgs.path}`)
+						}
+
+						// 读取文件内容
+						const fileContent = await readTFileContentPdf(targetFile, app.vault, app)
+						
+						// 映射工具类型到转换类型
+						const transformationTypeMap: Record<string, TransformationType> = {
+							'analyze_paper': TransformationType.ANALYZE_PAPER,
+							'key_insights': TransformationType.KEY_INSIGHTS,
+							'dense_summary': TransformationType.DENSE_SUMMARY,
+							'reflections': TransformationType.REFLECTIONS,
+							'table_of_contents': TransformationType.TABLE_OF_CONTENTS,
+							'simple_summary': TransformationType.SIMPLE_SUMMARY
+						}
+
+						const transformationType = transformationTypeMap[toolArgs.type]
+						if (!transformationType) {
+							throw new Error(`不支持的转换类型: ${toolArgs.type}`)
+						}
+
+						// 执行转换
+						const transformationResult = await runTransformation({
+							content: fileContent,
+							transformationType,
+							settings,
+							model: {
+								provider: settings.applyModelProvider,
+								modelId: settings.applyModelId,
+							}
+						})
+
+						if (!transformationResult.success) {
+							throw new Error(transformationResult.error || '转换失败')
+						}
+
+						// 构建结果消息
+						let formattedContent = `[${toolArgs.type}] 转换完成:\n\n${transformationResult.result}`
+						
+						// 如果内容被截断，添加提示
+						if (transformationResult.truncated) {
+							formattedContent += `\n\n*注意: 原始内容过长(${transformationResult.originalTokens} tokens)，已截断为${transformationResult.processedTokens} tokens进行处理*`
+						}
+
+						return {
+							type: toolArgs.type,
+							applyMsgId,
+							applyStatus: ApplyStatus.Applied,
+							returnMsg: {
+								role: 'user',
+								applyStatus: ApplyStatus.Idle,
+								content: null,
+								promptContent: formattedContent,
+								id: uuidv4(),
+								mentionables: [],
+							}
+						}
+					} catch (error) {
+						console.error(`转换失败 (${toolArgs.type}):`, error)
+						return {
+							type: toolArgs.type,
+							applyMsgId,
+							applyStatus: ApplyStatus.Failed,
+							returnMsg: {
+								role: 'user',
+								applyStatus: ApplyStatus.Idle,
+								content: null,
+								promptContent: `[${toolArgs.type}] 转换失败: ${error instanceof Error ? error.message : String(error)}`,
+								id: uuidv4(),
+								mentionables: [],
+							}
+						}
+					}
 				}
 			} catch (error) {
 				console.error('Failed to apply changes', error)
@@ -1006,7 +1129,9 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		<div className="infio-chat-container">
 			{/* header view */}
 			<div className="infio-chat-header">
-				INFIO
+				<div className="infio-chat-header-title">
+					{t('workspace.shortTitle')}: <WorkspaceSelect />
+				</div>
 				<div className="infio-chat-header-buttons">
 					<button
 						onClick={() => {
@@ -1028,6 +1153,18 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						className="infio-chat-list-dropdown"
 					>
 						<History size={18} color={tab === 'history' ? 'var(--text-accent)' : 'var(--text-color)'} />
+					</button>
+					<button
+						onClick={() => {
+							if (tab === 'workspace') {
+								setTab('chat')
+							} else {
+								setTab('workspace')
+							}
+						}}
+						className="infio-chat-list-dropdown"
+					>
+						<Box size={18} color={tab === 'workspace' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
 					<button
 						onClick={() => {
@@ -1274,6 +1411,10 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 							await updateConversationTitle(conversationId, newTitle)
 						}}
 					/>
+				</div>
+			) : tab === 'workspace' ? (
+				<div className="infio-chat-commands">
+					<WorkspaceView />
 				</div>
 			) : (
 				<div className="infio-chat-commands">

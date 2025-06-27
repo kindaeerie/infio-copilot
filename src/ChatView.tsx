@@ -8,6 +8,7 @@ import { CHAT_VIEW_TYPE } from './constants'
 import { AppProvider } from './contexts/AppContext'
 import { DarkModeProvider } from './contexts/DarkModeContext'
 import { DatabaseProvider } from './contexts/DatabaseContext'
+import { DataviewProvider } from './contexts/DataviewContext'
 import { DialogProvider } from './contexts/DialogContext'
 import { DiffStrategyProvider } from './contexts/DiffStrategyContext'
 import { LLMProvider } from './contexts/LLMContext'
@@ -95,17 +96,19 @@ export class ChatView extends ItemView {
 							>
 								<DiffStrategyProvider diffStrategy={this.plugin.diffStrategy}>
 									<RAGProvider getRAGEngine={() => this.plugin.getRAGEngine()}>
-										<McpHubProvider getMcpHub={() => this.plugin.getMcpHub()}>
-											<QueryClientProvider client={queryClient}>
-												<React.StrictMode>
-													<DialogProvider
-														container={containerElement}
-													>
-														<Chat ref={this.chatRef} {...this.initialChatProps} />
-													</DialogProvider>
-												</React.StrictMode>
-											</QueryClientProvider>
-										</McpHubProvider>
+										<DataviewProvider dataviewManager={this.plugin.dataviewManager}>
+											<McpHubProvider getMcpHub={() => this.plugin.getMcpHub()}>
+												<QueryClientProvider client={queryClient}>
+													<React.StrictMode>
+														<DialogProvider
+															container={containerElement}
+														>
+															<Chat ref={this.chatRef} {...this.initialChatProps} />
+														</DialogProvider>
+													</React.StrictMode>
+												</QueryClientProvider>
+											</McpHubProvider>
+										</DataviewProvider>
 									</RAGProvider>
 								</DiffStrategyProvider>
 							</DatabaseProvider>

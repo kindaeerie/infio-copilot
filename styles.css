@@ -76,6 +76,28 @@
   font-size: var(--font-ui-medium);
   font-weight: var(--font-medium);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  flex-wrap: nowrap;
+}
+
+.infio-chat-current-workspace {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--size-4-2);
+  padding: var(--size-2-1) var(--size-4-1);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  color: var(--text-accent);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .infio-chat-header-buttons {
@@ -725,6 +747,9 @@ input[type='text'].infio-chat-list-dropdown-item-title-input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-1);
 }
 
 .infio-chat-code-block-header-icon {
@@ -770,6 +795,10 @@ input[type='text'].infio-chat-list-dropdown-item-title-input {
   display: flex;
   gap: var(--size-4-1);
   font-size: var(--font-ui-smaller);
+}
+
+.infio-dataview-query-button {
+  color: #008000;
 }
 
 .infio-chat-code-block-content {

@@ -289,6 +289,8 @@ export const InfioSettingsSchema = z.object({
 	// multiSearchReplaceDiffStrategy
 	multiSearchReplaceDiffStrategy: z.boolean().catch(true),
 
+	// Workspace
+	workspace: z.string().catch(''),
 	// Mode
 	mode: z.string().catch('ask'),
 	defaultMention: z.enum(['none', 'current-file', 'vault']).catch('none'),

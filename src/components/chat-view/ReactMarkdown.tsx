@@ -7,6 +7,7 @@ import {
 } from '../../utils/parse-infio-block'
 
 import MarkdownApplyDiffBlock from './Markdown/MarkdownApplyDiffBlock'
+import MarkdownDataviewQueryBlock from './Markdown/MarkdownDataviewQueryBlock'
 import MarkdownEditFileBlock from './Markdown/MarkdownEditFileBlock'
 import MarkdownFetchUrlsContentBlock from './Markdown/MarkdownFetchUrlsContentBlock'
 import MarkdownListFilesBlock from './Markdown/MarkdownListFilesBlock'
@@ -19,6 +20,7 @@ import MarkdownSearchWebBlock from './Markdown/MarkdownSearchWebBlock'
 import MarkdownSemanticSearchFilesBlock from './Markdown/MarkdownSemanticSearchFilesBlock'
 import MarkdownSwitchModeBlock from './Markdown/MarkdownSwitchModeBlock'
 import MarkdownToolResult from './Markdown/MarkdownToolResult'
+import MarkdownTransformationToolBlock from './Markdown/MarkdownTransformationToolBlock'
 import MarkdownWithIcons from './Markdown/MarkdownWithIcon'
 import RawMarkdownBlock from './Markdown/RawMarkdownBlock'
 import UseMcpToolBlock from './Markdown/UseMcpToolBlock'
@@ -200,6 +202,72 @@ function ReactMarkdown({
 						serverName={block.server_name}
 						toolName={block.tool_name}
 						parameters={block.parameters}
+						finish={block.finish}
+					/>
+				) : block.type === 'dataview_query' ? (
+					<MarkdownDataviewQueryBlock
+						key={"dataview-query-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						query={block.query}
+						outputFormat={block.outputFormat}
+						finish={block.finish}
+					/>
+				) : block.type === 'analyze_paper' ? (
+					<MarkdownTransformationToolBlock
+						key={"analyze-paper-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="analyze_paper"
+						path={block.path}
+						finish={block.finish}
+					/>
+				) : block.type === 'key_insights' ? (
+					<MarkdownTransformationToolBlock
+						key={"key-insights-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="key_insights"
+						path={block.path}
+						finish={block.finish}
+					/>
+				) : block.type === 'dense_summary' ? (
+					<MarkdownTransformationToolBlock
+						key={"dense-summary-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="dense_summary"
+						path={block.path}
+						finish={block.finish}
+					/>
+				) : block.type === 'reflections' ? (
+					<MarkdownTransformationToolBlock
+						key={"reflections-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="reflections"
+						path={block.path}
+						finish={block.finish}
+					/>
+				) : block.type === 'table_of_contents' ? (
+					<MarkdownTransformationToolBlock
+						key={"table-of-contents-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="table_of_contents"
+						path={block.path}
+						depth={block.depth}
+						format={block.format}
+						include_summary={block.include_summary}
+						finish={block.finish}
+					/>
+				) : block.type === 'simple_summary' ? (
+					<MarkdownTransformationToolBlock
+						key={"simple-summary-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						toolType="simple_summary"
+						path={block.path}
 						finish={block.finish}
 					/>
 				) : block.type === 'tool_result' ? (

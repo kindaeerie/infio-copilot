@@ -117,7 +117,7 @@ ${getToolDescriptionsForMode(
 			experiments,
 		)}
 
-${getToolUseGuidelinesSection()}
+${getToolUseGuidelinesSection(mode)}
 
 ${mcpServersSection}
 

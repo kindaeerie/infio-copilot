@@ -54,16 +54,18 @@ const localeMap: { [k: string]: Partial<typeof en> } = {
 	hu,
 };
 
-const locale = localeMap[moment.locale()];
-
 export function t(str: string, params?: Record<string, any>): any {
+	// 动态获取当前语言
+	const currentLocale = moment.locale();
+	const locale = localeMap[currentLocale];
+
 	if (!locale) {
 		console.error({
 			plugin: "infio-copilot",
 			fn: t,
 			where: "src/lang/helpers.ts",
 			message: "Error: locale not found",
-			data: moment.locale(),
+			data: currentLocale,
 		});
 	}
 

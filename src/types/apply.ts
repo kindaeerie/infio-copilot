@@ -105,4 +105,50 @@ export type UseMcpToolArgs = {
 	parameters: Record<string, unknown>;
 }
 
-export type ToolArgs = ReadFileToolArgs | WriteToFileToolArgs | InsertContentToolArgs | SearchAndReplaceToolArgs | ListFilesToolArgs | MatchSearchFilesToolArgs | RegexSearchFilesToolArgs | SemanticSearchFilesToolArgs | SearchWebToolArgs | FetchUrlsContentToolArgs | SwitchModeToolArgs | ApplyDiffToolArgs | UseMcpToolArgs;
+export type DataviewQueryToolArgs = {
+	type: 'dataview_query';
+	query: string;
+	outputFormat: string;
+	finish?: boolean;
+}
+
+export type AnalyzePaperToolArgs = {
+	type: 'analyze_paper';
+	path: string;
+	finish?: boolean;
+}
+
+export type KeyInsightsToolArgs = {
+	type: 'key_insights';
+	path: string;
+	finish?: boolean;
+}
+
+export type DenseSummaryToolArgs = {
+	type: 'dense_summary';
+	path: string;
+	finish?: boolean;
+}
+
+export type ReflectionsToolArgs = {
+	type: 'reflections';
+	path: string;
+	finish?: boolean;
+}
+
+export type TableOfContentsToolArgs = {
+	type: 'table_of_contents';
+	path: string;
+	depth?: number;
+	format?: string;
+	include_summary?: boolean;
+	finish?: boolean;
+}
+
+export type SimpleSummaryToolArgs = {
+	type: 'simple_summary';
+	path: string;
+	finish?: boolean;
+}
+
+export type ToolArgs = ReadFileToolArgs | WriteToFileToolArgs | InsertContentToolArgs | SearchAndReplaceToolArgs | ListFilesToolArgs | MatchSearchFilesToolArgs | RegexSearchFilesToolArgs | SemanticSearchFilesToolArgs | SearchWebToolArgs | FetchUrlsContentToolArgs | SwitchModeToolArgs | ApplyDiffToolArgs | UseMcpToolArgs | DataviewQueryToolArgs | AnalyzePaperToolArgs | KeyInsightsToolArgs | DenseSummaryToolArgs | ReflectionsToolArgs | TableOfContentsToolArgs | SimpleSummaryToolArgs;

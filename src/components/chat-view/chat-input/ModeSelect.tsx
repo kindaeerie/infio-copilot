@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, ChevronUp, MessageSquare, SquarePen, Search } from 'lucide-react'
+import { ChevronDown, ChevronUp, MessageSquare, Search, SquarePen } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { useSettings } from '../../../contexts/SettingsContext'
@@ -114,10 +114,10 @@ export function ModeSelect() {
 					justify-content: flex-start;
 					align-items: center;
 					cursor: pointer;
-					height: var(--size-4-4);
+					height: auto;
 					max-width: 100%;
 					gap: var(--size-2-2);
-					border-radius: var(--radius-m);
+					border-radius: var(--radius-l);
 					transition: all 0.15s ease-in-out;
 
 					&:hover {
@@ -128,6 +128,7 @@ export function ModeSelect() {
 					.infio-chat-input-mode-select__mode-icon {
 						flex-shrink: 0;
 						display: flex;
+						margin-top: var(--size-4-1);
 						align-items: center;
 						justify-content: center;
 						color: var(--text-accent);

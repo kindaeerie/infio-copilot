@@ -32,6 +32,38 @@ CAPABILITIES
 `
 }
 
+function getLearnModeCapabilitiesSection(
+	cwd: string,
+	searchFilesTool: string,
+): string {
+	let searchFilesInstructions: string;
+	switch (searchFilesTool) {
+		case 'match':
+			searchFilesInstructions = MatchSearchFilesInstructions;
+			break;
+		case 'regex':
+			searchFilesInstructions = RegexSearchFilesInstructions;
+			break;
+		case 'semantic':
+			searchFilesInstructions = SemanticSearchFilesInstructions;
+			break;
+		default:
+			searchFilesInstructions = "";
+	}
+
+	return `====
+
+CAPABILITIES
+
+- You are a specialized learning assistant with access to powerful transformation tools designed to enhance learning and comprehension within Obsidian vaults.
+- Your primary strength lies in processing learning materials using transformation tools like \`simple_summary\`, \`key_insights\`, \`dense_summary\`, \`reflections\`, \`table_of_contents\`, and \`analyze_paper\` to break down complex information into digestible formats.
+- You excel at creating visual learning aids using Mermaid diagrams (concept maps, flowcharts, mind maps) that help users understand relationships between concepts and visualize learning pathways.
+- You can generate structured study materials including flashcards, study guides, learning objectives, and practice questions tailored to the user's learning goals and current knowledge level.
+- You have access to file management tools to organize learning materials, create structured note hierarchies, and maintain a well-organized knowledge base within the vault ('${cwd}').${searchFilesInstructions}
+- You can identify knowledge gaps by analyzing existing notes and suggest learning paths to fill those gaps, connecting new information to the user's existing knowledge base.
+- You specialize in active learning techniques that promote retention and understanding rather than passive information consumption, helping users engage deeply with their learning materials.`
+}
+
 function getDeepResearchCapabilitiesSection(): string {
 	return `====
 
@@ -50,6 +82,9 @@ export function getCapabilitiesSection(
 ): string {
 	if (mode === 'research') {
 		return getDeepResearchCapabilitiesSection();
+	}
+	if (mode === 'learn') {
+		return getLearnModeCapabilitiesSection(cwd, searchWebTool);
 	}
 	return getObsidianCapabilitiesSection(cwd, searchWebTool);
 }

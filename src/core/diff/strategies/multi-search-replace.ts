@@ -55,10 +55,15 @@ Only a single operation is allowed per tool use.
 The SEARCH section must exactly match existing content including whitespace and indentation.
 If you're not confident in the exact content to search for, use the read_file tool first to get the exact content.
 When applying changes to Markdown, be careful about maintaining list structures, heading levels, and other Markdown formatting.
-ALWAYS make as many changes in a single 'apply_diff' request as possible using multiple SEARCH/REPLACE blocks
+**IMPORTANT STRATEGY**: Use this tool ONLY for modifying specific, contiguous blocks of text. 
+- **STRICT 20-LINE LIMIT**: Each SEARCH block MUST NOT exceed 20 lines. This is a hard limit to ensure accuracy and avoid errors.
+- **For larger changes**: If a single block of changes is more than 20 lines, or if you are rewriting most of the file, you MUST use \`write_to_file\` instead.
+- **For scattered changes**: If you need to make the same small change in many different places, use \`search_and_replace\` as it is more efficient.
+
+ALWAYS make as many changes in a single 'apply_diff' request as possible using multiple SEARCH/REPLACE blocks, but respect the 20-line limit per block.
 
 Parameters:
-- path: (required) The path of the file to modify (relative to the current working directory ${args.cwd})
+- path: (required) The path of the file to modify
 - diff: (required) The search/replace block defining the changes.
 
 Diff format:
@@ -72,72 +77,58 @@ Diff format:
 [new content to replace with]
 >>>>>>> REPLACE
 
-\`\`\`
-
-Example:
-
-Original Markdown file:
-\`\`\`
-1 | # Project Notes
-2 | 
-3 | ## Tasks
-4 | - [ ] Review documentation
-5 | - [ ] Update examples
-6 | - [ ] Add new section
-\`\`\`
-
-Search/Replace content:
-\`\`\`
-<<<<<<< SEARCH
-:start_line:3
-:end_line:6
--------
-## Tasks
-- [ ] Review documentation
-- [ ] Update examples
-- [ ] Add new section
-=======
-## Current Tasks
-- [ ] Review documentation
-- [x] Update examples
-- [ ] Add new section
-- [ ] Schedule team meeting
->>>>>>> REPLACE
-
-\`\`\`
-
-Search/Replace content with multi edits:
-\`\`\`
-<<<<<<< SEARCH
-:start_line:1
-:end_line:1
--------
-# Project Notes
-=======
-# Project Notes (Updated)
->>>>>>> REPLACE
-
-<<<<<<< SEARCH
-:start_line:4
-:end_line:5
--------
-- [ ] Review documentation
-- [ ] Update examples
-=======
-- [ ] Review documentation (priority)
-- [x] Update examples
->>>>>>> REPLACE
-\`\`\`
-
 Usage:
 <apply_diff>
 <path>File path here</path>
 <diff>
 Your search/replace content here
-You can use multi search/replace block in one diff block, but make sure to include the line numbers for each block.
-Only use a single line of '=======' between search and replacement content, because multiple '=======' will corrupt the file.
+Only use a single line of '=======' between search and replacement content.
 </diff>
-</apply_diff>`
+</apply_diff>
+
+Example1: CORRECT - Making multiple, small, independent changes in one call.
+This is efficient for applying several unrelated fixes. Notice that each block is very small and respects the 20-line limit.
+
+<apply_diff>
+<path>notes.md</path>
+<diff>
+<<<<<<< SEARCH
+:start_line:1
+:end_line:1
+-------
+# Meeting Notes
+=======
+# Strategic Meeting Notes
+>>>>>>> REPLACE
+
+<<<<<<< SEARCH
+:start_line:4
+:end_line:4
+-------
+- Discuss Q3 roadmap
+=======
+- Finalize Q3 roadmap
+>>>>>>> REPLACE
+</diff>
+</apply_diff>
+
+Example 2: INCORRECT USAGE (ANTI-PATTERN) - The diff block is too large.
+This demonstrates what NOT to do. A diff block of this size MUST BE REJECTED.
+
+<apply_diff>
+<path>long_file.md</path>
+<diff>
+<<<<<<< SEARCH
+:start_line:10
+:end_line:45
+-------
+... (35 lines of text to be replaced) ...
+=======
+... (new content) ...
+>>>>>>> REPLACE
+</diff>
+</apply_diff>
+`
 	}
 
 	async applyDiff(
@@ -146,7 +137,7 @@ Only use a single line of '=======' between search and replacement content, beca
 		_paramStartLine?: number,
 		_paramEndLine?: number,
 	): Promise<DiffResult> {
-		let matches = [
+		const matches = [
 			...diffContent.matchAll(
 				/<<<<<<< SEARCH\n(:start_line:\s*(\d+)\n){0,1}(:end_line:\s*(\d+)\n){0,1}(-------\n){0,1}([\s\S]*?)\n?=======\n([\s\S]*?)\n?>>>>>>> REPLACE/g,
 			),
@@ -162,7 +153,7 @@ Only use a single line of '=======' between search and replacement content, beca
 		const lineEnding = originalContent.includes("\r\n") ? "\r\n" : "\n"
 		let resultLines = originalContent.split(/\r?\n/)
 		let delta = 0
-		let diffResults: DiffResult[] = []
+		const diffResults: DiffResult[] = []
 		let appliedCount = 0
 		const replacements = matches
 			.map((match) => ({
@@ -313,24 +304,25 @@ Only use a single line of '=======' between search and replacement content, beca
 			const matchedLines = resultLines.slice(matchIndex, matchIndex + searchLines.length)
 
 			// Get the exact indentation (preserving tabs/spaces) of each line
+			const indentRegex = /^[\t ]*/
 			const originalIndents = matchedLines.map((line) => {
-				const match = line.match(/^[\t ]*/)
+				const match = indentRegex.exec(line)
 				return match ? match[0] : ""
 			})
 
 			// Get the exact indentation of each line in the search block
 			const searchIndents = searchLines.map((line) => {
-				const match = line.match(/^[\t ]*/)
+				const match = indentRegex.exec(line)
 				return match ? match[0] : ""
 			})
 
 			// Apply the replacement while preserving exact indentation
-			const indentedReplaceLines = replaceLines.map((line, i) => {
+			const indentedReplaceLines = replaceLines.map((line) => {
 				// Get the matched line's exact indentation
 				const matchedIndent = originalIndents[0] || ""
 
 				// Get the current line's indentation relative to the search content
-				const currentIndentMatch = line.match(/^[\t ]*/)
+				const currentIndentMatch = indentRegex.exec(line)
 				const currentIndent = currentIndentMatch ? currentIndentMatch[0] : ""
 				const searchBaseIndent = searchIndents[0] || ""
 

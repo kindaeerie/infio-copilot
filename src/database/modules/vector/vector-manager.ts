@@ -1,5 +1,5 @@
 import { backOff } from 'exponential-backoff'
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter'
+import { MarkdownTextSplitter } from 'langchain/text_splitter'
 import { minimatch } from 'minimatch'
 import { App, Notice, TFile } from 'obsidian'
 import pLimit from 'p-limit'
@@ -111,17 +111,10 @@ export class VectorManager {
 			return
 		}
 
-		const textSplitter = RecursiveCharacterTextSplitter.fromLanguage(
-			'markdown',
-			{
-				chunkSize: options.chunkSize,
-				// TODO: Use token-based chunking after migrating to WebAssembly-based tiktoken
-				// Current token counting method is too slow for practical use
-				// lengthFunction: async (text) => {
-				//   return await tokenCount(text)
-				// },
-			},
-		)
+		const textSplitter = new MarkdownTextSplitter({
+			chunkSize: options.chunkSize,
+			chunkOverlap: Math.floor(options.chunkSize * 0.15)
+		})
 
 		const skippedFiles: string[] = []
 		const contentChunks: InsertVector[] = (
@@ -323,12 +316,10 @@ export class VectorManager {
 			)
 
 			// Embed the files
-			const textSplitter = RecursiveCharacterTextSplitter.fromLanguage(
-				'markdown',
-				{
-					chunkSize,
-				},
-			)
+			const textSplitter = new MarkdownTextSplitter({
+				chunkSize: chunkSize,
+				chunkOverlap: Math.floor(chunkSize * 0.15)
+			});
 			let fileContent = await this.app.vault.cachedRead(file)
 			// 清理null字节，防止PostgreSQL UTF8编码错误
 			fileContent = fileContent.replace(/\0/g, '')

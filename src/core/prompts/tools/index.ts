@@ -1,11 +1,12 @@
+import { FilesSearchSettings } from "../../../types/settings"
 import { Mode, ModeConfig, getGroupName, getModeConfig, isToolAllowedForMode } from "../../../utils/modes"
 import { DiffStrategy } from "../../diff/DiffStrategy"
 import { McpHub } from "../../mcp/McpHub"
-import { FilesSearchSettings } from "../../../types/settings"
 
 import { getAccessMcpResourceDescription } from "./access-mcp-resource"
 import { getAskFollowupQuestionDescription } from "./ask-followup-question"
 import { getAttemptCompletionDescription } from "./attempt-completion"
+import { getDataviewQueryDescription } from "./dataview-query"
 import { getFetchUrlsContentDescription } from "./fetch-url-content"
 import { getInsertContentDescription } from "./insert-content"
 import { getListFilesDescription } from "./list-files"
@@ -17,6 +18,14 @@ import { getSwitchModeDescription } from "./switch-mode"
 import { ALWAYS_AVAILABLE_TOOLS, TOOL_GROUPS } from "./tool-groups"
 import { ToolArgs } from "./types"
 import { getUseMcpToolDescription } from "./use-mcp-tool"
+import {
+	getAnalyzePaperDescription,
+	getDenseSummaryDescription,
+	getKeyInsightsDescription,
+	getReflectionsDescription,
+	getSimpleSummaryDescription,
+	getTableOfContentsDescription
+} from "./use-transformations-tool"
 import { getWriteToFileDescription } from "./write-to-file"
 
 // Map of tool names to their description functions
@@ -25,6 +34,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	write_to_file: (args) => getWriteToFileDescription(args),
 	search_files: (args) => getSearchFilesDescription(args),
 	list_files: (args) => getListFilesDescription(args),
+	dataview_query: (args) => getDataviewQueryDescription(args),
 	ask_followup_question: () => getAskFollowupQuestionDescription(),
 	attempt_completion: () => getAttemptCompletionDescription(),
 	switch_mode: () => getSwitchModeDescription(),
@@ -36,6 +46,12 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 		args.diffStrategy ? args.diffStrategy.getToolDescription({ cwd: args.cwd, toolOptions: args.toolOptions }) : "",
 	search_web: (args): string | undefined => getSearchWebDescription(args),
 	fetch_urls_content: (args): string | undefined => getFetchUrlsContentDescription(args),
+	analyze_paper: (args) => getAnalyzePaperDescription(args),
+	key_insights: (args) => getKeyInsightsDescription(args),
+	dense_summary: (args) => getDenseSummaryDescription(args),
+	reflections: (args) => getReflectionsDescription(args),
+	table_of_contents: (args) => getTableOfContentsDescription(args),
+	simple_summary: (args) => getSimpleSummaryDescription(args),
 }
 
 export function getToolDescriptionsForMode(
@@ -50,7 +66,9 @@ export function getToolDescriptionsForMode(
 	customModes?: ModeConfig[],
 	experiments?: Record<string, boolean>,
 ): string {
+	console.log("getToolDescriptionsForMode", mode, customModes)
 	const config = getModeConfig(mode, customModes)
+	console.log("config", config)
 	const args: ToolArgs = {
 		cwd,
 		searchSettings,
@@ -67,6 +85,7 @@ export function getToolDescriptionsForMode(
 	config.groups.forEach((groupEntry) => {
 		const groupName = getGroupName(groupEntry)
 		const toolGroup = TOOL_GROUPS[groupName]
+		console.log("toolGroup", toolGroup)
 		if (toolGroup) {
 			toolGroup.tools.forEach((tool) => {
 				if (isToolAllowedForMode(tool, mode, customModes ?? [], experiments ?? {})) {
@@ -78,10 +97,11 @@ export function getToolDescriptionsForMode(
 
 	// Add always available tools
 	ALWAYS_AVAILABLE_TOOLS.forEach((tool) => tools.add(tool))
-
+	console.log("tools", tools)
 	// Map tool descriptions for allowed tools
 	const descriptions = Array.from(tools).map((toolName) => {
 		const descriptionFn = toolDescriptionMap[toolName]
+		console.log("descriptionFn", descriptionFn)
 		if (!descriptionFn) {
 			return undefined
 		}
@@ -97,6 +117,11 @@ export function getToolDescriptionsForMode(
 
 // Export individual description functions for backward compatibility
 export {
-	getAccessMcpResourceDescription, getAskFollowupQuestionDescription, getAttemptCompletionDescription, getInsertContentDescription, getListFilesDescription, getReadFileDescription, getSearchAndReplaceDescription, getSearchFilesDescription, getSwitchModeDescription, getUseMcpToolDescription, getWriteToFileDescription
+	getAccessMcpResourceDescription, getAnalyzePaperDescription, getAskFollowupQuestionDescription,
+	getAttemptCompletionDescription,
+	getDataviewQueryDescription, getDenseSummaryDescription, getInsertContentDescription, getKeyInsightsDescription, getListFilesDescription,
+	getReadFileDescription, getReflectionsDescription, getSearchAndReplaceDescription,
+	getSearchFilesDescription, getSimpleSummaryDescription, getSwitchModeDescription, getTableOfContentsDescription, getUseMcpToolDescription,
+	getWriteToFileDescription
 }
 

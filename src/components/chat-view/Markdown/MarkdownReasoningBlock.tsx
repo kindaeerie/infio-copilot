@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Brain } from 'lucide-react'
+import { Brain, ChevronDown, ChevronRight } from 'lucide-react'
 import { PropsWithChildren, useEffect, useRef, useState } from 'react'
 
 import { useDarkModeContext } from "../../../contexts/DarkModeContext"
