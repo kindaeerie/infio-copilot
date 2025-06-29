@@ -136,7 +136,7 @@ export class VectorRepository {
     const tableName = this.getTableName(embeddingModel)
 
     let scopeCondition = ''
-    const params: any[] = [`[${queryVector.join(',')}]`, options.minSimilarity, options.limit]
+    const params: unknown[] = [`[${queryVector.join(',')}]`, options.minSimilarity, options.limit]
     let paramIndex = 4
 
     if (options.scope) {

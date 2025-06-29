@@ -2,12 +2,14 @@ import { ToolArgs } from "./types"
 
 export function getDataviewQueryDescription(args: ToolArgs): string {
 	return `## dataview_query
-Description: Execute advanced queries using the Dataview plugin to retrieve and filter note information across multiple dimensions. Supports complex queries by time, tags, task status, file properties, and more. This is a powerful tool for obtaining structured note data, particularly useful for statistical analysis, content organization, and progress tracking scenarios.
+Description: Use for **Metadata Lookup**. Executes a Dataview query to find notes based on structural attributes like tags, folders, dates, or other metadata properties. This is your primary tool when the user's request is about filtering or finding notes with specific characteristics, not about understanding a concept.
 Parameters:
-- query: (required) The Dataview query statement to execute. Supports DQL (Dataview Query Language) syntax, including TABLE, LIST, TASK query types
-- output_format: (optional) Output format, options: table, list, task, calendar (defaults to table)
+- query: (required) The Dataview query statement (DQL).
 
 Common Query Patterns:
+- Find notes with a tag: \`LIST FROM #project\`
+- Find notes in a folder: \`LIST FROM "Meetings"\`
+- Find notes by task completion: \`TASK WHERE completed\`
 
 **Time-based Queries:**
 - Recently created: \`WHERE file.ctime >= date(today) - dur(7 days)\`
@@ -21,7 +23,6 @@ Common Query Patterns:
 
 **Task-based Queries:**
 - Incomplete tasks: \`TASK WHERE !completed\`
-- Completed tasks: \`TASK WHERE completed\`
 - Specific priority tasks: \`TASK WHERE contains(text, "high priority")\`
 
 **File Property Queries:**

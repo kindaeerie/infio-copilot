@@ -213,61 +213,14 @@ function ReactMarkdown({
 						outputFormat={block.outputFormat}
 						finish={block.finish}
 					/>
-				) : block.type === 'analyze_paper' ? (
+				) : block.type === 'call_transformations' ? (
 					<MarkdownTransformationToolBlock
-						key={"analyze-paper-" + index}
+						key={"call-transformations-" + index}
 						applyStatus={applyStatus}
 						onApply={onApply}
-						toolType="analyze_paper"
+						toolType="call_transformations"
 						path={block.path}
-						finish={block.finish}
-					/>
-				) : block.type === 'key_insights' ? (
-					<MarkdownTransformationToolBlock
-						key={"key-insights-" + index}
-						applyStatus={applyStatus}
-						onApply={onApply}
-						toolType="key_insights"
-						path={block.path}
-						finish={block.finish}
-					/>
-				) : block.type === 'dense_summary' ? (
-					<MarkdownTransformationToolBlock
-						key={"dense-summary-" + index}
-						applyStatus={applyStatus}
-						onApply={onApply}
-						toolType="dense_summary"
-						path={block.path}
-						finish={block.finish}
-					/>
-				) : block.type === 'reflections' ? (
-					<MarkdownTransformationToolBlock
-						key={"reflections-" + index}
-						applyStatus={applyStatus}
-						onApply={onApply}
-						toolType="reflections"
-						path={block.path}
-						finish={block.finish}
-					/>
-				) : block.type === 'table_of_contents' ? (
-					<MarkdownTransformationToolBlock
-						key={"table-of-contents-" + index}
-						applyStatus={applyStatus}
-						onApply={onApply}
-						toolType="table_of_contents"
-						path={block.path}
-						depth={block.depth}
-						format={block.format}
-						include_summary={block.include_summary}
-						finish={block.finish}
-					/>
-				) : block.type === 'simple_summary' ? (
-					<MarkdownTransformationToolBlock
-						key={"simple-summary-" + index}
-						applyStatus={applyStatus}
-						onApply={onApply}
-						toolType="simple_summary"
-						path={block.path}
+						transformation={block.transformation}
 						finish={block.finish}
 					/>
 				) : block.type === 'tool_result' ? (

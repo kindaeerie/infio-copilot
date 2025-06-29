@@ -829,41 +829,25 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 							mentionables: [],
 						}
 					}
-				} else if (toolArgs.type === 'analyze_paper' || 
-						   toolArgs.type === 'key_insights' || 
-						   toolArgs.type === 'dense_summary' || 
-						   toolArgs.type === 'reflections' || 
-						   toolArgs.type === 'table_of_contents' || 
-						   toolArgs.type === 'simple_summary') {
-					// 处理文档转换工具
-					console.log('toolArgs', toolArgs)
-					
+				} else if (toolArgs.type === 'call_transformations') {
+					// Handling for the unified transformations tool
 					try {
-						// 获取文件
-						const targetFile = app.vault.getFileByPath(toolArgs.path)
+						const targetFile = app.vault.getFileByPath(toolArgs.path);
 						if (!targetFile) {
-							throw new Error(`文件未找到: ${toolArgs.path}`)
+							throw new Error(`File not found: ${toolArgs.path}`);
 						}
 
-						// 读取文件内容
-						const fileContent = await readTFileContentPdf(targetFile, app.vault, app)
-						
-						// 映射工具类型到转换类型
-						const transformationTypeMap: Record<string, TransformationType> = {
-							'analyze_paper': TransformationType.ANALYZE_PAPER,
-							'key_insights': TransformationType.KEY_INSIGHTS,
-							'dense_summary': TransformationType.DENSE_SUMMARY,
-							'reflections': TransformationType.REFLECTIONS,
-							'table_of_contents': TransformationType.TABLE_OF_CONTENTS,
-							'simple_summary': TransformationType.SIMPLE_SUMMARY
+						const fileContent = await readTFileContentPdf(targetFile, app.vault, app);
+
+						// The transformation type is now passed directly in the arguments
+						const transformationType = toolArgs.transformation as TransformationType;
+
+						// Validate that the transformation type is a valid enum member
+						if (!Object.values(TransformationType).includes(transformationType)) {
+							throw new Error(`Unsupported transformation type: ${transformationType}`);
 						}
 
-						const transformationType = transformationTypeMap[toolArgs.type]
-						if (!transformationType) {
-							throw new Error(`不支持的转换类型: ${toolArgs.type}`)
-						}
-
-						// 执行转换
+						// Execute the transformation
 						const transformationResult = await runTransformation({
 							content: fileContent,
 							transformationType,
@@ -872,18 +856,17 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 								provider: settings.applyModelProvider,
 								modelId: settings.applyModelId,
 							}
-						})
+						});
 
 						if (!transformationResult.success) {
-							throw new Error(transformationResult.error || '转换失败')
+							throw new Error(transformationResult.error || 'Transformation failed');
 						}
 
-						// 构建结果消息
-						let formattedContent = `[${toolArgs.type}] 转换完成:\n\n${transformationResult.result}`
+						// Build the result message
+						let formattedContent = `[${transformationType}] transformation complete:\n\n${transformationResult.result}`;
 						
-						// 如果内容被截断，添加提示
 						if (transformationResult.truncated) {
-							formattedContent += `\n\n*注意: 原始内容过长(${transformationResult.originalTokens} tokens)，已截断为${transformationResult.processedTokens} tokens进行处理*`
+							formattedContent += `\n\n*Note: The original content was too long (${transformationResult.originalTokens} tokens) and was truncated to ${transformationResult.processedTokens} tokens for processing.*`;
 						}
 
 						return {
@@ -898,9 +881,9 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 								id: uuidv4(),
 								mentionables: [],
 							}
-						}
+						};
 					} catch (error) {
-						console.error(`转换失败 (${toolArgs.type}):`, error)
+						console.error(`Transformation failed (${toolArgs.transformation}):`, error);
 						return {
 							type: toolArgs.type,
 							applyMsgId,
@@ -909,11 +892,11 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 								role: 'user',
 								applyStatus: ApplyStatus.Idle,
 								content: null,
-								promptContent: `[${toolArgs.type}] 转换失败: ${error instanceof Error ? error.message : String(error)}`,
+								promptContent: `[${toolArgs.transformation}] transformation failed: ${error instanceof Error ? error.message : String(error)}`,
 								id: uuidv4(),
 								mentionables: [],
 							}
-						}
+						};
 					}
 				}
 			} catch (error) {

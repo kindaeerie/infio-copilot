@@ -176,3 +176,63 @@ export type SelectMessage = {
 	similarity_search_results?: string | null
 	created_at: Date
 }
+
+/* Source Insight Table */
+export type SourceInsightRecord = {
+	id: number
+	insight_type: string
+	insight: string
+	source_type: 'document' | 'tag' | 'folder'
+	source_path: string
+	embedding: number[]
+	created_at: Date
+	updated_at: Date
+}
+
+export type SelectSourceInsight = SourceInsightRecord
+export type InsertSourceInsight = Omit<SourceInsightRecord, 'id' | 'created_at' | 'updated_at'>
+
+const createSourceInsightTable = (dimension: number): TableDefinition => {
+	const tableName = `source_insight_${dimension}`
+
+	const table: TableDefinition = {
+		name: tableName,
+		columns: {
+			id: { type: 'SERIAL', primaryKey: true },
+			insight_type: { type: 'TEXT', notNull: true },
+			insight: { type: 'TEXT', notNull: true },
+			source_type: { type: 'TEXT', notNull: true },
+			source_path: { type: 'TEXT', notNull: true },
+			embedding: { type: 'VECTOR', dimensions: dimension },
+			created_at: { type: 'TIMESTAMP', notNull: true, defaultNow: true },
+			updated_at: { type: 'TIMESTAMP', notNull: true, defaultNow: true }
+		}
+	}
+
+	if (dimension <= 2000) {
+		table.indices = {
+			[`insightEmbeddingIndex_${dimension}`]: {
+				type: 'HNSW',
+				columns: ['embedding'],
+				options: 'vector_cosine_ops'
+			},
+			[`insightSourceIndex_${dimension}`]: {
+				type: 'BTREE',
+				columns: ['source_path']
+			},
+			[`insightTypeIndex_${dimension}`]: {
+				type: 'BTREE',
+				columns: ['insight_type']
+			}
+		}
+	}
+
+	return table
+}
+
+export const sourceInsightTables = SUPPORT_EMBEDDING_SIMENTION.reduce<
+	Record<number, TableDefinition>
+>((acc, dimension) => {
+	acc[dimension] = createSourceInsightTable(dimension)
+	return acc
+}, {})

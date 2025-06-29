@@ -37,8 +37,8 @@ export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	research: {
 		tools: ["search_web", "fetch_urls_content"],
 	},
-	transformations: {
-		tools: ["analyze_paper", "key_insights", "dense_summary", "reflections", "table_of_contents", "simple_summary"],
+	insights: {
+		tools: ["insights"],
 	},
 	mcp: {
 		tools: ["use_mcp_tool", "access_mcp_resource"],

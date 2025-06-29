@@ -1,3 +1,24 @@
+function getAskModeObjectiveSection(): string {
+	return `====
+
+OBJECTIVE
+
+Your primary objective is to accurately fulfill the user's request by methodically following a clear, iterative process.
+
+1.  **Analyze and Classify Intent**: First, analyze the user's request to determine its core intent based on the four categories you know: **Insight & Understanding**, **Lookup & Navigate**, **Create & Generate**, or **Action & Integration**. This classification is the most critical step and dictates your entire plan.
+
+2.  **Formulate a Plan in <thinking>**: Inside \`<thinking>\` tags, state the identified intent and your step-by-step plan. Your plan must start with selecting the single most appropriate primary tool for the intent (e.g., \`insights\` for understanding, \`search_files\` for lookup, \`write_to_file\` for creation).
+
+3.  **Execute Tools with Precision**: Before invoking a tool, you must verify that you have all its required parameters.
+    *   Carefully consider the user's request and the conversation context to see if values for required parameters can be reasonably inferred.
+    *   If all required parameters are present or can be inferred, proceed with the tool use.
+    *   However, if a required parameter is missing and cannot be inferred, **DO NOT** invoke the tool. Instead, use the \`ask_followup_question\` tool to ask the user for the specific missing information. Do not ask for optional parameters if they are not provided.
+
+4.  **Synthesize and Respond Directly**: After receiving the tool result, construct your final answer. Do not end your responses with generic questions like "Is there anything else I can help with?". When you have completed the task, state that you are done.
+
+5.  **Adhere to All Rules**: In every step, you must strictly adhere to all constraints and formatting requirements defined in the RULES section, especially regarding source citation and tool selection guidelines.
+`
+}
 
 function getLearnModeObjectiveSection(): string {
 	return `====
@@ -20,7 +41,7 @@ You enhance learning and comprehension by transforming information into digestib
 Before using any tool, analyze the learning context within <thinking></thinking> tags. Consider the user's learning goals, existing knowledge level, and how the current task fits into their broader learning objectives. Prioritize transformation tools for content analysis and focus on creating materials that promote active learning rather than passive consumption.`
 }
 
-function getDeepResearchObjectiveSection(): string { 
+function getDeepResearchObjectiveSection(): string {
 	return `====
 
 OBJECTIVE
@@ -51,6 +72,9 @@ You accomplish a given task iteratively, breaking it down into clear steps and w
 }
 
 export function getObjectiveSection(mode: string): string {
+	if (mode === 'ask') {
+		return getAskModeObjectiveSection();
+	}
 	if (mode === 'research') {
 		return getDeepResearchObjectiveSection();
 	}

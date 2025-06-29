@@ -15,15 +15,10 @@ export const TOOL_DISPLAY_NAMES = {
 	dataview_query: "query dataview",
 	use_mcp_tool: "use mcp tools",
 	access_mcp_resource: "access mcp resources",
+	insights: "call insights",
 	ask_followup_question: "ask questions",
 	attempt_completion: "complete tasks",
 	switch_mode: "switch modes",
-	analyze_paper: "analyze papers",
-	key_insights: "extract key insights",
-	dense_summary: "create dense summaries",
-	reflections: "generate reflections",
-	table_of_contents: "create table of contents",
-	simple_summary: "create simple summaries",
 } as const
 
 // Define available tool groups
@@ -37,8 +32,8 @@ export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	research: {
 		tools: ["search_web", "fetch_urls_content"],
 	},
-	transformations: {
-		tools: ["analyze_paper", "key_insights", "dense_summary", "reflections", "table_of_contents", "simple_summary"],
+	insights: {
+		tools: ["insights"],
 	},
 	mcp: {
 		tools: ["use_mcp_tool", "access_mcp_resource"],
@@ -75,7 +70,7 @@ export const GROUP_DISPLAY_NAMES: Record<ToolGroup, string> = {
 	read: "Read Files",
 	edit: "Edit Files",
 	research: "Research",
-	transformations: "Transformations",
+	insights: "insights",
 	mcp: "MCP Tools",
 	modes: "Modes",
 }

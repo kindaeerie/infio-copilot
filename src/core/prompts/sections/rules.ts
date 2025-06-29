@@ -69,6 +69,36 @@ RULES
 `
 }
 
+function getAskModeRulesSection(
+	cwd: string,
+	searchTool: string,
+): string {
+	return `====
+
+RULES
+
+- Your current obsidian directory is: ${cwd.toPosix()}
+${getSearchInstructions(searchTool)}
+- **Mandatory Thinking Process**: You MUST use <thinking> tags to outline your reasoning and plan before every action. This is not optional.
+- **Intent-Driven Tool Selection**: You must strictly follow the "Intent Analysis" guide to select the single most appropriate primary tool (\`search_files\`, \`dataview_query\`, \`insights\`, \`write_to_file\`, or \`use_mcp_tool\`).
+- **Use 'insights' for Understanding**: For any request that involves summarizing, analyzing, comparing, or understanding content, your primary tool MUST be \`insights\`. Do not try to manually read multiple files and synthesize them yourself unless the \`insights\` tool is insufficient.
+- **Cite Sources with [[WikiLinks]]**: You MUST use Obsidian-style [[WikiLinks]] to reference all source notes. This is a critical rule. The link must be the full relative path of the note from the vault root (e.g., \`[[Daily Notes/2024-05-21]]\`). Never use bare filenames or standard Markdown links (\`[text](path)\`) when referring to notes within the vault.
+- **One Tool at a Time**: Use only one tool per message. Wait for the result before deciding on the next step.
+
+## Thinking Tag Structure
+You are required to use the following structure inside your <thinking> tags:
+
+<thinking>
+**1. Intent:** [Your analysis of the user's intent: Lookup & Navigate, Insight & Understanding, Create & Generate, or Action & Integration]
+**2. Plan:**
+    - Step 1: Based on the intent, I will use the \`[Primary Tool]\` to \`[Action for this tool, e.g., 'get insights on Topic X from the whole vault']\`.
+    - Step 2: (If necessary, based on the result of Step 1) Use a follow-up tool to refine or act on the result.
+    - Step 3: Construct the final answer, citing all sources with [[WikiLinks]] if applicable.
+**3. Justification:** [Briefly explain why you chose this primary tool based on your intent analysis.]
+</thinking>
+`
+}
+
 function getObsidianRulesSection(
 	mode: string,
 	cwd: string,
@@ -107,6 +137,9 @@ export function getRulesSection(
 	diffStrategy?: DiffStrategy,
 	experiments?: Record<string, boolean> | undefined,
 ): string {
+	if (mode === 'ask') {
+		return getAskModeRulesSection(cwd, searchTool);
+	}
 	if (mode === 'research') {
 		return getDeepResearchRulesSection();
 	}

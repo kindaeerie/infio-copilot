@@ -6,6 +6,7 @@ import { McpHub } from "../../mcp/McpHub"
 import { getAccessMcpResourceDescription } from "./access-mcp-resource"
 import { getAskFollowupQuestionDescription } from "./ask-followup-question"
 import { getAttemptCompletionDescription } from "./attempt-completion"
+import { getCallInsightsDescription } from "./call-insights"
 import { getDataviewQueryDescription } from "./dataview-query"
 import { getFetchUrlsContentDescription } from "./fetch-url-content"
 import { getInsertContentDescription } from "./insert-content"
@@ -18,14 +19,6 @@ import { getSwitchModeDescription } from "./switch-mode"
 import { ALWAYS_AVAILABLE_TOOLS, TOOL_GROUPS } from "./tool-groups"
 import { ToolArgs } from "./types"
 import { getUseMcpToolDescription } from "./use-mcp-tool"
-import {
-	getAnalyzePaperDescription,
-	getDenseSummaryDescription,
-	getKeyInsightsDescription,
-	getReflectionsDescription,
-	getSimpleSummaryDescription,
-	getTableOfContentsDescription
-} from "./use-transformations-tool"
 import { getWriteToFileDescription } from "./write-to-file"
 
 // Map of tool names to their description functions
@@ -34,6 +27,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	write_to_file: (args) => getWriteToFileDescription(args),
 	search_files: (args) => getSearchFilesDescription(args),
 	list_files: (args) => getListFilesDescription(args),
+	insights: (args) => getCallInsightsDescription(args),
 	dataview_query: (args) => getDataviewQueryDescription(args),
 	ask_followup_question: () => getAskFollowupQuestionDescription(),
 	attempt_completion: () => getAttemptCompletionDescription(),
@@ -46,12 +40,6 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 		args.diffStrategy ? args.diffStrategy.getToolDescription({ cwd: args.cwd, toolOptions: args.toolOptions }) : "",
 	search_web: (args): string | undefined => getSearchWebDescription(args),
 	fetch_urls_content: (args): string | undefined => getFetchUrlsContentDescription(args),
-	analyze_paper: (args) => getAnalyzePaperDescription(args),
-	key_insights: (args) => getKeyInsightsDescription(args),
-	dense_summary: (args) => getDenseSummaryDescription(args),
-	reflections: (args) => getReflectionsDescription(args),
-	table_of_contents: (args) => getTableOfContentsDescription(args),
-	simple_summary: (args) => getSimpleSummaryDescription(args),
 }
 
 export function getToolDescriptionsForMode(
@@ -117,11 +105,8 @@ export function getToolDescriptionsForMode(
 
 // Export individual description functions for backward compatibility
 export {
-	getAccessMcpResourceDescription, getAnalyzePaperDescription, getAskFollowupQuestionDescription,
-	getAttemptCompletionDescription,
-	getDataviewQueryDescription, getDenseSummaryDescription, getInsertContentDescription, getKeyInsightsDescription, getListFilesDescription,
-	getReadFileDescription, getReflectionsDescription, getSearchAndReplaceDescription,
-	getSearchFilesDescription, getSimpleSummaryDescription, getSwitchModeDescription, getTableOfContentsDescription, getUseMcpToolDescription,
-	getWriteToFileDescription
+	getAccessMcpResourceDescription, getReadFileDescription, getWriteToFileDescription, getSearchFilesDescription, getListFilesDescription,
+	getDataviewQueryDescription, getAskFollowupQuestionDescription, getAttemptCompletionDescription, getSwitchModeDescription, getInsertContentDescription,
+	getUseMcpToolDescription, getSearchAndReplaceDescription, getSearchWebDescription, getFetchUrlsContentDescription, getCallInsightsDescription as getCallInsightsDescription
 }
 

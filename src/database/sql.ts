@@ -94,6 +94,119 @@ export const migrations: Record<string, SqlMigration> = {
             ON "embeddings_384" ("path");
         `
 	},
+	source_insight: {
+		description: "Creates source insight tables and indexes for different embedding models",
+		sql: `
+            -- Create source insight tables for different embedding dimensions
+            CREATE TABLE IF NOT EXISTS "source_insight_1536" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "insight_type" text NOT NULL,
+                "insight" text NOT NULL,
+                "source_type" text NOT NULL,
+                "source_path" text NOT NULL,
+                "embedding" vector(1536),
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS "source_insight_1024" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "insight_type" text NOT NULL,
+                "insight" text NOT NULL,
+                "source_type" text NOT NULL,
+                "source_path" text NOT NULL,
+                "embedding" vector(1024),
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS "source_insight_768" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "insight_type" text NOT NULL,
+                "insight" text NOT NULL,
+                "source_type" text NOT NULL,
+                "source_path" text NOT NULL,
+                "embedding" vector(768),
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS "source_insight_512" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "insight_type" text NOT NULL,
+                "insight" text NOT NULL,
+                "source_type" text NOT NULL,
+                "source_path" text NOT NULL,
+                "embedding" vector(512),
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS "source_insight_384" (
+                "id" serial PRIMARY KEY NOT NULL,
+                "insight_type" text NOT NULL,
+                "insight" text NOT NULL,
+                "source_type" text NOT NULL,
+                "source_path" text NOT NULL,
+                "embedding" vector(384),
+                "created_at" timestamp DEFAULT now() NOT NULL,
+                "updated_at" timestamp DEFAULT now() NOT NULL
+            );
+
+            -- Create HNSW indexes for embedding similarity search
+            CREATE INDEX IF NOT EXISTS "insightEmbeddingIndex_1536"
+            ON "source_insight_1536"
+            USING hnsw ("embedding" vector_cosine_ops);
+
+            CREATE INDEX IF NOT EXISTS "insightEmbeddingIndex_1024"
+            ON "source_insight_1024"
+            USING hnsw ("embedding" vector_cosine_ops);
+
+            CREATE INDEX IF NOT EXISTS "insightEmbeddingIndex_768"
+            ON "source_insight_768"
+            USING hnsw ("embedding" vector_cosine_ops);
+
+            CREATE INDEX IF NOT EXISTS "insightEmbeddingIndex_512"
+            ON "source_insight_512"
+            USING hnsw ("embedding" vector_cosine_ops);
+
+            CREATE INDEX IF NOT EXISTS "insightEmbeddingIndex_384"
+            ON "source_insight_384"
+            USING hnsw ("embedding" vector_cosine_ops);
+
+            -- Create B-tree indexes for source_path field
+            CREATE INDEX IF NOT EXISTS "insightSourceIndex_1536"
+            ON "source_insight_1536" ("source_path");
+
+            CREATE INDEX IF NOT EXISTS "insightSourceIndex_1024"
+            ON "source_insight_1024" ("source_path");
+
+            CREATE INDEX IF NOT EXISTS "insightSourceIndex_768"
+            ON "source_insight_768" ("source_path");
+
+            CREATE INDEX IF NOT EXISTS "insightSourceIndex_512"
+            ON "source_insight_512" ("source_path");
+
+            CREATE INDEX IF NOT EXISTS "insightSourceIndex_384"
+            ON "source_insight_384" ("source_path");
+
+            -- Create B-tree indexes for insight_type field
+            CREATE INDEX IF NOT EXISTS "insightTypeIndex_1536"
+            ON "source_insight_1536" ("insight_type");
+
+            CREATE INDEX IF NOT EXISTS "insightTypeIndex_1024"
+            ON "source_insight_1024" ("insight_type");
+
+            CREATE INDEX IF NOT EXISTS "insightTypeIndex_768"
+            ON "source_insight_768" ("insight_type");
+
+            CREATE INDEX IF NOT EXISTS "insightTypeIndex_512"
+            ON "source_insight_512" ("insight_type");
+
+            CREATE INDEX IF NOT EXISTS "insightTypeIndex_384"
+            ON "source_insight_384" ("insight_type");
+        `
+	},
 	template: {
 		description: "Creates template table with UUID support",
 		sql: `

@@ -1,4 +1,3 @@
-
 import * as path from 'path'
 
 import { App, normalizePath } from 'obsidian'
@@ -10,9 +9,9 @@ import {
 	ModeConfig,
 	PromptComponent,
 	defaultModeSlug,
+	defaultModes,
 	getGroupName,
-	getModeBySlug,
-	defaultModes
+	getModeBySlug
 } from "../../utils/modes"
 import { DiffStrategy } from "../diff/DiffStrategy"
 import { McpHub } from "../mcp/McpHub"
@@ -138,7 +137,7 @@ ${getRulesSection(
 			experiments,
 		)}
 
-${getSystemInfoSection(cwd)}
+// ${getSystemInfoSection(cwd)}
 
 ${getObjectiveSection(mode)}
 

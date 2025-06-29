@@ -8,6 +8,7 @@ import { SystemPrompt } from '../core/prompts/system'
 import { RAGEngine } from '../core/rag/rag-engine'
 import { ConvertDataManager } from '../database/json/convert-data/ConvertDataManager'
 import { ConvertType } from '../database/json/convert-data/types'
+import { WorkspaceManager } from '../database/json/workspace/WorkspaceManager'
 import { SelectVector } from '../database/schema'
 import { ChatMessage, ChatUserMessage } from '../types/chat'
 import { ContentPart, RequestMessage } from '../types/llm/request'
@@ -134,6 +135,13 @@ async function getFileOrFolderContent(
 	}
 }
 
+function formatSection(title: string, content: string | null | undefined): string {
+	if (!content || content.trim() === '') {
+		return ''
+	}
+	return `\n\n# ${title}\n${content.trim()}`
+}
+
 export class PromptGenerator {
 	private getRagEngine: () => Promise<RAGEngine>
 	private app: App
@@ -144,6 +152,7 @@ export class PromptGenerator {
 	private customModeList: ModeConfig[] | null = null
 	private getMcpHub: () => Promise<McpHub> | null = null
 	private convertDataManager: ConvertDataManager
+	private workspaceManager: WorkspaceManager
 	private static readonly EMPTY_ASSISTANT_MESSAGE: RequestMessage = {
 		role: 'assistant',
 		content: '',
@@ -167,6 +176,7 @@ export class PromptGenerator {
 		this.customModeList = customModeList ?? null
 		this.getMcpHub = getMcpHub ?? null
 		this.convertDataManager = new ConvertDataManager(app)
+		this.workspaceManager = new WorkspaceManager(app)
 	}
 
 	public async generateRequestMessages({
@@ -243,70 +253,152 @@ export class PromptGenerator {
 		}
 	}
 
-	private async getEnvironmentDetails() {
-		let details = ""
-		// Obsidian Current File
-		details += "\n\n# Obsidian Current File"
-		const currentFile = this.app.workspace.getActiveFile()
-		if (currentFile) {
-			details += `\n${currentFile?.path}`
-		} else {
-			details += "\n(No current file)"
+	private async getEnvironmentDetails(): Promise<string> {
+		const currentNoteContext = await this.getCurrentNoteContext()
+		const noteConnectivity = await this.getNoteConnectivity()
+		const workspaceOverview = await this.getWorkspaceOverview()
+		const assistantState = await this.getAssistantState()
+
+		const details = [
+			currentNoteContext,
+			noteConnectivity,
+			workspaceOverview,
+			assistantState,
+		]
+			.filter(Boolean)
+			.join('')
+
+		if (!details.trim()) {
+			return ''
 		}
-
-		// Obsidian Open Tabs
-		details += "\n\n# Obsidian Open Tabs"
-		const openTabs: string[] = [];
-		this.app.workspace.iterateAllLeaves(leaf => {
-			if (leaf.view instanceof MarkdownView && leaf.view.file) {
-				openTabs.push(leaf.view.file?.path);
-			}
-		});
-		if (openTabs.length === 0) {
-			details += "\n(No open tabs)"
-		} else {
-			details += `\n${openTabs.join("\n")}`
-		}
-
-		// Add current time information with timezone
-		const now = new Date()
-		const formatter = new Intl.DateTimeFormat(undefined, {
-			year: "numeric",
-			month: "numeric",
-			day: "numeric",
-			hour: "numeric",
-			minute: "numeric",
-			second: "numeric",
-			hour12: true,
-		})
-		const timeZone = formatter.resolvedOptions().timeZone
-		const timeZoneOffset = -now.getTimezoneOffset() / 60 // Convert to hours and invert sign to match conventional notation
-		const timeZoneOffsetStr = `${timeZoneOffset >= 0 ? "+" : ""}${timeZoneOffset}:00`
-		details += `\n\n# Current Time\n${formatter.format(now)} (${timeZone}, UTC${timeZoneOffsetStr})`
-
-		// Add current mode details
-		const currentMode = this.settings.mode
-		const modeDetails = await getFullModeDetails(this.app, currentMode, this.customModeList, this.customModePrompts)
-		details += `\n\n# Current Mode\n`
-		details += `<slug>${currentMode}</slug>\n`
-		details += `<name>${modeDetails.name}</name>\n`
-
-		// // Obsidian Current Folder
-		// const currentFolder = this.app.workspace.getActiveFile() ? this.app.workspace.getActiveFile()?.parent?.path : "/"
-		// // Obsidian Vault Files and Folders
-		// if (currentFolder) {
-		// 	details += `\n\n# Obsidian Current Folder (${currentFolder}) Files`
-		// 	const filesAndFolders = await listFilesAndFolders(this.app.vault, currentFolder)
-		// 	if (filesAndFolders.length > 0) {
-		// 		details += `\n${filesAndFolders.filter(Boolean).join("\n")}`
-		// 	} else {
-		// 		details += "\n(No Markdown files in current folder)"
-		// 	}
-		// } else {
-		// 	details += "\n(No current folder)"
-		// }
 
 		return `<environment_details>\n${details.trim()}\n</environment_details>`
+	}
+
+	private async getCurrentNoteContext(): Promise<string | null> {
+		const currentNote = this.app.workspace.getActiveFile()
+		if (!currentNote) {
+			return formatSection("Obsidian Current Note", "(No current note)")
+		}
+
+		const fileCache = this.app.metadataCache.getFileCache(currentNote)
+		if (!fileCache) {
+			return formatSection("Obsidian Current Note", currentNote.path)
+		}
+
+		let context = `Note Path: ${currentNote.path}`
+
+		if (fileCache.frontmatter) {
+			const frontmatterString = Object.entries(fileCache.frontmatter)
+				.filter(([key]) => key !== 'position')
+				.map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+				.join('\n')
+			if (frontmatterString) {
+				context += `\n\n## Metadata (Frontmatter)\n${frontmatterString}`
+			}
+		}
+
+		if (fileCache.headings && fileCache.headings.length > 0) {
+			const outline = fileCache.headings
+				.map(h => `${'  '.repeat(h.level - 1)}- ${h.heading}`)
+				.join('\n')
+			context += `\n\n## Outline\n${outline}`
+		}
+
+		return formatSection("Current Note Context", context)
+	}
+
+	private async getNoteConnectivity(): Promise<string | null> {
+		const currentFile = this.app.workspace.getActiveFile()
+		if (!currentFile) {
+			return null
+		}
+
+		const fileCache = this.app.metadataCache.getFileCache(currentFile)
+		if (!fileCache) {
+			return null
+		}
+
+		let connectivity = ""
+
+		if (fileCache.links && fileCache.links.length > 0) {
+			const outgoingLinks = fileCache.links.map(l => `- [[${l.link}]]`).join('\n')
+			connectivity += `\n## Outgoing Links\n${outgoingLinks}`
+		}
+
+		const backlinks: string[] = []
+		const resolvedLinks = this.app.metadataCache.resolvedLinks
+		if (resolvedLinks) {
+			for (const sourcePath in resolvedLinks) {
+				if (currentFile.path in resolvedLinks[sourcePath]) {
+					backlinks.push(`- [[${sourcePath}]]`)
+				}
+			}
+		}
+
+		if (backlinks.length > 0) {
+			connectivity += `\n\n## Backlinks\n${backlinks.join('\n')}`
+		}
+
+		return formatSection("Note Connectivity", connectivity.trim())
+	}
+
+	private async getWorkspaceOverview(): Promise<string> {
+		let overview = ''
+
+		const currentWorkspaceName = this.settings.workspace
+		if (currentWorkspaceName && currentWorkspaceName !== 'vault') {
+			const workspace = await this.workspaceManager.findByName(currentWorkspaceName)
+			if (workspace) {
+				overview += `\n\n## Current Workspace\n${workspace.name}`
+			}
+		} else {
+			overview += `\n\n## Current Workspace\n${this.app.vault.getName()} (entire vault)`
+		}
+
+		const recentFiles = this.app.vault.getMarkdownFiles()
+			.sort((a, b) => b.stat.mtime - a.stat.mtime)
+			.slice(0, 5)
+			.map(f => `- ${f.path}`)
+			.join('\n')
+		if (recentFiles) {
+			overview += `\n\n## Recently Edited Notes\n${recentFiles}`
+		}
+
+		// @ts-ignore - getTags() is not in the public API but is widely used.
+		const tags = this.app.metadataCache.getTags()
+		const sortedTags = Object.entries(tags)
+			.sort(([, a], [, b]) => b - a)
+			.slice(0, 20)
+			.map(([tag, count]) => `- ${tag} (${count})`)
+			.join('\n')
+		if (sortedTags) {
+			overview += `\n\n## Global Tag Cloud (Top 20)\n${sortedTags}`
+		}
+
+		return formatSection('Workspace Overview', overview)
+	}
+
+	private async getAssistantState(): Promise<string> {
+		let state = ''
+
+		const now = new Date()
+		const formatter = new Intl.DateTimeFormat(undefined, {
+			year: "numeric", month: "numeric", day: "numeric",
+			hour: "numeric", minute: "numeric", second: "numeric", hour12: true,
+		})
+		const timeZone = formatter.resolvedOptions().timeZone
+		const timeZoneOffset = -now.getTimezoneOffset() / 60
+		const timeZoneOffsetStr = `${timeZoneOffset >= 0 ? "+" : ""}${timeZoneOffset}:00`
+		const timeDetails = `${formatter.format(now)} (${timeZone}, UTC${timeZoneOffsetStr})`
+		state += `\n## Current Time\n${timeDetails}`
+
+		const currentMode = this.settings.mode
+		const modeDetails = await getFullModeDetails(this.app, currentMode, this.customModeList, this.customModePrompts)
+		const modeInfo = `<slug>${currentMode}</slug>\n<name>${modeDetails.name}</name>`
+		state += `\n\n## Current Mode\n${modeInfo}`
+
+		return formatSection('Assistant & User State', state.trim())
 	}
 
 	private async compileUserMessagePrompt({

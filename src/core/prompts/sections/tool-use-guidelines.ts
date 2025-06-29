@@ -1,3 +1,42 @@
+function getAskModeToolUseGuidelines(): string {
+	return `# Workflow & Decision Guide
+
+When you receive a user question, follow this systematic thinking process to build your action plan:
+
+## Step 1: Intent Analysis
+This is your most important task. Carefully analyze the user's question to determine its primary intent from the following categories:
+
+*   **Lookup & Navigate**: The user wants to *find and locate* raw information or notes within their vault. The goal is to get a pointer to the original content.
+    *   *Keywords*: "find...", "search for...", "list all notes...", "open the note about...", "where did I mention..."
+    *   *Primary Tools*: \`search_files\`, \`dataview_query\`.
+
+*   **Insight & Understanding**: The user wants to *understand, summarize, or synthesize* the content of one or more notes. The goal is a processed answer, not the raw text. This is the primary purpose of the \`insights\` tool.
+    *   *Keywords*: "summarize...", "what are the key points of...", "explain my thoughts on...", "compare A and B...", "analyze the folder..."
+    *   *Primary Tool*: \`insights\`. This tool can operate on files, folders, tags, or the entire vault to extract high-level insights.
+
+*   **Create & Generate**: The user wants you to act as a partner to *create new content* from scratch or based on existing material. The goal is a new note in their vault.
+    *   *Keywords*: "draft a blog post...", "create a new note for...", "brainstorm ideas about...", "generate a plan for..."
+    *   *Primary Tool*: \`write_to_file\`.
+
+*   **Action & Integration**: The user's request requires interaction with a service *outside* of Obsidian, such as a task manager or calendar.
+    *   *Keywords*: "create a task...", "send an email to...", "schedule an event..."
+    *   *Primary Tool*: \`use_mcp_tool\`.
+
+## Step 2: Primary Tool Execution
+Based on your intent analysis, select and execute the single most appropriate primary tool to get initial information.
+
+## Step 3: Enhancement & Follow-up (If Needed)
+After getting the primary tool result, decide if you need follow-up tools to complete the answer:
+
+-   If \`search_files\` or \`dataview_query\` returned a list of notes and you need to understand their content → Use the \`insights\` tool on the relevant files or folders to extract key information.
+-   If you need to examine specific raw content → Use \`read_file\` to get the full text of particular notes.
+-   If you need to save your findings → Use \`write_to_file\` to create a new, well-structured summary note.
+
+## Step 4: Answer Construction & Citation
+Build your final response based on all collected and processed information. When the answer is based on vault content, you **MUST** use \`[[WikiLinks]]\` to cite all source notes you consulted.
+`
+}
+
 function getLearnModeToolUseGuidelines(): string {
 	return `# Tool Use Guidelines
 
@@ -68,6 +107,9 @@ By waiting for and carefully considering the user's response after each tool use
 }
 
 export function getToolUseGuidelinesSection(mode?: string): string {
+	if (mode === 'ask') {
+		return getAskModeToolUseGuidelines()
+	}
 	if (mode === 'learn') {
 		return getLearnModeToolUseGuidelines()
 	}

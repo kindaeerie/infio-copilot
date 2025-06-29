@@ -99,35 +99,13 @@ export type ParsedMsgBlock =
 		outputFormat: string
 		finish: boolean
 	} | {
+		type: 'call_transformations'
+		path: string
+		transformation: string
+		finish: boolean
+	} | {
 		type: 'tool_result'
 		content: string
-	} | {
-		type: 'analyze_paper'
-		path: string
-		finish: boolean
-	} | {
-		type: 'key_insights'
-		path: string
-		finish: boolean
-	} | {
-		type: 'dense_summary'
-		path: string
-		finish: boolean
-	} | {
-		type: 'reflections'
-		path: string
-		finish: boolean
-	} | {
-		type: 'table_of_contents'
-		path: string
-		depth?: number
-		format?: string
-		include_summary?: boolean
-		finish: boolean
-	} | {
-		type: 'simple_summary'
-		path: string
-		finish: boolean
 	}
 
 export function parseMsgBlocks(
@@ -739,7 +717,7 @@ export function parseMsgBlocks(
 					finish: node.sourceCodeLocation.endTag !== undefined
 				})
 				lastEndOffset = endOffset
-			} else if (node.nodeName === 'analyze_paper') {
+			} else if (node.nodeName === 'insights') {
 				if (!node.sourceCodeLocation) {
 					throw new Error('sourceCodeLocation is undefined')
 				}
@@ -752,159 +730,22 @@ export function parseMsgBlocks(
 					})
 				}
 				let path: string | undefined
+				let transformation: string | undefined
+				
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
 						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
+					} else if (childNode.nodeName === 'type' && childNode.childNodes.length > 0) {
+						// @ts-expect-error - parse5 node value type
+						transformation = childNode.childNodes[0].value
 					}
 				}
+				
 				parsedResult.push({
-					type: 'analyze_paper',
+					type: 'call_transformations',
 					path: path || '',
-					finish: node.sourceCodeLocation.endTag !== undefined
-				})
-				lastEndOffset = endOffset
-			} else if (node.nodeName === 'key_insights') {
-				if (!node.sourceCodeLocation) {
-					throw new Error('sourceCodeLocation is undefined')
-				}
-				const startOffset = node.sourceCodeLocation.startOffset
-				const endOffset = node.sourceCodeLocation.endOffset
-				if (startOffset > lastEndOffset) {
-					parsedResult.push({
-						type: 'string',
-						content: input.slice(lastEndOffset, startOffset),
-					})
-				}
-				let path: string | undefined
-				for (const childNode of node.childNodes) {
-					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						path = childNode.childNodes[0].value
-					}
-				}
-				parsedResult.push({
-					type: 'key_insights',
-					path: path || '',
-					finish: node.sourceCodeLocation.endTag !== undefined
-				})
-				lastEndOffset = endOffset
-			} else if (node.nodeName === 'dense_summary') {
-				if (!node.sourceCodeLocation) {
-					throw new Error('sourceCodeLocation is undefined')
-				}
-				const startOffset = node.sourceCodeLocation.startOffset
-				const endOffset = node.sourceCodeLocation.endOffset
-				if (startOffset > lastEndOffset) {
-					parsedResult.push({
-						type: 'string',
-						content: input.slice(lastEndOffset, startOffset),
-					})
-				}
-				let path: string | undefined
-				for (const childNode of node.childNodes) {
-					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						path = childNode.childNodes[0].value
-					}
-				}
-				parsedResult.push({
-					type: 'dense_summary',
-					path: path || '',
-					finish: node.sourceCodeLocation.endTag !== undefined
-				})
-				lastEndOffset = endOffset
-			} else if (node.nodeName === 'reflections') {
-				if (!node.sourceCodeLocation) {
-					throw new Error('sourceCodeLocation is undefined')
-				}
-				const startOffset = node.sourceCodeLocation.startOffset
-				const endOffset = node.sourceCodeLocation.endOffset
-				if (startOffset > lastEndOffset) {
-					parsedResult.push({
-						type: 'string',
-						content: input.slice(lastEndOffset, startOffset),
-					})
-				}
-				let path: string | undefined
-				for (const childNode of node.childNodes) {
-					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						path = childNode.childNodes[0].value
-					}
-				}
-				parsedResult.push({
-					type: 'reflections',
-					path: path || '',
-					finish: node.sourceCodeLocation.endTag !== undefined
-				})
-				lastEndOffset = endOffset
-			} else if (node.nodeName === 'table_of_contents') {
-				if (!node.sourceCodeLocation) {
-					throw new Error('sourceCodeLocation is undefined')
-				}
-				const startOffset = node.sourceCodeLocation.startOffset
-				const endOffset = node.sourceCodeLocation.endOffset
-				if (startOffset > lastEndOffset) {
-					parsedResult.push({
-						type: 'string',
-						content: input.slice(lastEndOffset, startOffset),
-					})
-				}
-				let path: string | undefined
-				let depth: number | undefined
-				let format: string | undefined
-				let include_summary: boolean | undefined
-
-				for (const childNode of node.childNodes) {
-					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						path = childNode.childNodes[0].value
-					} else if (childNode.nodeName === 'depth' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						const depthStr = childNode.childNodes[0].value
-						depth = depthStr ? parseInt(depthStr as string) : undefined
-					} else if (childNode.nodeName === 'format' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						format = childNode.childNodes[0].value
-					} else if (childNode.nodeName === 'include_summary' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						const summaryValue = childNode.childNodes[0].value
-						include_summary = summaryValue ? (summaryValue as string).toLowerCase() === 'true' : false
-					}
-				}
-
-				parsedResult.push({
-					type: 'table_of_contents',
-					path: path || '',
-					depth,
-					format,
-					include_summary,
-					finish: node.sourceCodeLocation.endTag !== undefined
-				})
-				lastEndOffset = endOffset
-			} else if (node.nodeName === 'simple_summary') {
-				if (!node.sourceCodeLocation) {
-					throw new Error('sourceCodeLocation is undefined')
-				}
-				const startOffset = node.sourceCodeLocation.startOffset
-				const endOffset = node.sourceCodeLocation.endOffset
-				if (startOffset > lastEndOffset) {
-					parsedResult.push({
-						type: 'string',
-						content: input.slice(lastEndOffset, startOffset),
-					})
-				}
-				let path: string | undefined
-				for (const childNode of node.childNodes) {
-					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
-						// @ts-expect-error - parse5 node value type
-						path = childNode.childNodes[0].value
-					}
-				}
-				parsedResult.push({
-					type: 'simple_summary',
-					path: path || '',
+					transformation: transformation || '',
 					finish: node.sourceCodeLocation.endTag !== undefined
 				})
 				lastEndOffset = endOffset

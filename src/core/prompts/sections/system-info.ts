@@ -1,4 +1,3 @@
-import os from "os"
 
 import { Platform } from 'obsidian';
 

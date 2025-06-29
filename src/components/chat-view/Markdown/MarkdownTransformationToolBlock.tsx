@@ -5,21 +5,19 @@ import { useApp } from "../../../contexts/AppContext"
 import { ApplyStatus, ToolArgs } from "../../../types/apply"
 import { openMarkdownFile } from "../../../utils/obsidian"
 
-export type TransformationToolType = 'analyze_paper' | 'key_insights' | 'dense_summary' | 'reflections' | 'table_of_contents' | 'simple_summary'
+export type TransformationToolType = 'call_transformations'
 
 interface MarkdownTransformationToolBlockProps {
 	applyStatus: ApplyStatus
 	onApply: (args: ToolArgs) => void
 	toolType: TransformationToolType
 	path: string
-	depth?: number
-	format?: string
-	include_summary?: boolean
+	transformation?: string
 	finish: boolean
 }
 
-const getToolConfig = (toolType: TransformationToolType) => {
-	switch (toolType) {
+const getTransformationConfig = (transformation: string) => {
+	switch (transformation) {
 		case 'analyze_paper':
 			return {
 				icon: <Sparkles size={14} className="infio-chat-code-block-header-icon" />,
@@ -68,15 +66,12 @@ const getToolConfig = (toolType: TransformationToolType) => {
 export default function MarkdownTransformationToolBlock({
 	applyStatus,
 	onApply,
-	toolType,
 	path,
-	depth,
-	format,
-	include_summary,
+	transformation,
 	finish
 }: MarkdownTransformationToolBlockProps) {
 	const app = useApp()
-	const config = getToolConfig(toolType)
+	const config = getTransformationConfig(transformation || '')
 
 	const handleClick = () => {
 		if (path) {
@@ -86,32 +81,15 @@ export default function MarkdownTransformationToolBlock({
 
 	React.useEffect(() => {
 		if (finish && applyStatus === ApplyStatus.Idle) {
-			// 构建符合标准ToolArgs类型的参数
-			if (toolType === 'table_of_contents') {
-				onApply({
-					type: toolType,
-					path: path || '',
-					depth,
-					format,
-					include_summary
-				})
-			} else {
-				onApply({
-					type: toolType,
-					path: path || '',
-				})
-			}
+			onApply({
+				type: 'call_transformations',
+				path: path || '',
+				transformation: transformation || ''
+			})
 		}
 	}, [finish])
 
 	const getDisplayText = () => {
-		if (toolType === 'table_of_contents') {
-			let text = `${config.title}: ${path || '未指定路径'}`
-			if (depth) text += ` (深度: ${depth})`
-			if (format) text += ` (格式: ${format})`
-			if (include_summary) text += ` (包含摘要)`
-			return text
-		}
 		return `${config.title}: ${path || '未指定路径'}`
 	}
 

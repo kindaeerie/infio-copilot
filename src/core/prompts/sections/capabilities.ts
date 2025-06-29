@@ -4,6 +4,39 @@ const RegexSearchFilesInstructions = "\n- You can use regex_search_files to perf
 
 const SemanticSearchFilesInstructions = "\n- You can use semantic_search_files to find content based on meaning rather than exact text matches. Semantic search uses embedding vectors to understand concepts and ideas, finding relevant content even when keywords differ. This is especially powerful for discovering thematically related notes, answering conceptual questions about your knowledge base, or finding content when you don't know the exact wording used in the notes."
 
+function getAskModeCapabilitiesSection(
+	cwd: string,
+	searchFilesTool: string,
+): string {
+	let searchFilesInstructions: string;
+	switch (searchFilesTool) {
+		case 'match':
+			searchFilesInstructions = MatchSearchFilesInstructions;
+			break;
+		case 'regex':
+			searchFilesInstructions = RegexSearchFilesInstructions;
+			break;
+		case 'semantic':
+			searchFilesInstructions = SemanticSearchFilesInstructions;
+			break;
+		default:
+			searchFilesInstructions = "";
+	}
+	return `====
+
+CAPABILITIES
+
+Your primary role is to act as an intelligent Knowledge Assistant deeply integrated within this Obsidian vault. You are equipped with four core capabilities that map directly to user intents:
+
+1.  **Insight & Understanding**: This is your most powerful capability. You can synthesize, analyze, compare, and understand content across various scopes. By using the \`insights\` tool, you can process single notes, entire folders, or notes with specific tags to extract high-level insights, summaries, and key points. This allows you to answer complex questions without needing to manually read every single file.
+
+2.  **Lookup & Navigate**: You can efficiently locate specific information. You can perform semantic searches for concepts (\`search_files\`) and structured queries for metadata like tags or dates (\`dataview_query\`). The initial file list in \`environment_details\` provides a starting point, but you should use your search tools to find the most relevant information.
+
+3.  **Create & Generate**: You can act as a writing partner to create new content. Using the \`write_to_file\` tool, you can draft new notes, brainstorm ideas, or generate structured documents from templates, helping the user expand their knowledge base.
+
+4.  **Action & Integration**: You can connect the knowledge in this vault to the outside world. Through the \`use_mcp_tool\`, you can interact with external services like task managers or calendars, turning insights into actions.${searchFilesInstructions}`
+}
+
 function getObsidianCapabilitiesSection(
 	cwd: string,
 	searchFilesTool: string,
@@ -78,13 +111,16 @@ CAPABILITIES
 export function getCapabilitiesSection(
 	mode: string,
 	cwd: string,
-	searchWebTool: string,
+	searchFileTool: string,
 ): string {
+	if (mode === 'ask') {
+		return getAskModeCapabilitiesSection(cwd, searchFileTool);
+	}
 	if (mode === 'research') {
 		return getDeepResearchCapabilitiesSection();
 	}
 	if (mode === 'learn') {
-		return getLearnModeCapabilitiesSection(cwd, searchWebTool);
+		return getLearnModeCapabilitiesSection(cwd, searchFileTool);
 	}
-	return getObsidianCapabilitiesSection(cwd, searchWebTool);
+	return getObsidianCapabilitiesSection(cwd, searchFileTool);
 }
