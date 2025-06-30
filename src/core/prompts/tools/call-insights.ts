@@ -2,7 +2,7 @@ import { ToolArgs } from "./types"
 
 export function getCallInsightsDescription(args: ToolArgs): string {
 	return `## insights
-Description: Use for **Information Processing**. After reading a note's content, use this tool to process and distill the information in various ways. You must choose the most appropriate transformation type based on your goal.
+Description: Use for **Knowledge Synthesis and Retrieval**. This is your primary tool for "asking questions" to a document or a set of documents. Use it to query your notes and extract higher-level insights, summaries, and other conceptual abstractions. Instead of just finding raw text, this tool helps you understand and synthesize the information within your vault.
 Parameters:
 - path: (required) The path to the file or folder to be processed (relative to the current working directory: ${args.cwd}).
 - transformation: (required) The type of transformation to apply. Must be one of the following:
@@ -15,12 +15,12 @@ Parameters:
 Usage:
 <insights>
 <path>path/to/your/file.md</path>
-<type>simple_summary</type>
+<transformation>simple_summary</transformation>
 </insights>
 
 Example: Getting the key insights from a project note
 <insights>
 <path>Projects/Project_Alpha_Retrospective.md</path>
-<type>key_insights</type>
+<transformation>key_insights</transformation>
 </insights>`
 } 

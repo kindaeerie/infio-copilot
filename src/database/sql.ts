@@ -104,6 +104,7 @@ export const migrations: Record<string, SqlMigration> = {
                 "insight" text NOT NULL,
                 "source_type" text NOT NULL,
                 "source_path" text NOT NULL,
+                "source_mtime" bigint NOT NULL,
                 "embedding" vector(1536),
                 "created_at" timestamp DEFAULT now() NOT NULL,
                 "updated_at" timestamp DEFAULT now() NOT NULL
@@ -115,6 +116,7 @@ export const migrations: Record<string, SqlMigration> = {
                 "insight" text NOT NULL,
                 "source_type" text NOT NULL,
                 "source_path" text NOT NULL,
+                "source_mtime" bigint NOT NULL,
                 "embedding" vector(1024),
                 "created_at" timestamp DEFAULT now() NOT NULL,
                 "updated_at" timestamp DEFAULT now() NOT NULL
@@ -126,6 +128,7 @@ export const migrations: Record<string, SqlMigration> = {
                 "insight" text NOT NULL,
                 "source_type" text NOT NULL,
                 "source_path" text NOT NULL,
+                "source_mtime" bigint NOT NULL,
                 "embedding" vector(768),
                 "created_at" timestamp DEFAULT now() NOT NULL,
                 "updated_at" timestamp DEFAULT now() NOT NULL
@@ -137,6 +140,7 @@ export const migrations: Record<string, SqlMigration> = {
                 "insight" text NOT NULL,
                 "source_type" text NOT NULL,
                 "source_path" text NOT NULL,
+                "source_mtime" bigint NOT NULL,
                 "embedding" vector(512),
                 "created_at" timestamp DEFAULT now() NOT NULL,
                 "updated_at" timestamp DEFAULT now() NOT NULL
@@ -148,6 +152,7 @@ export const migrations: Record<string, SqlMigration> = {
                 "insight" text NOT NULL,
                 "source_type" text NOT NULL,
                 "source_path" text NOT NULL,
+                "source_mtime" bigint NOT NULL,
                 "embedding" vector(384),
                 "created_at" timestamp DEFAULT now() NOT NULL,
                 "updated_at" timestamp DEFAULT now() NOT NULL
@@ -244,6 +249,17 @@ export const migrations: Record<string, SqlMigration> = {
                 "similarity_search_results" text,
                 "created_at" timestamp DEFAULT now() NOT NULL
             );
+        `
+	},
+	add_source_mtime: {
+		description: "Adds missing source_mtime column to existing source insight tables",
+		sql: `
+            -- Add source_mtime column to existing source insight tables if it doesn't exist
+            ALTER TABLE "source_insight_1536" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
+            ALTER TABLE "source_insight_1024" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
+            ALTER TABLE "source_insight_768" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
+            ALTER TABLE "source_insight_512" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
+            ALTER TABLE "source_insight_384" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
         `
 	}
 };

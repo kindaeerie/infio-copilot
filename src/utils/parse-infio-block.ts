@@ -736,7 +736,7 @@ export function parseMsgBlocks(
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
 						// @ts-expect-error - parse5 node value type
 						path = childNode.childNodes[0].value
-					} else if (childNode.nodeName === 'type' && childNode.childNodes.length > 0) {
+					} else if (childNode.nodeName === 'transformation' && childNode.childNodes.length > 0) {
 						// @ts-expect-error - parse5 node value type
 						transformation = childNode.childNodes[0].value
 					}

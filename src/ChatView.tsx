@@ -15,6 +15,7 @@ import { LLMProvider } from './contexts/LLMContext'
 import { McpHubProvider } from './contexts/McpHubContext'
 import { RAGProvider } from './contexts/RAGContext'
 import { SettingsProvider } from './contexts/SettingsContext'
+import { TransProvider } from './contexts/TransContext'
 import InfioPlugin from './main'
 import { MentionableBlockData } from './types/mentionable'
 import { InfioSettings } from './types/settings'
@@ -96,7 +97,8 @@ export class ChatView extends ItemView {
 							>
 								<DiffStrategyProvider diffStrategy={this.plugin.diffStrategy}>
 									<RAGProvider getRAGEngine={() => this.plugin.getRAGEngine()}>
-										<DataviewProvider dataviewManager={this.plugin.dataviewManager}>
+										<TransProvider getTransEngine={() => this.plugin.getTransEngine()}>
+											<DataviewProvider dataviewManager={this.plugin.dataviewManager}>
 											<McpHubProvider getMcpHub={() => this.plugin.getMcpHub()}>
 												<QueryClientProvider client={queryClient}>
 													<React.StrictMode>
@@ -109,6 +111,7 @@ export class ChatView extends ItemView {
 												</QueryClientProvider>
 											</McpHubProvider>
 										</DataviewProvider>
+										</TransProvider>
 									</RAGProvider>
 								</DiffStrategyProvider>
 							</DatabaseProvider>

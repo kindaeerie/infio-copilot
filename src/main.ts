@@ -11,6 +11,7 @@ import { getDiffStrategy } from "./core/diff/DiffStrategy"
 import { InlineEdit } from './core/edit/inline-edit-processor'
 import { McpHub } from './core/mcp/McpHub'
 import { RAGEngine } from './core/rag/rag-engine'
+import { TransEngine } from './core/transformations/trans-engine'
 import { DBManager } from './database/database-manager'
 import { migrateToJsonDatabase } from './database/json/migrateToJsonDatabase'
 import EventListener from "./event-listener"
@@ -41,6 +42,7 @@ export default class InfioPlugin extends Plugin {
 	private activeLeafChangeUnloadFn: (() => void) | null = null
 	private dbManagerInitPromise: Promise<DBManager> | null = null
 	private ragEngineInitPromise: Promise<RAGEngine> | null = null
+	private transEngineInitPromise: Promise<TransEngine> | null = null
 	private mcpHubInitPromise: Promise<McpHub> | null = null
 	settings: InfioSettings
 	settingTab: InfioSettingTab
@@ -49,6 +51,7 @@ export default class InfioPlugin extends Plugin {
 	dbManager: DBManager | null = null
 	mcpHub: McpHub | null = null
 	ragEngine: RAGEngine | null = null
+	transEngine: TransEngine | null = null
 	inlineEdit: InlineEdit | null = null
 	diffStrategy?: DiffStrategy
 	dataviewManager: DataviewManager | null = null
@@ -422,10 +425,14 @@ export default class InfioPlugin extends Plugin {
 		// Promise cleanup
 		this.dbManagerInitPromise = null
 		this.ragEngineInitPromise = null
+		this.transEngineInitPromise = null
 		this.mcpHubInitPromise = null
 		// RagEngine cleanup
 		this.ragEngine?.cleanup()
 		this.ragEngine = null
+		// TransEngine cleanup
+		this.transEngine?.cleanup()
+		this.transEngine = null
 		// Database cleanup
 		this.dbManager?.cleanup()
 		this.dbManager = null
@@ -445,6 +452,7 @@ export default class InfioPlugin extends Plugin {
 		this.settings = newSettings
 		await this.saveData(newSettings)
 		this.ragEngine?.setSettings(newSettings)
+		this.transEngine?.setSettings(newSettings)
 		this.settingsListeners.forEach((listener) => listener(newSettings))
 	}
 
@@ -570,6 +578,23 @@ export default class InfioPlugin extends Plugin {
 
 		// if initialization is running, wait for it to complete instead of creating a new initialization promise
 		return this.ragEngineInitPromise
+	}
+
+	async getTransEngine(): Promise<TransEngine> {
+		if (this.transEngine) {
+			return this.transEngine
+		}
+
+		if (!this.transEngineInitPromise) {
+			this.transEngineInitPromise = (async () => {
+				const dbManager = await this.getDbManager()
+				this.transEngine = new TransEngine(this.app, this.settings, dbManager)
+				return this.transEngine
+			})()
+		}
+
+		// if initialization is running, wait for it to complete instead of creating a new initialization promise
+		return this.transEngineInitPromise
 	}
 
 	private async migrateToJsonStorage() {

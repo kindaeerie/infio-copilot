@@ -1,7 +1,6 @@
 import { SerializedLexicalNode } from 'lexical'
 
 import { SUPPORT_EMBEDDING_SIMENTION } from '../constants'
-import { ApplyStatus } from '../types/apply'
 // import { EmbeddingModelId } from '../types/embedding'
 
 // PostgreSQL column types
@@ -184,6 +183,7 @@ export type SourceInsightRecord = {
 	insight: string
 	source_type: 'document' | 'tag' | 'folder'
 	source_path: string
+	source_mtime: number
 	embedding: number[]
 	created_at: Date
 	updated_at: Date
@@ -203,6 +203,7 @@ const createSourceInsightTable = (dimension: number): TableDefinition => {
 			insight: { type: 'TEXT', notNull: true },
 			source_type: { type: 'TEXT', notNull: true },
 			source_path: { type: 'TEXT', notNull: true },
+			source_mtime: { type: 'BIGINT', notNull: true },
 			embedding: { type: 'VECTOR', dimensions: dimension },
 			created_at: { type: 'TIMESTAMP', notNull: true, defaultNow: true },
 			updated_at: { type: 'TIMESTAMP', notNull: true, defaultNow: true }

@@ -24,6 +24,7 @@ import { useLLM } from '../../contexts/LLMContext'
 import { useMcpHub } from '../../contexts/McpHubContext'
 import { useRAG } from '../../contexts/RAGContext'
 import { useSettings } from '../../contexts/SettingsContext'
+import { useTrans } from '../../contexts/TransContext'
 import { matchSearchUsingCorePlugin } from '../../core/file-search/match/coreplugin-match'
 import { matchSearchUsingOmnisearch } from '../../core/file-search/match/omnisearch-match'
 import { regexSearchUsingCorePlugin } from '../../core/file-search/regex/coreplugin-regex'
@@ -34,7 +35,7 @@ import {
 	LLMBaseUrlNotSetException,
 	LLMModelNotSetException,
 } from '../../core/llm/exception'
-import { TransformationType, runTransformation } from '../../core/transformations/run_trans'
+import { TransformationType } from '../../core/transformations/trans-engine'
 import { useChatHistory } from '../../hooks/use-chat-history'
 import { useCustomModes } from '../../hooks/use-custom-mode'
 import { t } from '../../lang/helpers'
@@ -118,6 +119,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 	const app = useApp()
 	const { settings, setSettings } = useSettings()
 	const { getRAGEngine } = useRAG()
+	const { getTransEngine } = useTrans()
 	const diffStrategy = useDiffStrategy()
 	const dataviewManager = useDataview()
 	const { getMcpHub } = useMcpHub()
@@ -832,30 +834,24 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 				} else if (toolArgs.type === 'call_transformations') {
 					// Handling for the unified transformations tool
 					try {
-						const targetFile = app.vault.getFileByPath(toolArgs.path);
-						if (!targetFile) {
-							throw new Error(`File not found: ${toolArgs.path}`);
-						}
-
-						const fileContent = await readTFileContentPdf(targetFile, app.vault, app);
-
-						// The transformation type is now passed directly in the arguments
-						const transformationType = toolArgs.transformation as TransformationType;
-
+						console.log("call_transformations", toolArgs)
 						// Validate that the transformation type is a valid enum member
-						if (!Object.values(TransformationType).includes(transformationType)) {
-							throw new Error(`Unsupported transformation type: ${transformationType}`);
+						if (!Object.values(TransformationType).includes(toolArgs.transformation as TransformationType)) {
+							throw new Error(`Unsupported transformation type: ${toolArgs.transformation}`);
 						}
 
-						// Execute the transformation
-						const transformationResult = await runTransformation({
-							content: fileContent,
-							transformationType,
-							settings,
+						const transformationType = toolArgs.transformation as TransformationType;
+						const transEngine = await getTransEngine();
+
+						// Execute the transformation using the TransEngine
+						const transformationResult = await transEngine.runTransformation({
+							filePath: toolArgs.path,
+							transformationType: transformationType,
 							model: {
 								provider: settings.applyModelProvider,
 								modelId: settings.applyModelId,
-							}
+							},
+							saveToDatabase: true
 						});
 
 						if (!transformationResult.success) {
@@ -863,7 +859,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						}
 
 						// Build the result message
-						let formattedContent = `[${transformationType}] transformation complete:\n\n${transformationResult.result}`;
+						let formattedContent = `[${toolArgs.transformation}] transformation complete:\n\n${transformationResult.result}`;
 						
 						if (transformationResult.truncated) {
 							formattedContent += `\n\n*Note: The original content was too long (${transformationResult.originalTokens} tokens) and was truncated to ${transformationResult.processedTokens} tokens for processing.*`;

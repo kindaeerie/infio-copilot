@@ -54,9 +54,9 @@ export function getToolDescriptionsForMode(
 	customModes?: ModeConfig[],
 	experiments?: Record<string, boolean>,
 ): string {
-	console.log("getToolDescriptionsForMode", mode, customModes)
+	// console.log("getToolDescriptionsForMode", mode, customModes)
 	const config = getModeConfig(mode, customModes)
-	console.log("config", config)
+	// console.log("config", config)
 	const args: ToolArgs = {
 		cwd,
 		searchSettings,
@@ -73,7 +73,7 @@ export function getToolDescriptionsForMode(
 	config.groups.forEach((groupEntry) => {
 		const groupName = getGroupName(groupEntry)
 		const toolGroup = TOOL_GROUPS[groupName]
-		console.log("toolGroup", toolGroup)
+		// console.log("toolGroup", toolGroup)
 		if (toolGroup) {
 			toolGroup.tools.forEach((tool) => {
 				if (isToolAllowedForMode(tool, mode, customModes ?? [], experiments ?? {})) {
@@ -85,11 +85,11 @@ export function getToolDescriptionsForMode(
 
 	// Add always available tools
 	ALWAYS_AVAILABLE_TOOLS.forEach((tool) => tools.add(tool))
-	console.log("tools", tools)
+	// console.log("tools", tools)
 	// Map tool descriptions for allowed tools
 	const descriptions = Array.from(tools).map((toolName) => {
 		const descriptionFn = toolDescriptionMap[toolName]
-		console.log("descriptionFn", descriptionFn)
+		// console.log("descriptionFn", descriptionFn)
 		if (!descriptionFn) {
 			return undefined
 		}

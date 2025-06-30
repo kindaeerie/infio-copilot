@@ -139,8 +139,8 @@ export class InsightRepository {
 
     // 构建批量插入的 SQL
     const values = data.map((insight, index) => {
-      const offset = index * 6
-      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`
+      const offset = index * 7
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`
     }).join(',')
 
     const params = data.flatMap(insight => [
@@ -148,12 +148,13 @@ export class InsightRepository {
       insight.insight.replace(/\0/g, ''), // 清理null字节
       insight.source_type,
       insight.source_path,
+      insight.source_mtime,
       `[${insight.embedding.join(',')}]`,  // 转换为PostgreSQL vector格式
       new Date() // updated_at
     ])
 
     await this.db.query(
-      `INSERT INTO "${tableName}" (insight_type, insight, source_type, source_path, embedding, updated_at)
+      `INSERT INTO "${tableName}" (insight_type, insight, source_type, source_path, source_mtime, embedding, updated_at)
        VALUES ${values}`,
       params
     )
@@ -197,6 +198,12 @@ export class InsightRepository {
       paramIndex++
     }
 
+    if (data.source_mtime !== undefined) {
+      fields.push(`source_mtime = $${paramIndex}`)
+      params.push(data.source_mtime)
+      paramIndex++
+    }
+
     if (data.embedding !== undefined) {
       fields.push(`embedding = $${paramIndex}`)
       params.push(`[${data.embedding.join(',')}]`)
@@ -235,7 +242,7 @@ export class InsightRepository {
     }
     const tableName = this.getTableName(embeddingModel)
 
-    let whereConditions = ['1 - (embedding <=> $1::vector) > $2']
+    const whereConditions: string[] = ['1 - (embedding <=> $1::vector) > $2']
     const params: unknown[] = [`[${queryVector.join(',')}]`, options.minSimilarity, options.limit]
     let paramIndex = 4
 
@@ -259,7 +266,7 @@ export class InsightRepository {
 
     const query = `
       SELECT 
-        id, insight_type, insight, source_type, source_path, created_at, updated_at,
+        id, insight_type, insight, source_type, source_path, source_mtime, created_at, updated_at,
         1 - (embedding <=> $1::vector) as similarity
       FROM "${tableName}"
       WHERE ${whereConditions.join(' AND ')}
@@ -271,4 +278,36 @@ export class InsightRepository {
     const result = await this.db.query<SearchResult>(query, params)
     return result.rows
   }
+
+  // async getInsightsByMtimeRange(
+  //   minMtime: number,
+  //   maxMtime: number,
+  //   embeddingModel: EmbeddingModel,
+  // ): Promise<SelectSourceInsight[]> {
+  //   if (!this.db) {
+  //     throw new DatabaseNotInitializedException()
+  //   }
+  //   const tableName = this.getTableName(embeddingModel)
+  //   const result = await this.db.query<SelectSourceInsight>(
+  //     `SELECT * FROM "${tableName}" WHERE source_mtime >= $1 AND source_mtime <= $2 ORDER BY created_at DESC`,
+  //     [minMtime, maxMtime]
+  //   )
+  //   return result.rows
+  // }
+
+  // async getOutdatedInsights(
+  //   sourcePath: string,
+  //   currentMtime: number,
+  //   embeddingModel: EmbeddingModel,
+  // ): Promise<SelectSourceInsight[]> {
+  //   if (!this.db) {
+  //     throw new DatabaseNotInitializedException()
+  //   }
+  //   const tableName = this.getTableName(embeddingModel)
+  //   const result = await this.db.query<SelectSourceInsight>(
+  //     `SELECT * FROM "${tableName}" WHERE source_path = $1 AND source_mtime < $2 ORDER BY created_at DESC`,
+  //     [sourcePath, currentMtime]
+  //   )
+  //   return result.rows
+  // }
 } 

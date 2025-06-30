@@ -1,8 +1,8 @@
 import { App, TFile } from 'obsidian'
 
-import { InsertSourceInsight, SelectSourceInsight } from '../../schema'
 import { EmbeddingModel } from '../../../types/embedding'
 import { DBManager } from '../../database-manager'
+import { InsertSourceInsight, SelectSourceInsight } from '../../schema'
 
 import { InsightRepository } from './insight-repository'
 
@@ -51,6 +51,7 @@ export class InsightManager {
       insight: string
       sourceType: 'document' | 'tag' | 'folder'
       sourcePath: string
+      sourceMtime: number
       embedding: number[]
     },
     embeddingModel: EmbeddingModel,
@@ -60,6 +61,7 @@ export class InsightManager {
       insight: insightData.insight,
       source_type: insightData.sourceType,
       source_path: insightData.sourcePath,
+      source_mtime: insightData.sourceMtime,
       embedding: insightData.embedding,
     }
 
@@ -75,6 +77,7 @@ export class InsightManager {
       insight: string
       sourceType: 'document' | 'tag' | 'folder'
       sourcePath: string
+      sourceMtime: number
       embedding: number[]
     }>,
     embeddingModel: EmbeddingModel,
@@ -84,6 +87,7 @@ export class InsightManager {
       insight: data.insight,
       source_type: data.sourceType,
       source_path: data.sourcePath,
+      source_mtime: data.sourceMtime,
       embedding: data.embedding,
     }))
 
@@ -100,6 +104,7 @@ export class InsightManager {
       insight?: string
       sourceType?: 'document' | 'tag' | 'folder'
       sourcePath?: string
+      sourceMtime?: number
       embedding?: number[]
     },
     embeddingModel: EmbeddingModel,
@@ -117,6 +122,9 @@ export class InsightManager {
     }
     if (updates.sourcePath !== undefined) {
       updateData.source_path = updates.sourcePath
+    }
+    if (updates.sourceMtime !== undefined) {
+      updateData.source_mtime = updates.sourceMtime
     }
     if (updates.embedding !== undefined) {
       updateData.embedding = updates.embedding
@@ -318,4 +326,26 @@ export class InsightManager {
 
     return filteredInsights
   }
+
+  // /**
+  //  * 根据源文件修改时间范围获取洞察
+  //  */
+  // async getInsightsByMtimeRange(
+  //   minMtime: number,
+  //   maxMtime: number,
+  //   embeddingModel: EmbeddingModel,
+  // ): Promise<SelectSourceInsight[]> {
+  //   return await this.repository.getInsightsByMtimeRange(minMtime, maxMtime, embeddingModel)
+  // }
+
+  // /**
+  //  * 根据源文件修改时间获取需要更新的洞察
+  //  */
+  // async getOutdatedInsights(
+  //   sourcePath: string,
+  //   currentMtime: number,
+  //   embeddingModel: EmbeddingModel,
+  // ): Promise<SelectSourceInsight[]> {
+  //   return await this.repository.getOutdatedInsights(sourcePath, currentMtime, embeddingModel)
+  // }
 } 
