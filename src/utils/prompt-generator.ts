@@ -1,4 +1,4 @@
-import { App, MarkdownView, TAbstractFile, TFile, TFolder, Vault, getLanguage, htmlToMarkdown, normalizePath, requestUrl } from 'obsidian'
+import { App, TAbstractFile, TFile, TFolder, Vault, getLanguage, htmlToMarkdown, normalizePath, requestUrl } from 'obsidian'
 
 import { editorStateToPlainText } from '../components/chat-view/chat-input/utils/editor-state-to-plain-text'
 import { QueryProgressState } from '../components/chat-view/QueryProgress'
@@ -278,15 +278,15 @@ export class PromptGenerator {
 	private async getCurrentNoteContext(): Promise<string | null> {
 		const currentNote = this.app.workspace.getActiveFile()
 		if (!currentNote) {
-			return formatSection("Obsidian Current Note", "(No current note)")
+			return formatSection("Current Tab Note", "(No current tab active)")
 		}
 
 		const fileCache = this.app.metadataCache.getFileCache(currentNote)
 		if (!fileCache) {
-			return formatSection("Obsidian Current Note", currentNote.path)
+			return formatSection("Current Tab Note", currentNote.path)
 		}
 
-		let context = `Note Path: ${currentNote.path}`
+		let context = ``
 
 		if (fileCache.frontmatter) {
 			const frontmatterString = Object.entries(fileCache.frontmatter)
@@ -306,6 +306,96 @@ export class PromptGenerator {
 		}
 
 		return formatSection("Current Note Context", context)
+	}
+
+	private async getFileMetadataContext(file: TFile): Promise<string> {
+		const fileCache = this.app.metadataCache.getFileCache(file)
+		if (!fileCache) {
+			return `None Found`
+		}
+
+		let context = ``
+
+		if (fileCache.frontmatter) {
+			const frontmatterString = Object.entries(fileCache.frontmatter)
+				.filter(([key]) => key !== 'position')
+				.map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+				.join('\n')
+			if (frontmatterString) {
+				context += `\n\n## Metadata (Frontmatter)\n${frontmatterString}`
+			}
+		}
+
+		if (fileCache.headings && fileCache.headings.length > 0) {
+			const outline = fileCache.headings
+				.map(h => `${'  '.repeat(h.level - 1)}- ${h.heading}`)
+				.join('\n')
+			context += `\n\n## Outline\n${outline}`
+		}
+
+		return context
+	}
+
+	private async getFileOrFolderMetadata(path: TAbstractFile): Promise<string> {
+		if (path instanceof TFile) {
+			// 对于所有文件类型，都尝试获取元信息
+			const fileCache = this.app.metadataCache.getFileCache(path)
+			if (!fileCache) {
+				// 如果没有缓存的元信息，只返回文件路径
+				return `Note Path: ${path.path}`
+			}
+
+			let context = `Note Path: ${path.path}`
+
+			if (fileCache.frontmatter) {
+				const frontmatterString = Object.entries(fileCache.frontmatter)
+					.filter(([key]) => key !== 'position')
+					.map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+					.join('\n')
+				if (frontmatterString) {
+					context += `\n\n## Metadata (Frontmatter)\n${frontmatterString}`
+				}
+			}
+
+			if (fileCache.headings && fileCache.headings.length > 0) {
+				const outline = fileCache.headings
+					.map(h => `${'  '.repeat(h.level - 1)}- ${h.heading}`)
+					.join('\n')
+				context += `\n\n## Outline\n${outline}`
+			}
+
+			return context
+		} else if (path instanceof TFolder) {
+			const entries = path.children
+			let folderContent = ""
+
+			// 首先，构建文件夹的树状结构
+			entries.forEach((entry, index) => {
+				const isLast = index === entries.length - 1
+				const linePrefix = isLast ? "└── " : "├── "
+				if (entry instanceof TFile) {
+					folderContent += `${linePrefix}${entry.name}\n`
+				} else if (entry instanceof TFolder) {
+					folderContent += `${linePrefix}${entry.name}/\n`
+				} else {
+					folderContent += `${linePrefix}${entry.name}\n`
+				}
+			})
+
+			// 然后，为文件夹内的所有文件附加元数据（不仅仅是Markdown文件）
+			const fileMetadataPromises = entries
+				.filter((entry): entry is TFile => entry instanceof TFile)
+				.map(async (file) => {
+					const metadata = await this.getFileMetadataContext(file)
+					return `<file_metadata path="${file.path}">\n${metadata}\n</file_metadata>`
+				})
+
+			const fileMetadataContents = (await Promise.all(fileMetadataPromises)).join("\n\n")
+
+			return `${folderContent}\n${fileMetadataContents}`.trim()
+		} else {
+			return `(Failed to read metadata of ${path.path})`
+		}
 	}
 
 	private async getNoteConnectivity(): Promise<string | null> {
@@ -365,15 +455,15 @@ export class PromptGenerator {
 			overview += `\n\n## Recently Edited Notes\n${recentFiles}`
 		}
 
-		// @ts-ignore - getTags() is not in the public API but is widely used.
-		const tags = this.app.metadataCache.getTags()
+		// @ts-expect-error - getTags() is not in the public API but is widely used.
+		const tags: Record<string, number> = this.app.metadataCache.getTags()
 		const sortedTags = Object.entries(tags)
 			.sort(([, a], [, b]) => b - a)
-			.slice(0, 20)
+			.slice(0, 10)
 			.map(([tag, count]) => `- ${tag} (${count})`)
 			.join('\n')
 		if (sortedTags) {
-			overview += `\n\n## Global Tag Cloud (Top 20)\n${sortedTags}`
+			overview += `\n\n## Global Tag Cloud (Top 10)\n${sortedTags}`
 		}
 
 		return formatSection('Workspace Overview', overview)
@@ -421,10 +511,7 @@ export class PromptGenerator {
 		fileReadResults?: Array<{ path: string, content: string }>
 		websiteReadResults?: Array<{ url: string, content: string }>
 	}> {
-		// Add environment details
-		// const environmentDetails = isNewChat
-		// 	? await this.getEnvironmentDetails()
-		// 	: undefined
+
 		const environmentDetails = await this.getEnvironmentDetails()
 
 		// if isToolCallReturn, add read_file_content to promptContent
@@ -490,23 +577,18 @@ export class PromptGenerator {
 				let markdownFilePath = ''
 				if (file.extension !== 'md' && mcpHub?.isBuiltInServerAvailable()) {
 					[content, markdownFilePath] = await this.callMcpToolConvertDocument(file, mcpHub)
-				} else {
-					content = await getFileOrFolderContent(
-						file,
-						this.app.vault,
-						this.app
+					// 创建Markdown文件
+					markdownFilePath = markdownFilePath || await this.createMarkdownFileForContent(
+						file.path,
+						content,
+						false
 					)
+				} else {
+					content = await this.getFileOrFolderMetadata(file)
 				}
 
-				// 创建Markdown文件
-				markdownFilePath = markdownFilePath || await this.createMarkdownFileForContent(
-					file.path,
-					content,
-					false
-				)
-
 				completedFiles++
-				fileContents.push(`<file_content path="${file.path}">\n${content}\n</file_content>`)
+				fileContents.push(`<user_mention_file path="${file.path}">\n${content}\n</user_mention_file>`)
 				fileContentsForProgress.push({ path: markdownFilePath, content })
 				allFileReadResults.push({ path: markdownFilePath, content })
 			}
@@ -551,21 +633,10 @@ export class PromptGenerator {
 					completedFiles: completedFolders
 				})
 
-				const content = await getFileOrFolderContent(
-					folder,
-					this.app.vault,
-					this.app
-				)
-
-				// // 为文件夹内容创建Markdown文件
-				// const markdownFilePath = await this.createMarkdownFileForContent(
-				// 	`${folder.path}/folder-contents`,
-				// 	content,
-				// 	false
-				// )
+				const content = await this.getFileOrFolderMetadata(folder)
 
 				completedFolders++
-				folderContents.push(`<folder_content path="${folder.path}">\n${content}\n</folder_content>`)
+				folderContents.push(`<user_mention_folder path="${folder.path}">\n${content}\n</user_mention_folder>`)
 				folderContentsForProgress.push({ path: folder.path, content })
 				allFileReadResults.push({ path: folder.path, content })
 			}
@@ -592,7 +663,7 @@ export class PromptGenerator {
 			? blocks
 				.map(({ file, content, startLine, endLine }) => {
 					const content_with_line_numbers = addLineNumbers(content, startLine)
-					return `<file_block_content location="${file.path}#L${startLine}-${endLine}">\n${content_with_line_numbers}\n</file_block_content>`
+					return `<user_mention_blocks location="${file.path}#L${startLine}-${endLine}">\n${content_with_line_numbers}\n</user_mention_blocks>`
 				})
 				.join('\n')
 			: undefined
@@ -654,7 +725,7 @@ export class PromptGenerator {
 		const urlContentsPrompt = urlContents.length > 0
 			? urlContents
 				.map(({ url, content }) => (
-					`<file_content path="${url}">\n${content}\n</file_content>`
+					`<user_mention_url path="${url}">\n${content}\n</user_mention_url>`
 				))
 				.join('\n') : undefined
 
@@ -681,20 +752,15 @@ export class PromptGenerator {
 				const [mcpCurrFileContent, mcpCurrFileContentPath] = await this.callMcpToolConvertDocument(currentFile.file, mcpHub)
 				currentFileContent = mcpCurrFileContent
 				currentMarkdownFilePath = mcpCurrFileContentPath
-			} else {
-				currentFileContent = await getFileOrFolderContent(
-					currentFile.file,
-					this.app.vault,
-					this.app
+				// 为当前文件创建Markdown文件
+				currentMarkdownFilePath = currentMarkdownFilePath || await this.createMarkdownFileForContent(
+					currentFile.file.path,
+					currentFileContent,
+					false
 				)
+			} else {
+				currentFileContent = await this.getFileOrFolderMetadata(currentFile.file)
 			}
-
-			// 为当前文件创建Markdown文件
-			currentMarkdownFilePath = currentMarkdownFilePath || await this.createMarkdownFileForContent(
-				currentFile.file.path,
-				currentFileContent,
-				false
-			)
 
 			// 添加当前文件到读取结果中
 			allFileReadResults.push({ path: currentMarkdownFilePath, content: currentFileContent })
@@ -719,7 +785,7 @@ export class PromptGenerator {
 				shouldIncludeCurrentFile = true
 			} else {
 				// For continuing chats, check if current file content already exists in history
-				const currentFilePromptTag = `<current_file_content path="${currentFile.file.path}">`
+				const currentFilePromptTag = `<current_tab_note path="${currentFile.file.path}">`
 				const hasCurrentFileInHistory = messages?.some((msg) => {
 					if (msg.role === 'user' && msg.promptContent) {
 						if (typeof msg.promptContent === 'string') {
@@ -743,7 +809,7 @@ export class PromptGenerator {
 		}
 
 		const currentFileContentPrompt = shouldIncludeCurrentFile
-			? `<current_file_content path="${currentFile.file.path}">\n${currentFileContent}\n</current_file_content>`
+			? `<current_tab_note path="${currentFile.file.path}">\n${currentFileContent}\n</current_tab_note>`
 			: undefined
 
 		// Count file and folder tokens
@@ -759,15 +825,15 @@ export class PromptGenerator {
 		if (isOverThreshold) {
 			console.debug("isOverThreshold", isOverThreshold)
 			fileContentsPrompts = files.map((file) => {
-				return `<file_content path="${file.path}">\n(Content omitted due to token limit. Relevant sections will be provided by semantic search below.)\n</file_content>`
+				return `<user_mention_file path="${file.path}">\n(Content omitted due to token limit.\n</user_mention_file>`
 			}).join('\n')
 			folderContentsPrompts = (await Promise.all(folders.map(async (folder) => {
 				const tree_content = await getFolderTreeContent(folder)
-				return `<folder_content path="${folder.path}">\n${tree_content}\n(Content omitted due to token limit. Relevant sections will be provided by semantic search below.)\n</folder_content>`
+				return `<user_mention_folder path="${folder.path}">\n${tree_content}\n(Content omitted due to token limit.\n</user_mention_folder>`
 			}))).join('\n')
 		}
 
-		const shouldUseRAG = useVaultSearch || isOverThreshold
+		const shouldUseRAG = useVaultSearch
 		let similaritySearchContents
 		if (shouldUseRAG) {
 			// 重置进度状态，准备进入RAG阶段
