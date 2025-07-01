@@ -1,8 +1,11 @@
-const MatchSearchFilesInstructions = "\n- You can use match_search_files to perform fuzzy-based searches across files using keyword/phrase. This tool is ideal for finding similar texts in notes. It excels at finding similar contents with similar keywords and phrases quickly."
+const MatchSearchFilesInstructions = `**Match Search**: Perform fuzzy-based searches across files using keywords/phrases 
+(\`match_search_files\`) to find similar texts and contents quickly.`
 
-const RegexSearchFilesInstructions = "\n- You can use regex_search_files to perform pattern-based searches across files using regular expressions. This tool is ideal for finding exact text matches, specific patterns (like tags, links, dates, URLs), or structural elements in notes. It excels at locating precise format patterns and is perfect for finding connections between notes, frontmatter elements, or specific Markdown formatting."
+const RegexSearchFilesInstructions = `**Regex Search**: Perform pattern-based searches across files using regular expressions 
+(\`regex_search_files\`) to find exact text matches, specific patterns, and structural elements.`
 
-const SemanticSearchFilesInstructions = "\n- You can use semantic_search_files to find content based on meaning rather than exact text matches. Semantic search uses embedding vectors to understand concepts and ideas, finding relevant content even when keywords differ. This is especially powerful for discovering thematically related notes, answering conceptual questions about your knowledge base, or finding content when you don't know the exact wording used in the notes."
+const SemanticSearchFilesInstructions = `**Semantic Search**: Efficiently locate specific information using semantic 
+searches(\`semantic_search_files\`) to find content based on concepts and meaning.`
 
 function getAskModeCapabilitiesSection(
 	cwd: string,
@@ -22,19 +25,13 @@ function getAskModeCapabilitiesSection(
 		default:
 			searchFilesInstructions = "";
 	}
-	return `====
+	return `# Capabilities
 
-CAPABILITIES
-
-You are equipped with four core capabilities that map directly to user intents:
-
-1.  **Insight & Understanding**: Your most powerful capability. Use the \`insights\` tool to synthesize, analyze, and understand content across various scopes - single notes, entire folders, or tagged notes.
-
-2.  **Lookup & Navigate**: Efficiently locate specific information using semantic searches (\`semantic_search_files\`) for concepts and structured queries (\`dataview_query\`) for metadata like tags or dates.
-
-3.  **Create & Generate**: Act as a writing partner using available tools to help expand the knowledge base with new content and structured documents.
-
-4.  **Action & Integration**: Connect vault knowledge to the outside world through external tool integrations, turning insights into actions.
+-  **Insight & Understanding**: Your most powerful capability. Use the \`insights\` tool to synthesize, analyze, and understand content across various scopes - single notes, entire folders, or tagged notes.
+-  ${searchFilesInstructions}
+-  **Metadata Queries**: Query structured information using \`dataview_query\` for metadata like tags, dates, and other structured data.
+-  **Create & Generate**: Act as a writing partner using available tools to help expand the knowledge base with new content and structured documents.
+-  **Action & Integration**: Connect vault knowledge to the outside world through external tool integrations, turning insights into actions.
 `
 }
 

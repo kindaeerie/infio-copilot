@@ -1,49 +1,3 @@
-function getAskModeToolUseGuidelines(): string {
-	return `# STRATEGY & EXECUTION
-
-Your interaction with the user follows a structured workflow to ensure clarity and efficiency. You will use \`<thinking>\`, \`<communication>\`, and tool calls to solve tasks.
-
-**1. The Thinking Phase (\`<thinking>\`):**
-The \`<thinking>\` tag is used for analysis and planning. Use it ONLY in these scenarios:
-* **Initial Task Planning**: When the user provides a new task, analyze the request and create a step-by-step plan.
-* **Processing Feedback**: When the user provides feedback, analyze it and plan your next actions.
-* **Re-planning after Failure**: If a tool call fails or produces unexpected results, analyze and create a revised plan.
-
-**2. The Communication Phase (\`<communication>\`):**
-Keep the user informed about your progress:
-* **After Planning**: Briefly inform the user of your plan before executing the first tool call.
-* **After Tool Results**: Provide status updates explaining what the result was, how it helps, and what you will do next.
-
-**3. The Execution Phase (Tool Calls):**
-Execute tool calls as defined in your plan. You can execute multiple tool calls in parallel if they are independent.
-
-**Example Workflow:**
-
-User Request: \`<task>Compare file_A.md and file_B.md</task>\`
-
-Your Response:
-\`\`\`
-<thinking>
-The user wants to compare two files.
-**Plan:**
-1. Read both files in parallel
-2. Analyze differences and summarize
-3. Present final comparison
-</thinking>
-
-<communication>
-I will read both files to prepare a comparison for you.
-</communication>
-
-<read_file>
-<path>file_A.md</path>
-</read_file>
-
-<read_file>
-<path>file_B.md</path>
-</read_file>
-\`\`\``;
-}
 
 function getLearnModeToolUseGuidelines(): string {
 	return `# Tool Use Guidelines
@@ -77,32 +31,22 @@ function getLearnModeToolUseGuidelines(): string {
 }
 
 function getDefaultToolUseGuidelines(): string {
-	return `# Tool Use Guidelines
+	return `# TOOL USE
 
-## General Principles
+You have access to a set of tools that are executed upon the user's approval. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
-1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
-2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. It's critical that you think about each available tool and use the one that best fits the current step in the task.
-3. If multiple actions are needed, use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.
-4. Formulate your tool use using the XML format specified for each tool.
-5. After each tool use, the user will respond with the result of that tool use. This result will provide you with the necessary information to continue your task or make further decisions. This response may include:
-   - Information about whether the tool succeeded or failed, along with any reasons for failure.
-   - Any other relevant feedback or information related to the tool use.
-6. ALWAYS wait for user confirmation after each tool use before proceeding. Never assume the success of a tool use without explicit confirmation of the result from the user.
-
-It is crucial to proceed step-by-step, waiting for the user's message after each tool use before moving forward with the task. This approach allows you to:
-1. Confirm the success of each step before proceeding.
-2. Address any issues or errors that arise immediately.
-3. Adapt your approach based on new information or unexpected results.
-4. Ensure that each action builds correctly on the previous ones.
-
-By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.`;
+## Tool Use Guidelines
+- **File Paths:** Always use absolute paths when referring to files with tools like \`list_files\` or \`read_file\`. Relative paths are not supported. You must provide an absolute path.
+- **Metadata Queries:** Use \`dataview_query\` for precise data retrieval from the user's vault. This tool is ideal for querying structured data such as tasks, dates, tags, and file properties (e.g., "show me all incomplete tasks in the 'Projects' folder").
+- **Querying Insights:** Use the \`insights\` tool to query existing knowledge summaries and analyses of notes. For tasks like summarizing, analyzing, or extracting key information, always prefer this tool over \`read_file\`. Only use \`read_file\` to inspect the raw content if the insights are insufficient.
+- **Semantic Search:** Use \`semantic_search_files\` to find notes based on their meaning and conceptual relevance, not just keywords. This is perfect for when the user is looking for a concept and may not remember the exact phrasing.
+- **Tool Confirmation:** Always wait for user confirmation after each tool use before proceeding. Never assume the success of a tool use without explicit confirmation of the result from the user.
+- **Attempt Completion:** Use \`attempt_completion\` to deliver the final, conclusive answer to the user.
+- **Switch Mode:** If the current mode is not suitable for the user's task, proactively use \`switch_mode\` to switch to a more appropriate one.
+`;
 }
 
 export function getToolUseGuidelinesSection(mode?: string): string {
-	if (mode === 'ask') {
-		return getAskModeToolUseGuidelines();
-	}
 	if (mode === 'learn') {
 		return getLearnModeToolUseGuidelines();
 	}

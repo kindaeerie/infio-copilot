@@ -21,13 +21,12 @@ import { ROOT_DIR } from './constants'
 import {
 	addCustomInstructions,
 	getCapabilitiesSection,
+	getMandatesSection,
 	getMcpServersSection,
 	getModesSection,
-	getObjectiveSection,
-	getRulesSection,
+	getPrimaryWorkflowsSection,
 	getSharedToolUseSection,
-	getSystemInfoSection,
-	getToolUseGuidelinesSection,
+	getToolUseGuidelinesSection
 } from "./sections"
 // import { loadSystemPromptFile } from "./sections/custom-system-prompt"
 import { getToolDescriptionsForMode } from "./tools"
@@ -101,6 +100,19 @@ export class SystemPrompt {
 
 		const basePrompt = `${roleDefinition}
 
+${getMandatesSection(
+	mode,
+	cwd,
+	filesSearchMethod,
+	supportsComputerUse,
+	diffStrategy,
+	experiments,
+)}
+
+${getPrimaryWorkflowsSection(mode)}
+
+${getToolUseGuidelinesSection(mode)}
+
 ${getSharedToolUseSection()}
 
 ${getToolDescriptionsForMode(
@@ -116,8 +128,6 @@ ${getToolDescriptionsForMode(
 			experiments,
 		)}
 
-${getToolUseGuidelinesSection(mode)}
-
 ${mcpServersSection}
 
 ${getCapabilitiesSection(
@@ -127,15 +137,6 @@ ${getCapabilitiesSection(
 		)}
 
 ${modesSection}
-
-${getRulesSection(
-			mode,
-			cwd,
-			filesSearchMethod,
-			supportsComputerUse,
-			diffStrategy,
-			experiments,
-		)}
 
 ${await addCustomInstructions(this.app, promptComponent?.customInstructions || modeConfig.customInstructions || "", globalCustomInstructions || "", cwd, mode, { preferredLanguage })}`
 
