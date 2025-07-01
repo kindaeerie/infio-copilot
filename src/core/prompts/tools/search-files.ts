@@ -67,6 +67,13 @@ Example: Requesting to search for all Markdown files in the current directory
 export function getSemanticSearchFilesDescription(args: ToolArgs): string {
 	return `## semantic_search_files
 Description: Request to perform a semantic search across files in a specified directory. This tool searches for documents with content semantically related to your query, leveraging embedding vectors to find conceptually similar information. Ideal for finding relevant documents even when exact keywords are not known or for discovering thematically related content.
+
+**Usage Guidelines:**
+- Craft your natural language query to describe concepts and ideas rather than specific patterns
+- Use this tool to find thematically related content, conceptually similar notes, or knowledge connections across the Obsidian vault, even when exact keywords aren't present
+- The results include context, so analyze the surrounding text to understand the conceptual relevance of each match
+- Leverage this tool in combination with other tools for comprehensive analysis (e.g., use semantic search to find relevant content, then use read_file to examine full context before making changes)
+
 Parameters:
 - path: (required) The path of the directory to search in (relative to the current working directory ${args.cwd}). This directory will be recursively searched.
 - query: (required) The natural language query describing the information you're looking for. The system will find documents with similar semantic meaning.

@@ -9,7 +9,7 @@ Parameters:
     - **simple_summary**: Creates a clear, simple summary. Use when you need to quickly understand the main points or explain a complex topic easily.
     - **key_insights**: Extracts high-level, critical insights and non-obvious connections. Use when you want to understand the deeper meaning or strategic implications.
     - **dense_summary**: Provides a comprehensive, information-rich summary. Use when detail is important but you need it in a condensed format.
-    - **reflections**: Generates deep, reflective questions and perspectives to s·park new ideas. Use when you want to think critically *with* your notes.
+    - **reflections**: Generates deep, reflective questions and perspectives to spark new ideas. Use when you want to think critically with your notes.
     - **table_of_contents**: Creates a navigable table of contents for a long document or folder. Use for structuring and organizing content.
     - **analyze_paper**: Performs an in-depth analysis of an academic paper, breaking down its components. Use for scholarly or research documents.
 Usage:

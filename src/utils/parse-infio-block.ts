@@ -6,12 +6,14 @@ export type ParsedMsgBlock =
 	| {
 		type: 'string'
 		content: string
-	}
-	| {
+	} | {
 		type: 'think'
 		content: string
 	} | {
 		type: 'thinking'
+		content: string
+	} | {
+		type: 'communication'
 		content: string
 	} | {
 		type: 'write_to_file'
@@ -180,6 +182,39 @@ export function parseMsgBlocks(
 					}
 					parsedResult.push({
 						type: 'think',
+						content: input.slice(innerContentStartOffset, innerContentEndOffset),
+					})
+				}
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'communication') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+
+				const children = node.childNodes
+				if (children.length === 0) {
+					parsedResult.push({
+						type: 'communication',
+						content: '',
+					})
+				} else {
+					const innerContentStartOffset =
+						children[0].sourceCodeLocation?.startOffset
+					const innerContentEndOffset =
+						children[children.length - 1].sourceCodeLocation?.endOffset
+					if (!innerContentStartOffset || !innerContentEndOffset) {
+						throw new Error('sourceCodeLocation is undefined')
+					}
+					parsedResult.push({
+						type: 'communication',
 						content: input.slice(innerContentStartOffset, innerContentEndOffset),
 					})
 				}
@@ -681,7 +716,7 @@ export function parseMsgBlocks(
 					tool_name,
 					parameters,
 					finish: node.sourceCodeLocation.endTag !== undefined
-				})	
+				})
 				lastEndOffset = endOffset
 			} else if (node.nodeName === 'dataview_query') {
 				if (!node.sourceCodeLocation) {
@@ -731,7 +766,7 @@ export function parseMsgBlocks(
 				}
 				let path: string | undefined
 				let transformation: string | undefined
-				
+
 				for (const childNode of node.childNodes) {
 					if (childNode.nodeName === 'path' && childNode.childNodes.length > 0) {
 						// @ts-expect-error - parse5 node value type
@@ -741,7 +776,7 @@ export function parseMsgBlocks(
 						transformation = childNode.childNodes[0].value
 					}
 				}
-				
+
 				parsedResult.push({
 					type: 'call_transformations',
 					path: path || '',

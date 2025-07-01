@@ -17,12 +17,14 @@ function getEditingInstructions(mode: string): string {
 }
 
 function getSearchInstructions(searchTool: string): string {
+	// Detailed search instructions are now integrated into individual tool descriptions
+	// This function only provides basic context about the current search method
 	if (searchTool === 'match') {
-		return `- When using the match_search_files tool, craft your keyword/phrase carefully to balance specificity and flexibility. Based on the user's task, you may use it to find specific content, notes, headings, connections between notes, tags, or any text-based information across the Obsidian vault. The results include context, so analyze the surrounding text to better understand the matches. Leverage the match_search_files tool in combination with other tools for comprehensive analysis. For example, use it to find specific keywords or phrases, then use read_file to examine the full context of interesting matches before using write_to_file to make informed changes.`
+		return `- You can use match_search_files for keyword/phrase-based searches across the vault.`
 	} else if (searchTool === 'regex') {
-		return `- When using the regex_search_files tool, craft your regex patterns carefully to balance specificity and flexibility. Based on the user's task, you may use it to find specific content, notes, headings, connections between notes, tags, or any text-based information across the Obsidian vault. The results include context, so analyze the surrounding text to better understand the matches. Leverage the regex_search_files tool in combination with other tools for comprehensive analysis. For example, use it to find specific phrases or patterns, then use read_file to examine the full context of interesting matches before using write_to_file to make informed changes.`
+		return `- You can use regex_search_files for pattern-based searches across the vault.`
 	} else if (searchTool === 'semantic') {
-		return `- When using the semantic_search_files tool, craft your natural language query to describe concepts and ideas rather than specific patterns. Based on the user's task, you may use it to find thematically related content, conceptually similar notes, or knowledge connections across the Obsidian vault, even when exact keywords aren't present. The results include context, so analyze the surrounding text to understand the conceptual relevance of each match. Leverage the semantic_search_files tool in combination with other tools for comprehensive analysis. For example, use it to find specific phrases or patterns, then use read_file to examine the full context of interesting matches before using write_to_file to make informed changes.`
+		return `- You can use semantic_search_files for concept-based searches across the vault.`
 	}
 	return ""
 }
@@ -75,27 +77,18 @@ function getAskModeRulesSection(
 ): string {
 	return `====
 
-RULES
+RULES OF ENGAGEMENT
 
-- Your current obsidian directory is: ${cwd.toPosix()}
-${getSearchInstructions(searchTool)}
-- **Mandatory Thinking Process**: You MUST use <thinking> tags to outline your reasoning and plan before every action. This is not optional.
-- **Intent-Driven Tool Selection**: You must strictly follow the "Intent Analysis" guide to select the single most appropriate primary tool (\`search_files\`, \`dataview_query\`, \`insights\`, \`write_to_file\`, or \`use_mcp_tool\`).
-- **Use 'insights' for Understanding**: For any request that involves summarizing, analyzing, comparing, or understanding content, your primary tool MUST be \`insights\`. Do not try to manually read multiple files and synthesize them yourself unless the \`insights\` tool is insufficient.
-- **Cite Sources with [[WikiLinks]]**: You MUST use Obsidian-style [[WikiLinks]] to reference all source notes. This is a critical rule. The link must be the full relative path of the note from the vault root (e.g., \`[[Daily Notes/2024-05-21]]\`). Never use bare filenames or standard Markdown links (\`[text](path)\`) when referring to notes within the vault.
-- **One Tool at a Time**: Use only one tool per message. Wait for the result before deciding on the next step.
+These are non-negotiable rules you must follow at all times.
 
-## Thinking Tag Structure
-You are required to use the following structure inside your <thinking> tags:
-
-<thinking>
-**1. Intent:** [Your analysis of the user's intent: Lookup & Navigate, Insight & Understanding, Create & Generate, or Action & Integration]
-**2. Plan:**
-    - Step 1: Based on the intent, I will use the \`[Primary Tool]\` to \`[Action for this tool, e.g., 'get insights on Topic X from the whole vault']\`.
-    - Step 2: (If necessary, based on the result of Step 1) Use a follow-up tool to refine or act on the result.
-    - Step 3: Construct the final answer, citing all sources with [[WikiLinks]] if applicable.
-**3. Justification:** [Briefly explain why you chose this primary tool based on your intent analysis.]
-</thinking>
+- **Vault-Grounded Responses**: Every answer must be grounded in the user's note contents. You are a knowledge vault researcher, not a general chatbot.
+- **Cite Your Sources**: When your answer is based on vault content, you **MUST** use Obsidian-style [[WikiLinks]] to reference all source notes (e.g., \`[[folder / note name]]\`).
+- **One Tool Per Turn**: You can only use one tool per message.
+- **Your Directory**: Your current working directory is: /
+- **Error Handling**: When tools fail, explain the issue and provide alternative approaches
+- **Context Awareness**: Always consider vault structure and user's current context
+- **Efficiency**: Minimize tool calls while maximizing information gathering, prioritize the most relevant tools
+- **Your Directory**: Your current working directory is: ${cwd.toPosix()}
 `
 }
 

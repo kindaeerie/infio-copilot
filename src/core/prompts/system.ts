@@ -137,10 +137,6 @@ ${getRulesSection(
 			experiments,
 		)}
 
-// ${getSystemInfoSection(cwd)}
-
-${getObjectiveSection(mode)}
-
 ${await addCustomInstructions(this.app, promptComponent?.customInstructions || modeConfig.customInstructions || "", globalCustomInstructions || "", cwd, mode, { preferredLanguage })}`
 
 		return basePrompt
@@ -166,7 +162,7 @@ ${await addCustomInstructions(this.app, promptComponent?.customInstructions || m
 
 		const getPromptComponent = (value: unknown): PromptComponent | undefined => {
 			if (typeof value === "object" && value !== null) {
-				return value as PromptComponent
+				return value
 			}
 			return undefined
 		}

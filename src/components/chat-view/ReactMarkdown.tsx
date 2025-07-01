@@ -12,6 +12,7 @@ import MarkdownEditFileBlock from './Markdown/MarkdownEditFileBlock'
 import MarkdownFetchUrlsContentBlock from './Markdown/MarkdownFetchUrlsContentBlock'
 import MarkdownListFilesBlock from './Markdown/MarkdownListFilesBlock'
 import MarkdownMatchSearchFilesBlock from './Markdown/MarkdownMatchSearchFilesBlock'
+import MarkdownPlanBlock from './Markdown/MarkdownPlanBlock'
 import MarkdownReadFileBlock from './Markdown/MarkdownReadFileBlock'
 import MarkdownReasoningBlock from './Markdown/MarkdownReasoningBlock'
 import MarkdownRegexSearchFilesBlock from './Markdown/MarkdownRegexSearchFilesBlock'
@@ -43,9 +44,9 @@ function ReactMarkdown({
 	return (
 		<>
 			{blocks.map((block, index) =>
-				block.type === 'thinking' ? (
-					<RawMarkdownBlock 
-						key={"markdown-" + index} 
+				block.type === 'communication' ? (
+					<RawMarkdownBlock
+						key={"markdown-" + index}
 						content={block.content}
 						className="infio-markdown"
 					/>
@@ -53,6 +54,11 @@ function ReactMarkdown({
 					<MarkdownReasoningBlock
 						key={"reasoning-" + index}
 						reasoningContent={block.content}
+					/>
+				) : block.type === 'thinking' ? (
+					<MarkdownPlanBlock
+						key={"plan-" + index}
+						planContent={block.content}
 					/>
 				) : block.type === 'write_to_file' ? (
 					<MarkdownEditFileBlock
@@ -229,8 +235,8 @@ function ReactMarkdown({
 						content={block.content}
 					/>
 				) : (
-					<RawMarkdownBlock 
-						key={"markdown-" + index} 
+					<RawMarkdownBlock
+						key={"markdown-" + index}
 						content={block.content}
 						className="infio-markdown"
 					/>

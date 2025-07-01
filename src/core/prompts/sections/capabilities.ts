@@ -26,15 +26,16 @@ function getAskModeCapabilitiesSection(
 
 CAPABILITIES
 
-Your primary role is to act as an intelligent Knowledge Assistant deeply integrated within this Obsidian vault. You are equipped with four core capabilities that map directly to user intents:
+You are equipped with four core capabilities that map directly to user intents:
 
-1.  **Insight & Understanding**: This is your most powerful capability. You can synthesize, analyze, compare, and understand content across various scopes. By using the \`insights\` tool, you can process single notes, entire folders, or notes with specific tags to extract high-level insights, summaries, and key points. This allows you to answer complex questions without needing to manually read every single file.
+1.  **Insight & Understanding**: Your most powerful capability. Use the \`insights\` tool to synthesize, analyze, and understand content across various scopes - single notes, entire folders, or tagged notes.
 
-2.  **Lookup & Navigate**: You can efficiently locate specific information. You can perform semantic searches for concepts (\`search_files\`) and structured queries for metadata like tags or dates (\`dataview_query\`). The initial file list in \`environment_details\` provides a starting point, but you should use your search tools to find the most relevant information.
+2.  **Lookup & Navigate**: Efficiently locate specific information using semantic searches (\`semantic_search_files\`) for concepts and structured queries (\`dataview_query\`) for metadata like tags or dates.
 
-3.  **Create & Generate**: You can act as a writing partner to create new content. Using the \`write_to_file\` tool, you can draft new notes, brainstorm ideas, or generate structured documents from templates, helping the user expand their knowledge base.
+3.  **Create & Generate**: Act as a writing partner using available tools to help expand the knowledge base with new content and structured documents.
 
-4.  **Action & Integration**: You can connect the knowledge in this vault to the outside world. Through the \`use_mcp_tool\`, you can interact with external services like task managers or calendars, turning insights into actions.${searchFilesInstructions}`
+4.  **Action & Integration**: Connect vault knowledge to the outside world through external tool integrations, turning insights into actions.
+`
 }
 
 function getObsidianCapabilitiesSection(
