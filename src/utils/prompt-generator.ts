@@ -254,14 +254,12 @@ export class PromptGenerator {
 	}
 
 	private async getEnvironmentDetails(): Promise<string> {
-		const currentNoteContext = await this.getCurrentNoteContext()
-		const noteConnectivity = await this.getNoteConnectivity()
+		const currentFile = await this.getCurrentFile()
 		const workspaceOverview = await this.getWorkspaceOverview()
 		const assistantState = await this.getAssistantState()
 
 		const details = [
-			currentNoteContext,
-			noteConnectivity,
+			currentFile,
 			workspaceOverview,
 			assistantState,
 		]
@@ -275,37 +273,12 @@ export class PromptGenerator {
 		return `<environment_details>\n${details.trim()}\n</environment_details>`
 	}
 
-	private async getCurrentNoteContext(): Promise<string | null> {
+	private async getCurrentFile(): Promise<string | null> {
 		const currentNote = this.app.workspace.getActiveFile()
 		if (!currentNote) {
-			return formatSection("Current Tab Note", "(No current tab active)")
+			return formatSection("Current File", "(No current file active)")
 		}
-
-		const fileCache = this.app.metadataCache.getFileCache(currentNote)
-		if (!fileCache) {
-			return formatSection("Current Tab Note", currentNote.path)
-		}
-
-		let context = ``
-
-		if (fileCache.frontmatter) {
-			const frontmatterString = Object.entries(fileCache.frontmatter)
-				.filter(([key]) => key !== 'position')
-				.map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
-				.join('\n')
-			if (frontmatterString) {
-				context += `\n\n## Metadata (Frontmatter)\n${frontmatterString}`
-			}
-		}
-
-		if (fileCache.headings && fileCache.headings.length > 0) {
-			const outline = fileCache.headings
-				.map(h => `${'  '.repeat(h.level - 1)}- ${h.heading}`)
-				.join('\n')
-			context += `\n\n## Outline\n${outline}`
-		}
-
-		return formatSection("Current Note Context", context)
+		return formatSection("Current File", currentNote.path)
 	}
 
 	private async getFileMetadataContext(file: TFile): Promise<string> {
@@ -398,40 +371,40 @@ export class PromptGenerator {
 		}
 	}
 
-	private async getNoteConnectivity(): Promise<string | null> {
-		const currentFile = this.app.workspace.getActiveFile()
-		if (!currentFile) {
-			return null
-		}
+	// private async getNoteConnectivity(): Promise<string | null> {
+	// 	const currentFile = this.app.workspace.getActiveFile()
+	// 	if (!currentFile) {
+	// 		return null
+	// 	}
 
-		const fileCache = this.app.metadataCache.getFileCache(currentFile)
-		if (!fileCache) {
-			return null
-		}
+	// 	const fileCache = this.app.metadataCache.getFileCache(currentFile)
+	// 	if (!fileCache) {
+	// 		return null
+	// 	}
 
-		let connectivity = ""
+	// 	let connectivity = ""
 
-		if (fileCache.links && fileCache.links.length > 0) {
-			const outgoingLinks = fileCache.links.map(l => `- [[${l.link}]]`).join('\n')
-			connectivity += `\n## Outgoing Links\n${outgoingLinks}`
-		}
+	// 	if (fileCache.links && fileCache.links.length > 0) {
+	// 		const outgoingLinks = fileCache.links.map(l => `- [[${l.link}]]`).join('\n')
+	// 		connectivity += `\n## Outgoing Links\n${outgoingLinks}`
+	// 	}
 
-		const backlinks: string[] = []
-		const resolvedLinks = this.app.metadataCache.resolvedLinks
-		if (resolvedLinks) {
-			for (const sourcePath in resolvedLinks) {
-				if (currentFile.path in resolvedLinks[sourcePath]) {
-					backlinks.push(`- [[${sourcePath}]]`)
-				}
-			}
-		}
+	// 	const backlinks: string[] = []
+	// 	const resolvedLinks = this.app.metadataCache.resolvedLinks
+	// 	if (resolvedLinks) {
+	// 		for (const sourcePath in resolvedLinks) {
+	// 			if (currentFile.path in resolvedLinks[sourcePath]) {
+	// 				backlinks.push(`- [[${sourcePath}]]`)
+	// 			}
+	// 		}
+	// 	}
 
-		if (backlinks.length > 0) {
-			connectivity += `\n\n## Backlinks\n${backlinks.join('\n')}`
-		}
+	// 	if (backlinks.length > 0) {
+	// 		connectivity += `\n\n## Backlinks\n${backlinks.join('\n')}`
+	// 	}
 
-		return formatSection("Note Connectivity", connectivity.trim())
-	}
+	// 	return formatSection("Note Connectivity", connectivity.trim())
+	// }
 
 	private async getWorkspaceOverview(): Promise<string> {
 		let overview = ''
@@ -440,33 +413,13 @@ export class PromptGenerator {
 		if (currentWorkspaceName && currentWorkspaceName !== 'vault') {
 			const workspace = await this.workspaceManager.findByName(currentWorkspaceName)
 			if (workspace) {
-				overview += `\n\n## Current Workspace\n${workspace.name}`
+				overview += `\n\n# Current Workspace\n${workspace.name}`
 			}
 		} else {
-			overview += `\n\n## Current Workspace\n${this.app.vault.getName()} (entire vault)`
+			overview += `\n\n# Current Workspace\n${this.app.vault.getName()} (entire vault)`
 		}
 
-		const recentFiles = this.app.vault.getMarkdownFiles()
-			.sort((a, b) => b.stat.mtime - a.stat.mtime)
-			.slice(0, 5)
-			.map(f => `- ${f.path}`)
-			.join('\n')
-		if (recentFiles) {
-			overview += `\n\n## Recently Edited Notes\n${recentFiles}`
-		}
-
-		// @ts-expect-error - getTags() is not in the public API but is widely used.
-		const tags: Record<string, number> = this.app.metadataCache.getTags()
-		const sortedTags = Object.entries(tags)
-			.sort(([, a], [, b]) => b - a)
-			.slice(0, 10)
-			.map(([tag, count]) => `- ${tag} (${count})`)
-			.join('\n')
-		if (sortedTags) {
-			overview += `\n\n## Global Tag Cloud (Top 10)\n${sortedTags}`
-		}
-
-		return formatSection('Workspace Overview', overview)
+		return overview
 	}
 
 	private async getAssistantState(): Promise<string> {

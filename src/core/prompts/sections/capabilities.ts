@@ -1,43 +1,13 @@
-const MatchSearchFilesInstructions = `**Match Search**: Perform fuzzy-based searches across files using keywords/phrases 
-(\`match_search_files\`) to find similar texts and contents quickly.`
+const MatchSearchFilesInstructions = `- You can use the \`match_search_files\` tool to perform fuzzy-based searches across files using keywords/phrases to find similar texts and contents quickly.`
 
-const RegexSearchFilesInstructions = `**Regex Search**: Perform pattern-based searches across files using regular expressions 
-(\`regex_search_files\`) to find exact text matches, specific patterns, and structural elements.`
+const RegexSearchFilesInstructions = `- You can use the \`regex_search_files\` tool to perform pattern-based searches across files using regular expressions to find exact text matches, specific patterns, and structural elements.`
 
-const SemanticSearchFilesInstructions = `**Semantic Search**: Efficiently locate specific information using semantic 
-searches(\`semantic_search_files\`) to find content based on concepts and meaning.`
-
-function getAskModeCapabilitiesSection(
-	cwd: string,
-	searchFilesTool: string,
-): string {
-	let searchFilesInstructions: string;
-	switch (searchFilesTool) {
-		case 'match':
-			searchFilesInstructions = MatchSearchFilesInstructions;
-			break;
-		case 'regex':
-			searchFilesInstructions = RegexSearchFilesInstructions;
-			break;
-		case 'semantic':
-			searchFilesInstructions = SemanticSearchFilesInstructions;
-			break;
-		default:
-			searchFilesInstructions = "";
-	}
-	return `# Capabilities
-
--  **Insight & Understanding**: Your most powerful capability. Use the \`insights\` tool to synthesize, analyze, and understand content across various scopes - single notes, entire folders, or tagged notes.
--  ${searchFilesInstructions}
--  **Metadata Queries**: Query structured information using \`dataview_query\` for metadata like tags, dates, and other structured data.
--  **Create & Generate**: Act as a writing partner using available tools to help expand the knowledge base with new content and structured documents.
--  **Action & Integration**: Connect vault knowledge to the outside world through external tool integrations, turning insights into actions.
-`
-}
+const SemanticSearchFilesInstructions = `- You can use the \`semantic_search_files\` tool to perform semantic searches across your entire vault. This tool is powerful for finding conceptually relevant notes, even if you don't know the exact keywords or file names. It's particularly useful for discovering connections between ideas, finding notes related to a topic or theme, exploring concepts across different contexts, or identifying knowledge gaps in your vault. This capability relies on a pre-built index of your notes.`
 
 function getObsidianCapabilitiesSection(
 	cwd: string,
 	searchFilesTool: string,
+	enableMcpHub?: boolean,
 ): string {
 	let searchFilesInstructions: string;
 	switch (searchFilesTool) {
@@ -59,7 +29,17 @@ function getObsidianCapabilitiesSection(
 CAPABILITIES
 
 - You have access to tools that let you list files, search content, read and write files, and ask follow-up questions. These tools help you effectively accomplish a wide range of tasks, such as creating notes, making edits or improvements to existing notes, understanding the current state of an Obsidian vault, and much more.
-- When the user initially gives you a task, environment_details will include a list of all files in the current Obsidian folder ('${cwd}'). This file list provides an overview of the vault structure, offering key insights into how knowledge is organized through directory and file names, as well as what file formats are being used. This information can guide your decision-making on which notes might be most relevant to explore further. If you need to explore directories outside the current folder, you can use the list_files tool. If you pass 'true' for the recursive parameter, it will list files recursively. Otherwise, it will list only files at the top level, which is better suited for generic directories where you don't necessarily need the nested structure.${searchFilesInstructions}
+- When the user initially gives you a task, environment_details will include a list of all files in the current Obsidian folder ('${cwd}'). This file list provides an overview of the vault structure, offering key insights into how knowledge is organized through directory and file names, as well as what file formats are being used. This information can guide your decision-making on which notes might be most relevant to explore further. If you need to explore directories outside the current folder, you can use the list_files tool. If you pass 'true' for the recursive parameter, it will list files recursively. Otherwise, it will list only files at the top level, which is better suited for generic directories where you don't necessarily need the nested structure.
+- You have access to the powerful \`insights\` tool for knowledge synthesis and retrieval. This is your primary tool for "asking questions" to notes or note sets, enabling you to extract higher-level insights, summaries, and conceptual abstractions. It supports multiple transformations including simple summaries, key insights extraction, dense summaries, reflections, table of contents generation, and academic paper analysis.
+${searchFilesInstructions}
+- You have access to the \`manage_files\` tool for comprehensive file and folder management operations. Execute multiple operations in a single call including moving/renaming files and folders, creating new folders, and deleting files and folders. This enables efficient batch operations to reorganize vault structure and maintain organized knowledge base.
+- You have access to powerful \`dataview_query\` tool for metadata lookup and data analysis. Execute Dataview queries (DQL) to find, filter, and analyze notes based on structural attributes like tags, folders, dates, file properties, tasks, and complex metadata relationships. This supports time-based queries, task management, file organization analysis, and advanced data aggregation.
+${enableMcpHub
+			? `
+- You have access to MCP servers that may provide additional tools and resources. Each server may provide different capabilities that you can use to accomplish tasks more effectively.
+`
+			: ""
+		}
 `
 }
 
@@ -111,9 +91,6 @@ export function getCapabilitiesSection(
 	cwd: string,
 	searchFileTool: string,
 ): string {
-	if (mode === 'ask') {
-		return getAskModeCapabilitiesSection(cwd, searchFileTool);
-	}
 	if (mode === 'research') {
 		return getDeepResearchCapabilitiesSection();
 	}

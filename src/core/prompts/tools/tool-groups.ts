@@ -35,6 +35,9 @@ export const TOOL_GROUPS: Record<string, ToolGroupConfig> = {
 	insights: {
 		tools: ["insights"],
 	},
+	manage_files: {
+		tools: ["manage_files"],
+	},
 	mcp: {
 		tools: ["use_mcp_tool", "access_mcp_resource"],
 	},

@@ -422,6 +422,14 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 				if (toolArgs.type === 'write_to_file') {
 					let newFile = false
 					if (!opFile) {
+						// 确保目录结构存在
+						const dir = path.dirname(toolArgs.filepath)
+						if (dir && dir !== '.' && dir !== '/') {
+							const dirExists = await app.vault.adapter.exists(dir)
+							if (!dirExists) {
+								await app.vault.adapter.mkdir(dir)
+							}
+						}
 						opFile = await app.vault.create(toolArgs.filepath, '')
 						newFile = true
 					}

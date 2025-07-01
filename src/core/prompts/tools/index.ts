@@ -11,6 +11,7 @@ import { getDataviewQueryDescription } from "./dataview-query"
 import { getFetchUrlsContentDescription } from "./fetch-url-content"
 import { getInsertContentDescription } from "./insert-content"
 import { getListFilesDescription } from "./list-files"
+import { getManageFilesDescription } from "./manage-files"
 import { getReadFileDescription } from "./read-file"
 import { getSearchAndReplaceDescription } from "./search-and-replace"
 import { getSearchFilesDescription } from "./search-files"
@@ -36,6 +37,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	use_mcp_tool: (args) => getUseMcpToolDescription(args),
 	access_mcp_resource: (args) => getAccessMcpResourceDescription(args),
 	search_and_replace: (args) => getSearchAndReplaceDescription(args),
+	manage_files: (args) => getManageFilesDescription(args),
 	apply_diff: (args) =>
 		args.diffStrategy ? args.diffStrategy.getToolDescription({ cwd: args.cwd, toolOptions: args.toolOptions }) : "",
 	search_web: (args): string | undefined => getSearchWebDescription(args),
@@ -73,7 +75,7 @@ export function getToolDescriptionsForMode(
 	config.groups.forEach((groupEntry) => {
 		const groupName = getGroupName(groupEntry)
 		const toolGroup = TOOL_GROUPS[groupName]
-		// console.log("toolGroup", toolGroup)
+		console.log("toolGroup", toolGroup)
 		if (toolGroup) {
 			toolGroup.tools.forEach((tool) => {
 				if (isToolAllowedForMode(tool, mode, customModes ?? [], experiments ?? {})) {
@@ -107,6 +109,6 @@ export function getToolDescriptionsForMode(
 export {
 	getAccessMcpResourceDescription, getReadFileDescription, getWriteToFileDescription, getSearchFilesDescription, getListFilesDescription,
 	getDataviewQueryDescription, getAskFollowupQuestionDescription, getAttemptCompletionDescription, getSwitchModeDescription, getInsertContentDescription,
-	getUseMcpToolDescription, getSearchAndReplaceDescription, getSearchWebDescription, getFetchUrlsContentDescription, getCallInsightsDescription as getCallInsightsDescription
+	getUseMcpToolDescription, getSearchAndReplaceDescription, getManageFilesDescription, getSearchWebDescription, getFetchUrlsContentDescription, getCallInsightsDescription as getCallInsightsDescription
 }
 

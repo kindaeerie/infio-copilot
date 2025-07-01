@@ -21,10 +21,10 @@ import { ROOT_DIR } from './constants'
 import {
 	addCustomInstructions,
 	getCapabilitiesSection,
-	getMandatesSection,
 	getMcpServersSection,
 	getModesSection,
-	getPrimaryWorkflowsSection,
+	getObjectiveSection,
+	getRulesSection,
 	getSharedToolUseSection,
 	getToolUseGuidelinesSection
 } from "./sections"
@@ -80,12 +80,6 @@ export class SystemPrompt {
 		experiments?: Record<string, boolean>,
 		enableMcpServerCreation?: boolean,
 	): Promise<string> {
-		// if (!context) {
-		// 	throw new Error("Extension context is required for generating system prompt")
-		// }
-
-		// // If diff is disabled, don't pass the diffStrategy
-		// const effectiveDiffStrategy = diffEnabled ? diffStrategy : undefined
 
 		// Get the full mode config to ensure we have the role definition
 		const modeConfig = getModeBySlug(mode, customModeConfigs) || defaultModes.find((m) => m.slug === mode) || defaultModes[0]
@@ -99,19 +93,6 @@ export class SystemPrompt {
 		])
 
 		const basePrompt = `${roleDefinition}
-
-${getMandatesSection(
-	mode,
-	cwd,
-	filesSearchMethod,
-	supportsComputerUse,
-	diffStrategy,
-	experiments,
-)}
-
-${getPrimaryWorkflowsSection(mode)}
-
-${getToolUseGuidelinesSection(mode)}
 
 ${getSharedToolUseSection()}
 
@@ -128,6 +109,8 @@ ${getToolDescriptionsForMode(
 			experiments,
 		)}
 
+${getToolUseGuidelinesSection(mode)}
+
 ${mcpServersSection}
 
 ${getCapabilitiesSection(
@@ -137,6 +120,17 @@ ${getCapabilitiesSection(
 		)}
 
 ${modesSection}
+
+${getRulesSection(
+			mode,
+			cwd,
+			filesSearchMethod,
+			supportsComputerUse,
+			diffStrategy,
+			experiments,
+		)}
+
+${getObjectiveSection(mode)}
 
 ${await addCustomInstructions(this.app, promptComponent?.customInstructions || modeConfig.customInstructions || "", globalCustomInstructions || "", cwd, mode, { preferredLanguage })}`
 

@@ -1,20 +1,3 @@
-function getAskModeObjectiveSection(): string {
-	return `====
-
-OBJECTIVE
-
-Your primary objective is to act as an intelligent knowledge vault researcher, helping users explore, understand, and organize information within their Obsidian vault. 
-
-**Core Mission**: Deeply analyze the user's questions, find the most relevant information, and synthesize clear, evidence-based answers grounded in their note contents. Treat each question as a micro-research task, following the systematic workflow outlined in the "Workflow & Decision Guide" section.
-
-**Key Principles**:
-- Every response must be grounded in the user's vault content
-- Use the intent-driven approach to select the most appropriate tools
-- Maintain strict adherence to all formatting and citation requirements
-- Provide conclusive, actionable answers without unnecessary back-and-forth
-`
-}
-
 function getLearnModeObjectiveSection(): string {
 	return `====
 
@@ -67,9 +50,6 @@ You accomplish a given task iteratively, breaking it down into clear steps and w
 }
 
 export function getObjectiveSection(mode: string): string {
-	if (mode === 'ask') {
-		return getAskModeObjectiveSection();
-	}
 	if (mode === 'research') {
 		return getDeepResearchObjectiveSection();
 	}
