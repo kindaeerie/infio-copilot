@@ -82,6 +82,40 @@ export class DataviewManager {
 	}
 
 	/**
+	 * 执行 Dataview JS
+	 */
+	async executeJs(js: string): Promise<DataviewQueryResult> {
+		const api = this.getAPI();
+		if (!api) {
+			return {
+				success: false,
+				error: "Dataview 插件未安装或未启用"
+			};
+		}
+
+		try {
+			const result = await api.evaluate(js);
+			if (result.successful) {
+				return {
+					success: true,
+					data: result.value
+				};
+			} else {
+				return {
+					success: false,
+					error: String(result.error || 'JS 查询失败')
+				};
+			}
+		} catch (error) {
+			console.error('Dataview JS 执行失败:', error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : '未知错误'
+			};
+		}
+	}
+
+	/**
 	 * 格式化查询结果（备用方法）
 	 */
 	private formatQueryResult(result: unknown): string {

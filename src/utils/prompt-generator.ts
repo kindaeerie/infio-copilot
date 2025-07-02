@@ -413,7 +413,16 @@ export class PromptGenerator {
 		if (currentWorkspaceName && currentWorkspaceName !== 'vault') {
 			const workspace = await this.workspaceManager.findByName(currentWorkspaceName)
 			if (workspace) {
-				overview += `\n\n# Current Workspace\n${workspace.name}`
+				// 使用 listFilesAndFolders 获取详细的工作区结构
+				const { listFilesAndFolders } = await import('./glob-utils')
+				const workspaceStructure = await listFilesAndFolders(
+					this.app.vault,
+					undefined,
+					false, // 非递归，只显示第一层
+					workspace,
+					this.app
+				)
+				overview += `\n\n# Current Workspace\n${workspaceStructure.join('\n')}`
 			}
 		} else {
 			overview += `\n\n# Current Workspace\n${this.app.vault.getName()} (entire vault)`

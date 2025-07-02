@@ -1,10 +1,9 @@
 import { ChevronDown, FolderOpen, Plus, Tag, Trash2, X } from 'lucide-react'
-import { App, TFile, TFolder } from 'obsidian'
+import { App, TFolder } from 'obsidian'
 import { useEffect, useRef, useState } from 'react'
 
 import { Workspace, WorkspaceContent } from '../../database/json/workspace/types'
 import { t } from '../../lang/helpers'
-import { createDataviewManager } from '../../utils/dataview'
 
 interface WorkspaceEditModalProps {
   workspace?: Workspace
@@ -22,10 +21,10 @@ const WorkspaceEditModal = ({
   onSave 
 }: WorkspaceEditModalProps) => {
   // 生成默认工作区名称
-  const getDefaultWorkspaceName = () => {
+  const getDefaultWorkspaceName = (): string => {
     const now = new Date()
     const date = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`
-    return t('workspace.editModal.defaultName', { date })
+    return String(t('workspace.editModal.defaultName', { date }))
   }
   
   const [name, setName] = useState(workspace?.name || getDefaultWorkspaceName())
@@ -51,11 +50,6 @@ const WorkspaceEditModal = ({
       const folders: string[] = []
       const addFolder = (folder: TFolder) => {
         folders.push(folder.path)
-        // folder.children.forEach(child => {
-        //   if (child instanceof TFolder) {
-        //     addFolder(child)
-        //   }
-        // })
       }
 
 			app.vault.getAllFolders(false).forEach(folder => {
@@ -64,66 +58,15 @@ const WorkspaceEditModal = ({
 
       setAvailableFolders(folders.sort())
 
-      // 使用 dataview 查询获取所有标签
-      const dataviewManager = createDataviewManager(app)
-      
-      if (dataviewManager.isDataviewAvailable()) {
-        try {
-          const result = await dataviewManager.executeQuery('TABLE file.tags FROM ""')
-          
-          if (result.success && result.data) {
-            const tags = new Set<string>()
-            
-            // 解析结果中的标签
-            const lines = result.data.split('\n')
-            lines.forEach(line => {
-              if (line.includes('#')) {
-                const tagMatches = line.match(/#[a-zA-Z0-9\u4e00-\u9fa5_-]+/g)
-                if (tagMatches) {
-                  tagMatches.forEach(tag => tags.add(tag))
-                }
-              }
-            })
-            
-            setAvailableTags(Array.from(tags).sort())
-          } else {
-            // 回退到传统方法
-            fallbackToTraditionalTagQuery()
-          }
-        } catch (error) {
-          console.error('Dataview 查询失败:', error)
-          // 回退到传统方法
-          fallbackToTraditionalTagQuery()
-        }
-      } else {
-        // 回退到传统方法
-        fallbackToTraditionalTagQuery()
+      // 直接使用 Obsidian 的内置接口获取所有标签
+      try {
+				const tagsObject = app.metadataCache.getTags() // 获取所有标签 {'#tag1': 2, '#tag2': 4}
+        const tags = Object.keys(tagsObject).sort()
+        setAvailableTags(tags)
+      } catch (error) {
+        console.error('获取标签失败:', error)
+        setAvailableTags([])
       }
-    }
-
-    // 传统方法获取标签（作为回退方案）
-    const fallbackToTraditionalTagQuery = () => {
-      const tags = new Set<string>()
-      app.vault.getAllLoadedFiles().forEach(file => {
-        if (file instanceof TFile) {
-          const cache = app.metadataCache.getFileCache(file)
-          if (cache?.tags) {
-            cache.tags.forEach(tag => {
-              tags.add(tag.tag)
-            })
-          }
-          if (cache?.frontmatter?.tags) {
-            const frontmatterTags = cache.frontmatter.tags
-            if (Array.isArray(frontmatterTags)) {
-              frontmatterTags.forEach(tag => tags.add(`#${tag}`))
-            } else if (typeof frontmatterTags === 'string') {
-              tags.add(`#${frontmatterTags}`)
-            }
-          }
-        }
-      })
-
-      setAvailableTags(Array.from(tags).sort())
     }
 
     loadAvailableOptions()
@@ -161,9 +104,15 @@ const WorkspaceEditModal = ({
       }
     })
 
-    // 搜索匹配的标签
+		// 搜索匹配的标签
     availableTags.forEach(tag => {
-      if (tag.toLowerCase().includes(searchTerm)) {
+      // 改善搜索匹配逻辑，支持中文和更灵活的匹配
+      const tagForSearch = tag.toLowerCase()
+      const shouldMatch = searchTerm.startsWith('#') 
+        ? tagForSearch.includes(searchTerm.toLowerCase()) // 如果搜索词以#开头，直接匹配
+        : tagForSearch.includes(searchTerm) || tagForSearch.includes(`#${searchTerm}`) // 否则同时匹配带#和不带#的情况
+      
+      if (shouldMatch) {
         // 检查是否已存在
         const exists = content.some(item => 
           item.type === 'tag' && item.content === tag
@@ -190,7 +139,7 @@ const WorkspaceEditModal = ({
       })
     }
 
-    setFilteredSuggestions(suggestions.slice(0, 10)) // 限制显示数量
+    setFilteredSuggestions(suggestions.slice(0, 20)) // 限制显示数量
     setShowSuggestions(suggestions.length > 0)
     setSelectedSuggestionIndex(-1)
   }, [inputValue, availableFolders, availableTags, content])

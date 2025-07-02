@@ -36,6 +36,8 @@ import {
 	LLMModelNotSetException,
 } from '../../core/llm/exception'
 import { TransformationType } from '../../core/transformations/trans-engine'
+import { Workspace } from '../../database/json/workspace/types'
+import { WorkspaceManager } from '../../database/json/workspace/WorkspaceManager'
 import { useChatHistory } from '../../hooks/use-chat-history'
 import { useCustomModes } from '../../hooks/use-custom-mode'
 import { t } from '../../lang/helpers'
@@ -138,6 +140,10 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		// @ts-expect-error TODO: Review PromptGenerator constructor parameters and types
 		return new PromptGenerator(getRAGEngine, app, settings, diffStrategy, customModePrompts, customModeList, getMcpHub)
 	}, [getRAGEngine, app, settings, diffStrategy, customModePrompts, customModeList, getMcpHub])
+
+	const workspaceManager = useMemo(() => {
+		return new WorkspaceManager(app)
+	}, [app])
 
 	const [inputMessage, setInputMessage] = useState<ChatUserMessage>(() => {
 		const newMessage = getNewInputMessage(app, settings.defaultMention)
@@ -618,8 +624,24 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						}
 					};
 				} else if (toolArgs.type === 'list_files') {
-					const files = await listFilesAndFolders(app.vault, toolArgs.filepath)
-					const formattedContent = `[list_files for '${toolArgs.filepath}'] Result:\n${files.join('\n')}\n`;
+					// 获取当前工作区
+					let currentWorkspace: Workspace | null = null
+					if (settings.workspace && settings.workspace !== 'vault') {
+						currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
+					}
+					
+					const files = await listFilesAndFolders(
+						app.vault, 
+						toolArgs.filepath, 
+						toolArgs.recursive, 
+						currentWorkspace || undefined,
+						app
+					)
+					
+					const contextInfo = currentWorkspace 
+						? `workspace '${currentWorkspace.name}'` 
+						: toolArgs.filepath || 'vault root'
+					const formattedContent = `[list_files for '${contextInfo}'] Result:\n${files.join('\n')}\n`;
 					return {
 						type: 'list_files',
 						applyMsgId,
