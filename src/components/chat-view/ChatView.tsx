@@ -3,7 +3,7 @@ import * as path from 'path'
 import { BaseSerializedNode } from '@lexical/clipboard/clipboard'
 import { useMutation } from '@tanstack/react-query'
 import { Box, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
-import { App, Notice, TFile, WorkspaceLeaf } from 'obsidian'
+import { App, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian'
 import {
 	forwardRef,
 	useCallback,
@@ -902,6 +902,150 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 							}
 						};
 					}
+				} else if (toolArgs.type === 'manage_files') {
+					try {
+						const results: string[] = [];
+						
+						// 处理每个文件操作
+						for (const operation of toolArgs.operations) {
+							switch (operation.action) {
+								case 'create_folder':
+									if (operation.path) {
+										const folderExists = await app.vault.adapter.exists(operation.path);
+										if (!folderExists) {
+											await app.vault.adapter.mkdir(operation.path);
+											results.push(`✅ 成功创建文件夹: ${operation.path}`);
+										} else {
+											results.push(`⚠️ 文件夹已存在: ${operation.path}`);
+										}
+									}
+									break;
+								
+								case 'move':
+									if (operation.source_path && operation.destination_path) {
+										// 使用 getAbstractFileByPath 而不是 getFileByPath，这样可以获取文件和文件夹
+										const sourceFile = app.vault.getAbstractFileByPath(operation.source_path);
+										if (sourceFile) {
+											// 确保目标目录存在
+											const destDir = path.dirname(operation.destination_path);
+											if (destDir && destDir !== '.' && destDir !== '/') {
+												const dirExists = await app.vault.adapter.exists(destDir);
+												if (!dirExists) {
+													await app.vault.adapter.mkdir(destDir);
+												}
+											}
+											await app.vault.rename(sourceFile, operation.destination_path);
+											const itemType = sourceFile instanceof TFile ? '文件' : '文件夹';
+											results.push(`✅ 成功移动${itemType}: ${operation.source_path} → ${operation.destination_path}`);
+										} else {
+											results.push(`❌ 源文件或文件夹不存在: ${operation.source_path}`);
+										}
+									}
+									break;
+								
+								case 'delete':
+									if (operation.path) {
+										// 使用 getAbstractFileByPath 而不是 getFileByPath
+										const fileOrFolder = app.vault.getAbstractFileByPath(operation.path);
+										if (fileOrFolder) {
+											try {
+												const isFolder = fileOrFolder instanceof TFolder;
+												// 使用 trash 方法将文件/文件夹移到回收站，更安全
+												// system: true 尝试使用系统回收站，失败则使用 Obsidian 本地回收站
+												await app.vault.trash(fileOrFolder, true);
+												const itemType = isFolder ? '文件夹' : '文件';
+												results.push(`✅ 成功将${itemType}移到回收站: ${operation.path}`);
+											} catch (error) {
+												console.error('删除失败:', error);
+												results.push(`❌ 删除失败: ${operation.path} - ${error.message}`);
+											}
+										} else {
+											results.push(`❌ 文件或文件夹不存在: ${operation.path}`);
+										}
+									}
+									break;
+								
+								case 'copy':
+									if (operation.source_path && operation.destination_path) {
+										// 文件夹复制比较复杂，需要递归处理
+										const sourceFile = app.vault.getAbstractFileByPath(operation.source_path);
+										if (sourceFile) {
+											if (sourceFile instanceof TFile) {
+												// 文件复制
+												const destDir = path.dirname(operation.destination_path);
+												if (destDir && destDir !== '.' && destDir !== '/') {
+													const dirExists = await app.vault.adapter.exists(destDir);
+													if (!dirExists) {
+														await app.vault.adapter.mkdir(destDir);
+													}
+												}
+												const content = await app.vault.read(sourceFile);
+												await app.vault.create(operation.destination_path, content);
+												results.push(`✅ 成功复制文件: ${operation.source_path} → ${operation.destination_path}`);
+											} else if (sourceFile instanceof TFolder) {
+												// 文件夹复制需要递归处理
+												results.push(`❌ 文件夹复制功能暂未实现: ${operation.source_path}`);
+											}
+										} else {
+											results.push(`❌ 源文件或文件夹不存在: ${operation.source_path}`);
+										}
+									}
+									break;
+								
+								case 'rename':
+									if (operation.path && operation.new_name) {
+										// 使用 getAbstractFileByPath 而不是 getFileByPath
+										const file = app.vault.getAbstractFileByPath(operation.path);
+										if (file) {
+											const newPath = path.join(path.dirname(operation.path), operation.new_name);
+											await app.vault.rename(file, newPath);
+											const itemType = file instanceof TFile ? '文件' : '文件夹';
+											results.push(`✅ 成功重命名${itemType}: ${operation.path} → ${newPath}`);
+										} else {
+											results.push(`❌ 文件或文件夹不存在: ${operation.path}`);
+										}
+									}
+									break;
+								
+								default:
+									results.push(`❌ 不支持的操作类型: ${operation.action}`);
+							}
+						}
+						
+						const formattedContent = `[manage_files] 文件管理操作结果:\n${results.join('\n')}`;
+						
+						return {
+							type: 'manage_files',
+							applyMsgId,
+							applyStatus: ApplyStatus.Applied,
+							returnMsg: {
+								role: 'user',
+								applyStatus: ApplyStatus.Idle,
+								content: null,
+								promptContent: formattedContent,
+								id: uuidv4(),
+								mentionables: [],
+							}
+						};
+					} catch (error) {
+						console.error('文件管理操作失败:', error);
+						return {
+							type: 'manage_files',
+							applyMsgId,
+							applyStatus: ApplyStatus.Failed,
+							returnMsg: {
+								role: 'user',
+								applyStatus: ApplyStatus.Idle,
+								content: null,
+								promptContent: `[manage_files] 文件管理操作失败: ${error instanceof Error ? error.message : String(error)}`,
+								id: uuidv4(),
+								mentionables: [],
+							}
+						};
+					}
+				} else {
+					// 处理未知的工具类型
+					throw new Error(`Unsupported tool type: ${toolArgs.type}`);
 				}
 			} catch (error) {
 				console.error('Failed to apply changes', error)

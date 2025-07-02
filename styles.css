@@ -2068,6 +2068,36 @@ button.infio-chat-input-model-select {
   text-decoration: underline;
 }
 
+/*
+ * Manage Files Block Styles
+ */
+.manage-files-operation {
+  margin-bottom: var(--size-2-1);
+}
+
+.operation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  padding: var(--size-2-1) var(--size-4-1);
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  transition: all 0.2s ease;
+}
+
+.operation-item:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.operation-description {
+  flex: 1;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
 .infio-chat-code-block-status-button {
   color: var(--color-green); /* 替换原来的 #008000 */
   background: none;

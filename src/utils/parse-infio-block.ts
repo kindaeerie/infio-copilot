@@ -106,6 +106,16 @@ export type ParsedMsgBlock =
 		transformation: string
 		finish: boolean
 	} | {
+		type: 'manage_files'
+		operations: Array<{
+			action: 'create_folder' | 'move' | 'delete' | 'copy' | 'rename'
+			path?: string
+			source_path?: string
+			destination_path?: string
+			new_name?: string
+		}>
+		finish: boolean
+	} | {
 		type: 'tool_result'
 		content: string
 	}
@@ -816,6 +826,76 @@ export function parseMsgBlocks(
 						content: input.slice(innerContentStartOffset, innerContentEndOffset),
 					})
 				}
+				lastEndOffset = endOffset
+			} else if (node.nodeName === 'manage_files') {
+				if (!node.sourceCodeLocation) {
+					throw new Error('sourceCodeLocation is undefined')
+				}
+				const startOffset = node.sourceCodeLocation.startOffset
+				const endOffset = node.sourceCodeLocation.endOffset
+				if (startOffset > lastEndOffset) {
+					parsedResult.push({
+						type: 'string',
+						content: input.slice(lastEndOffset, startOffset),
+					})
+				}
+
+				let operations: Array<{
+					action: 'create_folder' | 'move' | 'delete' | 'copy' | 'rename'
+					path?: string
+					source_path?: string
+					destination_path?: string
+					new_name?: string
+				}> = []
+
+				// 检查是否有 operations 子标签
+				for (const childNode of node.childNodes) {
+					if (childNode.nodeName === 'operations' && childNode.childNodes.length > 0) {
+						try {
+							// 获取 operations 标签内的内容
+							const operationsChildren = childNode.childNodes
+							if (operationsChildren.length > 0) {
+								const innerContentStartOffset = operationsChildren[0].sourceCodeLocation?.startOffset
+								const innerContentEndOffset = operationsChildren[operationsChildren.length - 1].sourceCodeLocation?.endOffset
+								
+								if (innerContentStartOffset && innerContentEndOffset) {
+									const jsonContent = input.slice(innerContentStartOffset, innerContentEndOffset).trim()
+									operations = JSON5.parse(jsonContent)
+								}
+							}
+						} catch (error) {
+							console.error('Failed to parse operations JSON', error)
+						}
+						break
+					}
+				}
+
+				// 如果没有找到 operations 子标签，尝试直接解析标签内容
+				if (operations.length === 0) {
+					const children = node.childNodes
+					if (children.length > 0) {
+						try {
+							const innerContentStartOffset = children[0].sourceCodeLocation?.startOffset
+							const innerContentEndOffset = children[children.length - 1].sourceCodeLocation?.endOffset
+							
+							if (innerContentStartOffset && innerContentEndOffset) {
+								const jsonContent = input.slice(innerContentStartOffset, innerContentEndOffset).trim()
+								// 检查内容是否以 [ 开头（纯 JSON 数组）
+								if (jsonContent.startsWith('[')) {
+									operations = JSON5.parse(jsonContent)
+								}
+							}
+						} catch (error) {
+							console.error('Failed to parse manage_files JSON', error)
+						}
+					}
+				}
+				
+				parsedResult.push({
+					type: 'manage_files',
+					operations,
+					finish: node.sourceCodeLocation.endTag !== undefined
+				})
 				lastEndOffset = endOffset
 			}
 		}

@@ -11,8 +11,8 @@ import MarkdownDataviewQueryBlock from './Markdown/MarkdownDataviewQueryBlock'
 import MarkdownEditFileBlock from './Markdown/MarkdownEditFileBlock'
 import MarkdownFetchUrlsContentBlock from './Markdown/MarkdownFetchUrlsContentBlock'
 import MarkdownListFilesBlock from './Markdown/MarkdownListFilesBlock'
+import MarkdownManageFilesBlock from './Markdown/MarkdownManageFilesBlock'
 import MarkdownMatchSearchFilesBlock from './Markdown/MarkdownMatchSearchFilesBlock'
-import MarkdownPlanBlock from './Markdown/MarkdownPlanBlock'
 import MarkdownReadFileBlock from './Markdown/MarkdownReadFileBlock'
 import MarkdownReasoningBlock from './Markdown/MarkdownReasoningBlock'
 import MarkdownRegexSearchFilesBlock from './Markdown/MarkdownRegexSearchFilesBlock'
@@ -44,21 +44,15 @@ function ReactMarkdown({
 	return (
 		<>
 			{blocks.map((block, index) =>
-				block.type === 'communication' ? (
-					<RawMarkdownBlock
-						key={"markdown-" + index}
-						content={block.content}
-						className="infio-markdown"
-					/>
-				) : block.type === 'think' ? (
+				block.type === 'think' ? (
 					<MarkdownReasoningBlock
 						key={"reasoning-" + index}
 						reasoningContent={block.content}
 					/>
 				) : block.type === 'thinking' ? (
-					<MarkdownPlanBlock
+					<RawMarkdownBlock
 						key={"plan-" + index}
-						planContent={block.content}
+						content={block.content}
 					/>
 				) : block.type === 'write_to_file' ? (
 					<MarkdownEditFileBlock
@@ -227,6 +221,14 @@ function ReactMarkdown({
 						toolType="call_transformations"
 						path={block.path}
 						transformation={block.transformation}
+						finish={block.finish}
+					/>
+				) : block.type === 'manage_files' ? (
+					<MarkdownManageFilesBlock
+						key={"manage-files-" + index}
+						applyStatus={applyStatus}
+						onApply={onApply}
+						operations={block.operations}
 						finish={block.finish}
 					/>
 				) : block.type === 'tool_result' ? (
