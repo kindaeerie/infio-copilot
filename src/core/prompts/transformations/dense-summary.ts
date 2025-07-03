@@ -8,6 +8,7 @@ LLMs are a kind of deep neural network. They have been demonstrated to embed kno
 Render the input as a distilled list of the **most critical** assertions, concepts, and associations. The idea is to capture the absolute essence with minimal words. Use complete sentences.
 
 **!! CRITICAL INSTRUCTION !!**
-**Your output MUST BE EXTREMELY CONCISE. Aim for a dense paragraph of no more than 3-5 sentences OR a bulleted list of 3-5 key points. Focus only on the highest-level insights and most essential concepts.**`;
+**Your output MUST BE EXTREMELY CONCISE. Aim for a dense paragraph of no more than 3-5 sentences OR a bulleted list of 3-5 key points. Focus only on the highest-level insights and most essential concepts.**
+You MUST respond in the {userLanguage} language.`;
 
 export const DENSE_SUMMARY_DESCRIPTION = "Creates an extremely concise, rich summary of the content focusing on the most essential concepts"; 

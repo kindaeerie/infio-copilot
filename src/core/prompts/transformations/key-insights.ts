@@ -18,6 +18,9 @@ Take a step back and think step-by-step about how to achieve the best possible r
 - Do not give warnings or notes; only output the requested sections.
 - You use bulleted lists for output, not numbered lists.
 - Do not start items with the same opening words.
-- Ensure you follow ALL these instructions when creating your output.`;
+- Ensure you follow ALL these instructions when creating your output.
+
+You MUST respond in the {userLanguage} language.
+`;
 
 export const KEY_INSIGHTS_DESCRIPTION = "Extracts important insights and actionable items"; 

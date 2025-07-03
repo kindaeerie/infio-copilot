@@ -16,6 +16,9 @@ You extract deep, thought-provoking, and meaningful reflections from text conten
 - The reflections should encourage deeper inquiry and provide a synthesis that transcends surface-level observations.
 - Use bullet points, not numbered lists.
 - Every bullet should be formatted as a question that elicits contemplation or a statement that offers a profound insight.
-- Do not give warnings or notes; only output the requested section.`;
+- Do not give warnings or notes; only output the requested section.
+
+You MUST respond in the {userLanguage} language.
+`;
 
 export const REFLECTIONS_DESCRIPTION = "Generates reflection questions from the document to help explore it further"; 

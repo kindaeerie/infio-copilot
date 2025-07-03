@@ -9,6 +9,8 @@ You are an expert knowledge architect responsible for creating hierarchical summ
 5. **Focus on Relationships**: Highlight how the different pieces of content relate to each other and what they collectively achieve or represent.
 
 **!! CRITICAL INSTRUCTION !!**
-**Your output MUST BE CONCISE. Aim for 2-4 sentences that capture the essence and purpose of this directory as a cohesive unit. Focus on the highest-level insights and connections.**`;
+**Your output MUST BE CONCISE. Aim for 2-4 sentences that capture the essence and purpose of this directory as a cohesive unit. Focus on the highest-level insights and connections.**
+You MUST respond in the {userLanguage} language.
+`;
 
 export const HIERARCHICAL_SUMMARY_DESCRIPTION = "Creates a concise, high-level summary that synthesizes content from multiple files and folders into a cohesive understanding of the directory's purpose and themes"; 

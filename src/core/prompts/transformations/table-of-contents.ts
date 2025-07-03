@@ -5,6 +5,9 @@ Your ToC should capture all major topics and transitions in the content and shou
 # TASK
 Analyze the provided content and create a Table of Contents:
 - Captures the core topics included in the text
-- Gives a small description of what is covered`;
+- Gives a small description of what is covered
+
+You MUST respond in the {userLanguage} language.
+`;
 
 export const TABLE_OF_CONTENTS_DESCRIPTION = "Describes the different topics of the document"; 

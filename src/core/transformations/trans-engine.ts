@@ -1,5 +1,5 @@
 import { Result, err, ok } from "neverthrow";
-import { App, TFolder } from 'obsidian';
+import { App, TFolder, getLanguage } from 'obsidian';
 
 import { DBManager } from '../../database/database-manager';
 import { InsightManager } from '../../database/modules/insight/insight-manager';
@@ -8,10 +8,10 @@ import { LLMModel } from '../../types/llm/model';
 import { RequestMessage } from '../../types/llm/request';
 import { InfioSettings } from '../../types/settings';
 import { readTFileContentPdf } from '../../utils/obsidian';
+import { getFullLanguageName } from '../../utils/prompt-generator';
 import { tokenCount } from '../../utils/token';
 import LLMManager from '../llm/manager';
 import { ANALYZE_PAPER_DESCRIPTION, ANALYZE_PAPER_PROMPT } from '../prompts/transformations/analyze-paper';
-import { CONCISE_DENSE_SUMMARY_DESCRIPTION, CONCISE_DENSE_SUMMARY_PROMPT } from '../prompts/transformations/concise-dense-summary';
 import { DENSE_SUMMARY_DESCRIPTION, DENSE_SUMMARY_PROMPT } from '../prompts/transformations/dense-summary';
 import { HIERARCHICAL_SUMMARY_DESCRIPTION, HIERARCHICAL_SUMMARY_PROMPT } from '../prompts/transformations/hierarchical-summary';
 import { KEY_INSIGHTS_DESCRIPTION, KEY_INSIGHTS_PROMPT } from '../prompts/transformations/key-insights';
@@ -68,7 +68,6 @@ class ConcurrencyLimiter {
 // 转换类型枚举
 export enum TransformationType {
 	DENSE_SUMMARY = 'dense_summary',
-	CONCISE_DENSE_SUMMARY = 'concise_dense_summary',
 	HIERARCHICAL_SUMMARY = 'hierarchical_summary',
 	ANALYZE_PAPER = 'analyze_paper',
 	SIMPLE_SUMMARY = 'simple_summary',
@@ -91,12 +90,6 @@ export const TRANSFORMATIONS: Record<TransformationType, TransformationConfig> =
 		type: TransformationType.DENSE_SUMMARY,
 		prompt: DENSE_SUMMARY_PROMPT,
 		description: DENSE_SUMMARY_DESCRIPTION,
-		maxTokens: 4000
-	},
-	[TransformationType.CONCISE_DENSE_SUMMARY]: {
-		type: TransformationType.CONCISE_DENSE_SUMMARY,
-		prompt: CONCISE_DENSE_SUMMARY_PROMPT,
-		description: CONCISE_DENSE_SUMMARY_DESCRIPTION,
 		maxTokens: 4000
 	},
 	[TransformationType.HIERARCHICAL_SUMMARY]: {
@@ -685,7 +678,7 @@ export class TransEngine {
 			const messages: RequestMessage[] = [
 				{
 					role: 'system',
-					content: transformationConfig.prompt
+					content: transformationConfig.prompt.replace('{userLanguage}', getFullLanguageName(getLanguage()))
 				},
 				{
 					role: 'user',

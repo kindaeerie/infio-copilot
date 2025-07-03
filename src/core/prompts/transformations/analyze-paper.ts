@@ -31,6 +31,9 @@ You are an insightful and analytical reader of academic papers, extracting the k
 - Avoid starting each bullet point with the same word to maintain variety.
 - Use clear and concise language that conveys the key ideas effectively.
 - Do not include warnings, disclaimers, or personal opinions.
-- Output only the requested sections with their respective labels.`;
+- Output only the requested sections with their respective labels.
+
+You MUST respond in the {userLanguage} language.
+`;
 
 export const ANALYZE_PAPER_DESCRIPTION = "Analyses a technical/scientific paper"; 
