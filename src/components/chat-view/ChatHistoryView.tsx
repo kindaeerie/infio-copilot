@@ -1,4 +1,4 @@
-import { CheckSquare, Clock, Edit3, MessageSquare, Pencil, Search, Square, Trash2, CopyPlus } from 'lucide-react'
+import { CheckSquare, Clock, CopyPlus, MessageSquare, Pencil, Search, Sparkles, Square, Trash2 } from 'lucide-react'
 import { Notice } from 'obsidian'
 import React, { useMemo, useRef, useState } from 'react'
 
@@ -23,6 +23,7 @@ const ChatHistoryView = ({
 		deleteConversation,
 		updateConversationTitle,
 		chatList,
+		cleanupOutdatedChats,
 	} = useChatHistory()
 
 	// search term
@@ -36,6 +37,25 @@ const ChatHistoryView = ({
 	const [selectedConversations, setSelectedConversations] = useState<Set<string>>(new Set())
 
 	const titleInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
+
+	const handleCleanup = async () => {
+		const confirmed = confirm('此操作将永久删除所有对话的历史版本，只保留最新版。这有助于清理数据，但操作不可撤销。确定要继续吗？')
+		if (!confirmed) {
+			return
+		}
+
+		try {
+			const count = await cleanupOutdatedChats()
+			if (count > 0) {
+				new Notice(`成功清理了 ${count} 个过时的对话文件。`)
+			} else {
+				new Notice('没有需要清理的对话文件。')
+			}
+		} catch (error) {
+			new Notice('清理失败，请检查开发者控制台获取更多信息。')
+			console.error('Failed to cleanup outdated chats', error)
+		}
+	}
 
 	// handle search
 	const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,6 +212,14 @@ const ChatHistoryView = ({
 					<h2>{t('chat.history.title')}</h2>
 				</div>
 				<div className="infio-chat-history-header-actions">
+					<button
+						onClick={handleCleanup}
+						className="infio-chat-history-cleanup-btn"
+						title={'清理历史版本'}
+					>
+						<Sparkles size={16} />
+						清理
+					</button>
 					<button
 						onClick={toggleSelectionMode}
 						className={`infio-chat-history-selection-btn ${selectionMode ? 'active' : ''}`}
@@ -398,6 +426,7 @@ const ChatHistoryView = ({
 					flex-shrink: 0;
 				}
 
+				.infio-chat-history-cleanup-btn,
 				.infio-chat-history-selection-btn {
 					display: flex !important;
 					align-items: center;
@@ -415,6 +444,7 @@ const ChatHistoryView = ({
 					box-sizing: border-box;
 				}
 
+				.infio-chat-history-cleanup-btn:hover,
 				.infio-chat-history-selection-btn:hover {
 					background-color: var(--background-modifier-hover, #f5f5f5);
 					border-color: var(--background-modifier-border-hover, #d0d0d0);

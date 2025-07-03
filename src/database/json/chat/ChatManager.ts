@@ -71,11 +71,15 @@ export class ChatManager extends AbstractJsonRepository<
 
 	public async findById(id: string): Promise<ChatConversation | null> {
 		const allMetadata = await this.listMetadata()
-		const targetMetadata = allMetadata.find((meta) => meta.id === id)
+		const targetMetadatas = allMetadata.filter((meta) => meta.id === id)
 
-		if (!targetMetadata) return null
+		if (targetMetadatas.length === 0) return null
 
-		return this.read(targetMetadata.fileName)
+		// Sort by updatedAt descending to find the latest version
+		targetMetadatas.sort((a, b) => b.updatedAt - a.updatedAt)
+		const latestMetadata = targetMetadatas[0]
+
+		return this.read(latestMetadata.fileName)
 	}
 
 	public async updateChat(
@@ -103,16 +107,65 @@ export class ChatManager extends AbstractJsonRepository<
 
 	public async deleteChat(id: string): Promise<boolean> {
 		const allMetadata = await this.listMetadata()
-		const targetMetadata = allMetadata.find((meta) => meta.id === id)
-		if (!targetMetadata) return false
+		const targetsToDelete = allMetadata.filter((meta) => meta.id === id)
 
-		await this.delete(targetMetadata.fileName)
+		if (targetsToDelete.length === 0) return false
+
+		// Delete all files associated with this ID
+		await Promise.all(targetsToDelete.map(meta => this.delete(meta.fileName)))
+
 		return true
+	}
+
+	public async cleanupOutdatedChats(): Promise<number> {
+		const allMetadata = await this.listMetadata()
+		const chatsById = new Map<string, (ChatConversationMeta & { fileName: string })[]>()
+
+		// Group chats by ID
+		for (const meta of allMetadata) {
+			if (!chatsById.has(meta.id)) {
+				chatsById.set(meta.id, [])
+			}
+			chatsById.get(meta.id)!.push(meta)
+		}
+
+		const filesToDelete: string[] = []
+
+		// Find outdated files for each ID
+		for (const chatGroup of chatsById.values()) {
+			if (chatGroup.length > 1) {
+				// Sort by date to find the newest
+				chatGroup.sort((a, b) => b.updatedAt - a.updatedAt)
+				// The first one is the latest, the rest are outdated
+				const outdatedFiles = chatGroup.slice(1)
+				for (const outdated of outdatedFiles) {
+					filesToDelete.push(outdated.fileName)
+				}
+			}
+		}
+
+		if (filesToDelete.length > 0) {
+			await Promise.all(filesToDelete.map(fileName => this.delete(fileName)))
+		}
+
+		return filesToDelete.length
 	}
 
 	public async listChats(): Promise<ChatConversationMeta[]> {
 		const metadata = await this.listMetadata()
-		const sorted = metadata.sort((a, b) => b.updatedAt - a.updatedAt)
+
+		// Use a Map to store the latest version of each chat by ID.
+		const latestChats = new Map<string, ChatConversationMeta>()
+
+		for (const meta of metadata) {
+			const existing = latestChats.get(meta.id)
+			if (!existing || meta.updatedAt > existing.updatedAt) {
+				latestChats.set(meta.id, meta)
+			}
+		}
+
+		const uniqueMetadata = Array.from(latestChats.values())
+		const sorted = uniqueMetadata.sort((a, b) => b.updatedAt - a.updatedAt)
 		return sorted
 	}
 }

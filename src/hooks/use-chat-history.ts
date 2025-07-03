@@ -17,6 +17,7 @@ type UseChatHistory = {
 	getChatMessagesById: (id: string) => Promise<ChatMessage[] | null>
 	updateConversationTitle: (id: string, title: string) => Promise<void>
 	chatList: ChatConversationMeta[]
+	cleanupOutdatedChats: () => Promise<number>
 }
 
 export function useChatHistory(): UseChatHistory {
@@ -111,11 +112,18 @@ export function useChatHistory(): UseChatHistory {
 		[chatManager, fetchChatList],
 	)
 
+	const cleanupOutdatedChats = useCallback(async (): Promise<number> => {
+		const count = await chatManager.cleanupOutdatedChats()
+		await fetchChatList()
+		return count
+	}, [chatManager, fetchChatList])
+
 	return {
 		createOrUpdateConversation,
 		deleteConversation,
 		getChatMessagesById,
 		updateConversationTitle,
 		chatList,
+		cleanupOutdatedChats,
 	}
 }
