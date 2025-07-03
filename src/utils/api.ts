@@ -903,6 +903,10 @@ export const qwenModels = {
 	},
 } as const satisfies Record<string, ModelInfo>
 export const qwenEmbeddingModels = {
+	"text-embedding-v4": {
+		dimensions: 1024,
+		description: "支持50+主流语种，包括中文、英语、西班牙语、法语、葡萄牙语、印尼语、日语、韩语、德语、俄罗斯语等。最大行数20，单行最大处理8,192 Token。支持可选维度：1,024（默认）、768或512。单价：0.0007元/千Token。免费额度：50万Token（有效期180天）。"
+	},
 	"text-embedding-v3": {
 		dimensions: 1024,
 		description: "支持50+主流语种，包括中文、英语、西班牙语、法语、葡萄牙语、印尼语、日语、韩语、德语、俄罗斯语等。最大行数20，单行最大处理8,192 Token。支持可选维度：1,024（默认）、768或512。单价：0.0007元/千Token。免费额度：50万Token（有效期180天）。"

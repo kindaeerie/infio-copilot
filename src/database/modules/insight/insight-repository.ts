@@ -29,7 +29,8 @@ export class InsightRepository {
     const tableName = this.getTableName(embeddingModel)
     const result = await this.db.query<SelectSourceInsight>(
       `SELECT * FROM "${tableName}" ORDER BY created_at DESC`
-    )
+		)
+		console.log(result.rows)
     return result.rows
   }
 
@@ -126,6 +127,20 @@ export class InsightRepository {
     }
     const tableName = this.getTableName(embeddingModel)
     await this.db.query(`DELETE FROM "${tableName}"`)
+  }
+
+  async deleteInsightById(
+    id: number,
+    embeddingModel: EmbeddingModel,
+  ): Promise<void> {
+    if (!this.db) {
+      throw new DatabaseNotInitializedException()
+    }
+    const tableName = this.getTableName(embeddingModel)
+    await this.db.query(
+      `DELETE FROM "${tableName}" WHERE id = $1`,
+      [id]
+    )
   }
 
   async insertInsights(

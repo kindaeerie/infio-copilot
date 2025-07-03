@@ -1,4 +1,4 @@
-export const DENSE_SUMMARY_PROMPT = `# MISSION
+export const CONCISE_DENSE_SUMMARY_PROMPT = `# MISSION
 You are a Sparse Priming Representation (SPR) writer. Your goal is to render the user's input as an extremely concise and distilled SPR.
 
 # THEORY
@@ -10,4 +10,4 @@ Render the input as a distilled list of the **most critical** assertions, concep
 **!! CRITICAL INSTRUCTION !!**
 **Your output MUST BE EXTREMELY CONCISE. Aim for a dense paragraph of no more than 3-5 sentences OR a bulleted list of 3-5 key points. Focus only on the highest-level insights and most essential concepts.**`;
 
-export const DENSE_SUMMARY_DESCRIPTION = "Creates an extremely concise, rich summary of the content focusing on the most essential concepts"; 
+export const CONCISE_DENSE_SUMMARY_DESCRIPTION = "Creates an extremely concise, rich summary of the content focusing on the most essential concepts"; 

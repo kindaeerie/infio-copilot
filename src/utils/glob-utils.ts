@@ -1,7 +1,11 @@
 import { minimatch } from 'minimatch'
 import { App, TFile, TFolder, Vault } from 'obsidian'
 
+import { RAGEngine } from '../core/rag/rag-engine'
+import { TRANSFORMATIONS, TransEngine } from '../core/transformations/trans-engine'
 import { Workspace } from '../database/json/workspace/types'
+
+import { addLineNumbers } from './prompt-generator'
 
 export const findFilesMatchingPatterns = async (
 	patterns: string[],
@@ -225,4 +229,116 @@ export const matchSearchFiles = async (vault: Vault, path: string, query: string
 
 export const regexSearchFiles = async (vault: Vault, path: string, regex: string, file_pattern: string) => {
 
+}
+
+/**
+ * 语义搜索文件（同时查询原始笔记和抽象洞察）
+ */
+export const semanticSearchFiles = async (
+	ragEngine: RAGEngine, // RAG 引擎实例 - 原始笔记数据库
+	query: string,
+	path?: string,
+	workspace?: Workspace,
+	app?: App,
+	transEngine?: TransEngine // Trans 引擎实例 - 抽象洞察数据库
+): Promise<string> => {
+	let scope: { files: string[], folders: string[] } | undefined
+
+	// 如果指定了路径，使用该路径
+	if (path && path !== '' && path !== '.' && path !== '/') {
+		scope = { files: [], folders: [path] }
+	} 
+	// 如果没有指定路径但有工作区，使用工作区范围
+	else if (workspace && app) {
+		const folders: string[] = []
+		const files: string[] = []
+
+		// 处理工作区中的文件夹和标签
+		for (const item of workspace.content) {
+			if (item.type === 'folder') {
+				folders.push(item.content)
+			} else if (item.type === 'tag') {
+				// 获取标签对应的所有文件
+				const tagFiles = getFilesWithTag(item.content, app)
+				files.push(...tagFiles)
+			}
+		}
+
+		// 只有当有文件夹或文件时才设置 scope
+		if (folders.length > 0 || files.length > 0) {
+			scope = { files, folders }
+		}
+	}
+	
+	const resultSections: string[] = []
+
+	// 1. 查询原始笔记数据库 (RAGEngine)
+	try {
+		const ragResults = await ragEngine.processQuery({
+			query: query,
+			scope: scope,
+		})
+
+		if (ragResults.length > 0) {
+			resultSections.push('## 📝 原始笔记内容')
+			const ragSnippets = ragResults.map(({ path, content, metadata }: any) => {
+				const contentWithLineNumbers = addLineNumbers(content, metadata.startLine)
+				return `<file_block_content location="${path}#L${metadata.startLine}-${metadata.endLine}">\n${contentWithLineNumbers}\n</file_block_content>`
+			}).join('\n\n')
+			resultSections.push(ragSnippets)
+		}
+	} catch (error) {
+		console.warn('RAG 搜索失败:', error)
+		resultSections.push('## 📝 原始笔记内容\n⚠️ 原始笔记搜索失败')
+	}
+
+	// 2. 查询抽象洞察数据库 (TransEngine) - 使用新的 processQuery 接口
+	if (transEngine) {
+		try {
+			const insightResults = await transEngine.processQuery({
+				query: query,
+				scope: scope,
+				limit: 20,
+				minSimilarity: 0.3,
+			})
+
+			if (insightResults.length > 0) {
+				resultSections.push('\n## 🧠 AI 抽象洞察')
+				
+				// 按转换类型分组
+				const groupedInsights: { [key: string]: any[] } = {}
+				insightResults.forEach(insight => {
+					if (!groupedInsights[insight.insight_type]) {
+						groupedInsights[insight.insight_type] = []
+					}
+					groupedInsights[insight.insight_type].push(insight)
+				})
+
+				// 渲染每种类型的洞察
+				for (const [insightType, insights] of Object.entries(groupedInsights)) {
+					const transformationConfig = TRANSFORMATIONS[insightType as keyof typeof TRANSFORMATIONS]
+					const typeName = transformationConfig ? transformationConfig.description : insightType
+					
+					resultSections.push(`\n### ${typeName}`)
+					
+					insights.forEach((insight, index) => {
+						const similarity = (insight.similarity * 100).toFixed(1)
+						resultSections.push(
+							`<insight_block source="${insight.source_path}" type="${insightType}" similarity="${similarity}%">\n${insight.insight}\n</insight_block>`
+						)
+					})
+				}
+			}
+		} catch (error) {
+			console.warn('TransEngine 搜索失败:', error)
+			resultSections.push('\n## 🧠 AI 抽象洞察\n⚠️ 洞察搜索失败: ' + (error instanceof Error ? error.message : String(error)))
+		}
+	}
+
+	// 3. 合并结果
+	if (resultSections.length === 0) {
+		return `No results found for '${query}'`
+	}
+
+	return resultSections.join('\n\n')
 }

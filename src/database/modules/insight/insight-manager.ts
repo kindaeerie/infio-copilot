@@ -208,6 +208,16 @@ export class InsightManager {
   }
 
   /**
+   * 删除指定ID的洞察
+   */
+  async deleteInsightById(
+    id: number,
+    embeddingModel: EmbeddingModel,
+  ): Promise<void> {
+    await this.repository.deleteInsightById(id, embeddingModel)
+  }
+
+  /**
    * 文件删除时清理相关洞察
    */
   async cleanInsightsForDeletedFile(

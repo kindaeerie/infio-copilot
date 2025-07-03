@@ -1,12 +1,17 @@
 import { SerializedEditorState } from 'lexical'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 
 import { useApp } from '../../contexts/AppContext'
 import { useRAG } from '../../contexts/RAGContext'
+import { useSettings } from '../../contexts/SettingsContext'
+import { useTrans } from '../../contexts/TransContext'
+import { Workspace } from '../../database/json/workspace/types'
+import { WorkspaceManager } from '../../database/json/workspace/WorkspaceManager'
 import { SelectVector } from '../../database/schema'
 import { Mentionable } from '../../types/mentionable'
+import { getFilesWithTag } from '../../utils/glob-utils'
 import { openMarkdownFile } from '../../utils/obsidian'
 
 import SearchInputWithActions, { SearchInputRef } from './chat-input/SearchInputWithActions'
@@ -20,18 +25,49 @@ interface FileGroup {
 	blocks: (Omit<SelectVector, 'embedding'> & { similarity: number })[]
 }
 
+// 洞察文件分组结果接口
+interface InsightFileGroup {
+	path: string
+	fileName: string
+	maxSimilarity: number
+	insights: Array<{
+		id: string
+		insight: string
+		insight_type: string
+		similarity: number
+		source_path: string
+	}>
+}
+
 const SearchView = () => {
 	const { getRAGEngine } = useRAG()
+	const { getTransEngine } = useTrans()
 	const app = useApp()
+	const { settings } = useSettings()
 	const searchInputRef = useRef<SearchInputRef>(null)
+	
+	// 工作区管理器
+	const workspaceManager = useMemo(() => {
+		return new WorkspaceManager(app)
+	}, [app])
 	const [searchResults, setSearchResults] = useState<(Omit<SelectVector, 'embedding'> & { similarity: number })[]>([])
+	const [insightResults, setInsightResults] = useState<Array<{
+		id: string
+		insight: string
+		insight_type: string
+		similarity: number
+		source_path: string
+	}>>([])
 	const [isSearching, setIsSearching] = useState(false)
 	const [hasSearched, setHasSearched] = useState(false)
+	const [searchMode, setSearchMode] = useState<'notes' | 'insights'>('notes') // 搜索模式：笔记或洞察
 	// 展开状态管理 - 默认全部展开
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set())
 	// 新增：mentionables 状态管理
 	const [mentionables, setMentionables] = useState<Mentionable[]>([])
 	const [searchEditorState, setSearchEditorState] = useState<SerializedEditorState | null>(null)
+	// 当前搜索范围信息
+	const [currentSearchScope, setCurrentSearchScope] = useState<string>('')
 
 	const handleSearch = useCallback(async (editorState?: SerializedEditorState) => {
 		let searchTerm = ''
@@ -43,7 +79,9 @@ const SearchView = () => {
 		
 		if (!searchTerm.trim()) {
 			setSearchResults([])
+			setInsightResults([])
 			setHasSearched(false)
+			setCurrentSearchScope('')
 			return
 		}
 		
@@ -51,23 +89,87 @@ const SearchView = () => {
 		setHasSearched(true)
 		
 		try {
-			const ragEngine = await getRAGEngine()
-			const results = await ragEngine.processQuery({
-				query: searchTerm,
-				limit: 50, // 使用用户选择的限制数量
-			})
+			// 获取当前工作区
+			let currentWorkspace: Workspace | null = null
+			if (settings.workspace && settings.workspace !== 'vault') {
+				currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
+			}
 			
-			setSearchResults(results)
-			// 默认展开所有文件
-			// const uniquePaths = new Set(results.map(r => r.path))
-			// setExpandedFiles(new Set(uniquePaths))
+			// 设置搜索范围信息
+			let scopeDescription = ''
+			if (currentWorkspace) {
+				scopeDescription = `工作区: ${currentWorkspace.name}`
+			} else {
+				scopeDescription = '整个 Vault'
+			}
+			setCurrentSearchScope(scopeDescription)
+
+			// 构建搜索范围
+			let scope: { files: string[], folders: string[] } | undefined
+			if (currentWorkspace) {
+				const folders: string[] = []
+				const files: string[] = []
+
+				// 处理工作区中的文件夹和标签
+				for (const item of currentWorkspace.content) {
+					if (item.type === 'folder') {
+						folders.push(item.content)
+					} else if (item.type === 'tag') {
+						// 获取标签对应的所有文件
+						const tagFiles = getFilesWithTag(item.content, app)
+						files.push(...tagFiles)
+					}
+				}
+
+				// 只有当有文件夹或文件时才设置 scope
+				if (folders.length > 0 || files.length > 0) {
+					scope = { files, folders }
+				}
+			}
+
+			if (searchMode === 'notes') {
+				// 搜索原始笔记
+				const ragEngine = await getRAGEngine()
+				const results = await ragEngine.processQuery({
+					query: searchTerm,
+					scope: scope,
+					limit: 50,
+				})
+				
+				setSearchResults(results)
+				setInsightResults([])
+			} else {
+				// 搜索洞察
+				const transEngine = await getTransEngine()
+				const results = await transEngine.processQuery({
+					query: searchTerm,
+					scope: scope,
+					limit: 50,
+					minSimilarity: 0.3,
+				})
+				
+				setInsightResults(results)
+				setSearchResults([])
+			}
 		} catch (error) {
 			console.error('搜索失败:', error)
 			setSearchResults([])
+			setInsightResults([])
 		} finally {
 			setIsSearching(false)
 		}
-	}, [getRAGEngine])
+	}, [getRAGEngine, getTransEngine, settings, workspaceManager, app, searchMode])
+
+	// 当搜索模式切换时，如果已经搜索过，重新执行搜索
+	useEffect(() => {
+		if (hasSearched && searchEditorState) {
+			// 延迟执行避免状态更新冲突
+			const timer = setTimeout(() => {
+				handleSearch(searchEditorState)
+			}, 100)
+			return () => clearTimeout(timer)
+		}
+	}, [searchMode, handleSearch]) // 监听搜索模式变化
 
 	const handleResultClick = (result: Omit<SelectVector, 'embedding'> & { similarity: number }) => {
 		// 如果用户正在选择文本，不触发点击事件
@@ -170,7 +272,7 @@ const SearchView = () => {
 		)
 	}
 
-	// 按文件分组并排序
+	// 按文件分组并排序 - 原始笔记
 	const groupedResults = useMemo(() => {
 		if (!searchResults.length) return []
 
@@ -209,6 +311,45 @@ const SearchView = () => {
 		return Array.from(fileGroups.values()).sort((a, b) => b.maxSimilarity - a.maxSimilarity)
 	}, [searchResults])
 
+	// 按文件分组并排序 - 洞察
+	const insightGroupedResults = useMemo(() => {
+		if (!insightResults.length) return []
+
+		// 按文件路径分组
+		const fileGroups = new Map<string, InsightFileGroup>()
+		
+		insightResults.forEach(result => {
+			const filePath = result.source_path
+			const fileName = filePath.split('/').pop() || filePath
+			
+			if (!fileGroups.has(filePath)) {
+				fileGroups.set(filePath, {
+					path: filePath,
+					fileName,
+					maxSimilarity: result.similarity,
+					insights: []
+				})
+			}
+			
+			const group = fileGroups.get(filePath)
+			if (group) {
+				group.insights.push(result)
+				// 更新最高相似度
+				if (result.similarity > group.maxSimilarity) {
+					group.maxSimilarity = result.similarity
+				}
+			}
+		})
+
+		// 对每个文件内的洞察按相似度排序
+		fileGroups.forEach(group => {
+			group.insights.sort((a, b) => b.similarity - a.similarity)
+		})
+
+		// 将文件按最高相似度排序
+		return Array.from(fileGroups.values()).sort((a, b) => b.maxSimilarity - a.maxSimilarity)
+	}, [insightResults])
+
 	const totalBlocks = searchResults.length
 	const totalFiles = groupedResults.length
 
@@ -227,12 +368,41 @@ const SearchView = () => {
 					autoFocus={true}
 					disabled={isSearching}
 				/>
+				
+				{/* 搜索模式切换 */}
+				<div className="obsidian-search-mode-toggle">
+					<button
+						className={`obsidian-search-mode-btn ${searchMode === 'notes' ? 'active' : ''}`}
+						onClick={() => setSearchMode('notes')}
+						title="搜索原始笔记内容"
+					>
+						📝 原始笔记
+					</button>
+					<button
+						className={`obsidian-search-mode-btn ${searchMode === 'insights' ? 'active' : ''}`}
+						onClick={() => setSearchMode('insights')}
+						title="搜索 AI 洞察内容"
+					>
+						🧠 AI 洞察
+					</button>
+				</div>
 			</div>
 
 			{/* 结果统计 */}
 			{hasSearched && !isSearching && (
 				<div className="obsidian-search-stats">
-					{totalFiles} 个文件，{totalBlocks} 个块
+					<div className="obsidian-search-stats-line">
+						{searchMode === 'notes' ? (
+							`${totalFiles} 个文件，${totalBlocks} 个块`
+						) : (
+							`${insightGroupedResults.length} 个文件，${insightResults.length} 个洞察`
+						)}
+					</div>
+					{currentSearchScope && (
+						<div className="obsidian-search-scope">
+							搜索范围: {currentSearchScope}
+						</div>
+					)}
 				</div>
 			)}
 
@@ -245,70 +415,127 @@ const SearchView = () => {
 
 			{/* 搜索结果 */}
 			<div className="obsidian-search-results">
-				{!isSearching && groupedResults.length > 0 && (
-					<div className="obsidian-results-list">
-						{groupedResults.map((fileGroup) => (
-							<div key={fileGroup.path} className="obsidian-file-group">
-								{/* 文件头部 */}
-								<div 
-									className="obsidian-file-header"
-									onClick={() => toggleFileExpansion(fileGroup.path)}
-								>
-									<div className="obsidian-file-header-content">
-										<div className="obsidian-file-header-top">
-											<div className="obsidian-file-header-left">
-												{expandedFiles.has(fileGroup.path) ? (
-													<ChevronDown size={16} className="obsidian-expand-icon" />
-												) : (
-													<ChevronRight size={16} className="obsidian-expand-icon" />
-												)}
-												{/* <span className="obsidian-file-index">{fileIndex + 1}</span> */}
-												<span className="obsidian-file-name">{fileGroup.fileName}</span>
+				{searchMode === 'notes' ? (
+					// 原始笔记搜索结果
+					!isSearching && groupedResults.length > 0 && (
+						<div className="obsidian-results-list">
+							{groupedResults.map((fileGroup) => (
+								<div key={fileGroup.path} className="obsidian-file-group">
+									{/* 文件头部 */}
+									<div 
+										className="obsidian-file-header"
+										onClick={() => toggleFileExpansion(fileGroup.path)}
+									>
+										<div className="obsidian-file-header-content">
+											<div className="obsidian-file-header-top">
+												<div className="obsidian-file-header-left">
+													{expandedFiles.has(fileGroup.path) ? (
+														<ChevronDown size={16} className="obsidian-expand-icon" />
+													) : (
+														<ChevronRight size={16} className="obsidian-expand-icon" />
+													)}
+													<span className="obsidian-file-name">{fileGroup.fileName}</span>
+												</div>
 											</div>
-											<div className="obsidian-file-header-right">
-												{/* <span className="obsidian-file-blocks">{fileGroup.blocks.length} 块</span> */}
-												{/* <span className="obsidian-file-similarity">
-													{fileGroup.maxSimilarity.toFixed(3)}
-												</span> */}
+											<div className="obsidian-file-path-row">
+												<span className="obsidian-file-path">{fileGroup.path}</span>
 											</div>
-										</div>
-										<div className="obsidian-file-path-row">
-											<span className="obsidian-file-path">{fileGroup.path}</span>
 										</div>
 									</div>
-								</div>
 
-								{/* 文件块列表 */}
-								{expandedFiles.has(fileGroup.path) && (
-									<div className="obsidian-file-blocks">
-										{fileGroup.blocks.map((result, blockIndex) => (
-											<div
-												key={result.id}
-												className="obsidian-result-item"
-												onClick={() => handleResultClick(result)}
-											>
-												<div className="obsidian-result-header">
-													<span className="obsidian-result-index">{blockIndex + 1}</span>
-													<span className="obsidian-result-location">
-														L{result.metadata.startLine}-{result.metadata.endLine}
-													</span>
-													<span className="obsidian-result-similarity">
-														{result.similarity.toFixed(3)}
-													</span>
+									{/* 文件块列表 */}
+									{expandedFiles.has(fileGroup.path) && (
+										<div className="obsidian-file-blocks">
+											{fileGroup.blocks.map((result, blockIndex) => (
+												<div
+													key={result.id}
+													className="obsidian-result-item"
+													onClick={() => handleResultClick(result)}
+												>
+													<div className="obsidian-result-header">
+														<span className="obsidian-result-index">{blockIndex + 1}</span>
+														<span className="obsidian-result-location">
+															L{result.metadata.startLine}-{result.metadata.endLine}
+														</span>
+														<span className="obsidian-result-similarity">
+															{result.similarity.toFixed(3)}
+														</span>
+													</div>
+													<div className="obsidian-result-content">
+														{renderMarkdownContent(result.content)}
+													</div>
 												</div>
-												<div className="obsidian-result-content">
-													{renderMarkdownContent(result.content)}
+											))}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					)
+				) : (
+					// AI 洞察搜索结果
+					!isSearching && insightGroupedResults.length > 0 && (
+						<div className="obsidian-results-list">
+							{insightGroupedResults.map((fileGroup) => (
+								<div key={fileGroup.path} className="obsidian-file-group">
+									{/* 文件头部 */}
+									<div 
+										className="obsidian-file-header"
+										onClick={() => toggleFileExpansion(fileGroup.path)}
+									>
+										<div className="obsidian-file-header-content">
+											<div className="obsidian-file-header-top">
+												<div className="obsidian-file-header-left">
+													{expandedFiles.has(fileGroup.path) ? (
+														<ChevronDown size={16} className="obsidian-expand-icon" />
+													) : (
+														<ChevronRight size={16} className="obsidian-expand-icon" />
+													)}
+													<span className="obsidian-file-name">{fileGroup.fileName}</span>
 												</div>
 											</div>
-										))}
+											<div className="obsidian-file-path-row">
+												<span className="obsidian-file-path">{fileGroup.path}</span>
+											</div>
+										</div>
 									</div>
-								)}
-							</div>
-						))}
-					</div>
+
+									{/* 洞察列表 */}
+									{expandedFiles.has(fileGroup.path) && (
+										<div className="obsidian-file-blocks">
+											{fileGroup.insights.map((insight, insightIndex) => (
+												<div
+													key={insight.id}
+													className="obsidian-result-item"
+												>
+													<div className="obsidian-result-header">
+														<span className="obsidian-result-index">{insightIndex + 1}</span>
+														<span className="obsidian-result-insight-type">
+															{insight.insight_type.toUpperCase()}
+														</span>
+														<span className="obsidian-result-similarity">
+															{insight.similarity.toFixed(3)}
+														</span>
+													</div>
+													<div className="obsidian-result-content">
+														<div className="obsidian-insight-content">
+															{insight.insight}
+														</div>
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					)
 				)}
 				
-				{!isSearching && hasSearched && groupedResults.length === 0 && (
+				{!isSearching && hasSearched && (
+					(searchMode === 'notes' && groupedResults.length === 0) || 
+					(searchMode === 'insights' && insightGroupedResults.length === 0)
+				) && (
 					<div className="obsidian-no-results">
 						<p>未找到相关结果</p>
 					</div>
@@ -329,10 +556,52 @@ const SearchView = () => {
 					padding: 12px;
 				}
 
+				.obsidian-search-mode-toggle {
+					display: flex;
+					gap: 8px;
+					margin-top: 8px;
+					padding: 4px;
+					background-color: var(--background-modifier-border);
+					border-radius: var(--radius-m);
+				}
+
+				.obsidian-search-mode-btn {
+					flex: 1;
+					padding: 6px 12px;
+					background-color: transparent;
+					border: none;
+					border-radius: var(--radius-s);
+					color: var(--text-muted);
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.2s ease;
+				}
+
+				.obsidian-search-mode-btn:hover {
+					background-color: var(--background-modifier-hover);
+					color: var(--text-normal);
+				}
+
+				.obsidian-search-mode-btn.active {
+					background-color: var(--interactive-accent);
+					color: var(--text-on-accent);
+					font-weight: 500;
+				}
+
 				.obsidian-search-stats {
 					padding: 8px 12px;
 					font-size: var(--font-ui-small);
 					color: var(--text-muted);
+				}
+
+				.obsidian-search-stats-line {
+					margin-bottom: 2px;
+				}
+
+				.obsidian-search-scope {
+					font-size: var(--font-ui-smaller);
+					color: var(--text-accent);
+					font-weight: 500;
 				}
 
 				.obsidian-search-loading {
@@ -593,6 +862,27 @@ const SearchView = () => {
 				.obsidian-no-results p {
 					margin: 0;
 					font-size: var(--font-ui-medium);
+				}
+
+				/* 洞察结果特殊样式 */
+				.obsidian-result-insight-type {
+					color: var(--text-accent);
+					font-size: var(--font-ui-smaller);
+					font-family: var(--font-monospace);
+					font-weight: 600;
+					background-color: var(--background-modifier-border);
+					padding: 2px 6px;
+					border-radius: var(--radius-s);
+					flex-grow: 1;
+				}
+
+				.obsidian-insight-content {
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					line-height: 1.5;
+					white-space: pre-wrap;
+					user-select: text;
+					cursor: text;
 				}
 				`}
 			</style>

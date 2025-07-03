@@ -1,5 +1,5 @@
 import { Result, err, ok } from "neverthrow";
-import { App } from 'obsidian';
+import { App, TFolder } from 'obsidian';
 
 import { DBManager } from '../../database/database-manager';
 import { InsightManager } from '../../database/modules/insight/insight-manager';
@@ -11,16 +11,65 @@ import { readTFileContentPdf } from '../../utils/obsidian';
 import { tokenCount } from '../../utils/token';
 import LLMManager from '../llm/manager';
 import { ANALYZE_PAPER_DESCRIPTION, ANALYZE_PAPER_PROMPT } from '../prompts/transformations/analyze-paper';
+import { CONCISE_DENSE_SUMMARY_DESCRIPTION, CONCISE_DENSE_SUMMARY_PROMPT } from '../prompts/transformations/concise-dense-summary';
 import { DENSE_SUMMARY_DESCRIPTION, DENSE_SUMMARY_PROMPT } from '../prompts/transformations/dense-summary';
+import { HIERARCHICAL_SUMMARY_DESCRIPTION, HIERARCHICAL_SUMMARY_PROMPT } from '../prompts/transformations/hierarchical-summary';
 import { KEY_INSIGHTS_DESCRIPTION, KEY_INSIGHTS_PROMPT } from '../prompts/transformations/key-insights';
 import { REFLECTIONS_DESCRIPTION, REFLECTIONS_PROMPT } from '../prompts/transformations/reflections';
 import { SIMPLE_SUMMARY_DESCRIPTION, SIMPLE_SUMMARY_PROMPT } from '../prompts/transformations/simple-summary';
 import { TABLE_OF_CONTENTS_DESCRIPTION, TABLE_OF_CONTENTS_PROMPT } from '../prompts/transformations/table-of-contents';
 import { getEmbeddingModel } from '../rag/embedding';
 
+/**
+ * 并发控制工具类
+ */
+class ConcurrencyLimiter {
+	private maxConcurrency: number;
+	private currentRunning: number = 0;
+	private queue: Array<() => Promise<void>> = [];
+
+	constructor(maxConcurrency: number = 3) {
+		this.maxConcurrency = maxConcurrency;
+	}
+
+	async execute<T>(task: () => Promise<T>): Promise<T> {
+		return new Promise((resolve, reject) => {
+			const wrappedTask = async () => {
+				try {
+					this.currentRunning++;
+					const result = await task();
+					resolve(result);
+				} catch (error) {
+					reject(error);
+				} finally {
+					this.currentRunning--;
+					this.processQueue();
+				}
+			};
+
+			if (this.currentRunning < this.maxConcurrency) {
+				wrappedTask();
+			} else {
+				this.queue.push(wrappedTask);
+			}
+		});
+	}
+
+	private processQueue() {
+		if (this.queue.length > 0 && this.currentRunning < this.maxConcurrency) {
+			const nextTask = this.queue.shift();
+			if (nextTask) {
+				nextTask();
+			}
+		}
+	}
+}
+
 // 转换类型枚举
 export enum TransformationType {
 	DENSE_SUMMARY = 'dense_summary',
+	CONCISE_DENSE_SUMMARY = 'concise_dense_summary',
+	HIERARCHICAL_SUMMARY = 'hierarchical_summary',
 	ANALYZE_PAPER = 'analyze_paper',
 	SIMPLE_SUMMARY = 'simple_summary',
 	KEY_INSIGHTS = 'key_insights',
@@ -43,6 +92,18 @@ export const TRANSFORMATIONS: Record<TransformationType, TransformationConfig> =
 		prompt: DENSE_SUMMARY_PROMPT,
 		description: DENSE_SUMMARY_DESCRIPTION,
 		maxTokens: 4000
+	},
+	[TransformationType.CONCISE_DENSE_SUMMARY]: {
+		type: TransformationType.CONCISE_DENSE_SUMMARY,
+		prompt: CONCISE_DENSE_SUMMARY_PROMPT,
+		description: CONCISE_DENSE_SUMMARY_DESCRIPTION,
+		maxTokens: 4000
+	},
+	[TransformationType.HIERARCHICAL_SUMMARY]: {
+		type: TransformationType.HIERARCHICAL_SUMMARY,
+		prompt: HIERARCHICAL_SUMMARY_PROMPT,
+		description: HIERARCHICAL_SUMMARY_DESCRIPTION,
+		maxTokens: 3000
 	},
 	[TransformationType.ANALYZE_PAPER]: {
 		type: TransformationType.ANALYZE_PAPER,
@@ -78,12 +139,19 @@ export const TRANSFORMATIONS: Record<TransformationType, TransformationConfig> =
 
 // 转换参数接口
 export interface TransformationParams {
-	filePath: string;  // 必须的文件路径
-	contentType?: 'document' | 'tag' | 'folder';
+	filePath: string;  // 文件路径、文件夹路径或工作区标识
+	contentType?: 'document' | 'tag' | 'folder' | 'workspace';
 	transformationType: TransformationType;
 	model?: LLMModel;
 	maxContentTokens?: number;
 	saveToDatabase?: boolean;
+	// 对于 workspace 类型，可以传入额外的元数据
+	workspaceMetadata?: {
+		name: string;
+		description?: string;
+		// 完整的 workspace 对象，用于获取配置信息
+		workspace?: import('../../database/json/workspace/types').Workspace;
+	};
 }
 
 // 转换结果接口
@@ -347,7 +415,7 @@ export class TransEngine {
 			
 			// 查找匹配的转换类型和修改时间的洞察
 			const matchingInsight = existingInsights.find(insight =>
-				insight.insight_type === transformationType &&
+				insight.insight_type === transformationType.toString() &&
 				insight.source_mtime === sourceMtime
 			);
 			
@@ -424,7 +492,7 @@ export class TransEngine {
 		transformationType: TransformationType,
 		sourcePath: string,
 		sourceMtime: number,
-		contentType: string
+		contentType: 'document' | 'tag' | 'folder'
 	): Promise<void> {
 		if (!this.embeddingModel || !this.insightManager) {
 			return;
@@ -455,7 +523,7 @@ export class TransEngine {
 	}
 
 	/**
-	 * 主要的转换执行方法
+	 * 主要的转换执行方法 - 支持所有类型的转换
 	 */
 	async runTransformation(params: TransformationParams): Promise<TransformationResult> {
 		console.log("runTransformation", params);
@@ -465,49 +533,125 @@ export class TransEngine {
 			transformationType,
 			model,
 			maxContentTokens,
-			saveToDatabase = false
+			saveToDatabase = false,
+			workspaceMetadata
 		} = params;
 
 		try {
-			// 第一步：获取文件元信息
-			const metadataResult = await this.getFileMetadata(filePath);
+			let content: string;
+			let sourcePath: string;
+			let sourceMtime: number;
 
-			if (!metadataResult.success) {
-				return {
-					success: false,
-					error: metadataResult.error
-				};
+			// 根据内容类型获取内容和元数据
+			switch (contentType) {
+				case 'document': {
+					// 第一步：获取文件元信息
+					const metadataResult = await this.getFileMetadata(filePath);
+					if (metadataResult.success === false) {
+						return {
+							success: false,
+							error: metadataResult.error
+						};
+					}
+
+					sourcePath = metadataResult.sourcePath;
+					sourceMtime = metadataResult.sourceMtime;
+
+					// 检查数据库缓存
+					const cacheCheckResult = await this.checkDatabaseCache(
+						sourcePath,
+						sourceMtime,
+						transformationType
+					);
+					if (cacheCheckResult.foundCache) {
+						return cacheCheckResult.result;
+					}
+
+					// 获取文件内容
+					const fileContentResult = await this.getFileContent(filePath);
+					if (fileContentResult.success === false) {
+						return {
+							success: false,
+							error: fileContentResult.error
+						};
+					}
+					content = fileContentResult.fileContent;
+					break;
+				}
+
+				case 'folder': {
+					sourcePath = filePath;
+					sourceMtime = Date.now();
+
+					// 检查数据库缓存
+					const cacheCheckResult = await this.checkDatabaseCache(
+						sourcePath,
+						sourceMtime,
+						transformationType
+					);
+					if (cacheCheckResult.foundCache) {
+						return cacheCheckResult.result;
+					}
+
+					// 获取文件夹内容
+					const folderContentResult = await this.processFolderContent(filePath);
+					if (!folderContentResult.success) {
+						return {
+							success: false,
+							error: folderContentResult.error
+						};
+					}
+					content = folderContentResult.content;
+					break;
+				}
+
+				case 'workspace': {
+					if (!workspaceMetadata?.workspace) {
+						return {
+							success: false,
+							error: '工作区对象未提供'
+						};
+					}
+
+					sourcePath = `workspace:${workspaceMetadata.workspace.name}`;
+					sourceMtime = Date.now();
+
+					// 检查数据库缓存
+					const cacheCheckResult = await this.checkDatabaseCache(
+						sourcePath,
+						sourceMtime,
+						transformationType
+					);
+					if (cacheCheckResult.foundCache) {
+						return cacheCheckResult.result;
+					}
+
+					// 处理工作区内容
+					const workspaceContentResult = await this.processWorkspaceContent(
+						workspaceMetadata.workspace,
+						transformationType,
+						model
+					);
+
+					if (!workspaceContentResult.success) {
+						return {
+							success: false,
+							error: workspaceContentResult.error
+						};
+					}
+					content = workspaceContentResult.content;
+					break;
+				}
+
+				default:
+					return {
+						success: false,
+						error: `不支持的内容类型: ${contentType}`
+					};
 			}
-
-			// 此时TypeScript知道metadataResult.success为true
-			const { sourcePath, sourceMtime } = metadataResult;
-
-			// 第二步：检查数据库缓存
-			const cacheCheckResult = await this.checkDatabaseCache(
-				sourcePath,
-				sourceMtime,
-				transformationType
-			);
-
-			if (cacheCheckResult.foundCache) {
-				return cacheCheckResult.result;
-			}
-
-			// 第三步：获取文件内容（只有在没有缓存时才执行）
-			const fileContentResult = await this.getFileContent(filePath);
-
-			if (!fileContentResult.success) {
-				return {
-					success: false,
-					error: fileContentResult.error
-				};
-			}
-
-			// 此时TypeScript知道fileContentResult.success为true
-			const { fileContent } = fileContentResult;
 
 			// 验证内容
-			const contentValidation = DocumentProcessor.validateContent(fileContent);
+			const contentValidation = DocumentProcessor.validateContent(content);
 			if (contentValidation.isErr()) {
 				return {
 					success: false,
@@ -526,7 +670,7 @@ export class TransEngine {
 
 			// 处理文档内容（检查 token 数量并截断）
 			const tokenLimit = maxContentTokens || DocumentProcessor['DEFAULT_MAX_TOKENS'];
-			const processedDocument = await DocumentProcessor.processContent(fileContent, tokenLimit);
+			const processedDocument = await DocumentProcessor.processContent(content, tokenLimit);
 
 			// 使用默认模型或传入的模型
 			const llmModel: LLMModel = model || {
@@ -574,7 +718,7 @@ export class TransEngine {
 						transformationType,
 						sourcePath,
 						sourceMtime,
-						contentType
+						contentType === 'workspace' ? 'folder' : contentType // workspace 在数据库中存储为 folder 类型
 					);
 				})(); // 立即执行异步函数，但不等待其完成
 			}
@@ -592,6 +736,217 @@ export class TransEngine {
 				success: false,
 				error: `转换过程中出现错误: ${error instanceof Error ? error.message : String(error)}`
 			};
+		}
+	}
+
+	/**
+	 * 获取文件夹内容
+	 */
+	private async processFolderContent(folderPath: string): Promise<{
+		success: boolean;
+		content?: string;
+		error?: string;
+	}> {
+		try {
+			const folder = this.app.vault.getAbstractFileByPath(folderPath);
+			if (!folder || !(folder instanceof TFolder)) {
+				return {
+					success: false,
+					error: `文件夹不存在: ${folderPath}`
+				};
+			}
+
+			// 获取文件夹直接子级的文件和文件夹
+			const directFiles = this.app.vault.getMarkdownFiles().filter(file => {
+				const fileDirPath = file.path.substring(0, file.path.lastIndexOf('/'));
+				return fileDirPath === folderPath;
+			});
+
+			const directSubfolders = folder.children.filter((child): child is TFolder => child instanceof TFolder);
+
+			if (directFiles.length === 0 && directSubfolders.length === 0) {
+				return {
+					success: false,
+					error: `文件夹为空: ${folderPath}`
+				};
+			}
+
+			// 构建文件夹内容描述
+			let content = `# Folder Summary: ${folderPath}\n\n`;
+
+			// 处理直接子文件
+			if (directFiles.length > 0) {
+				content += `## File Content Summaries\n\n`;
+				const fileSummaries: string[] = [];
+				
+				for (const file of directFiles) {
+					const fileResult = await this.runTransformation({
+						filePath: file.path,
+						contentType: 'document',
+						transformationType: TransformationType.DENSE_SUMMARY,
+						saveToDatabase: true
+					});
+
+					if (fileResult.success && fileResult.result) {
+						fileSummaries.push(`### ${file.name}\n${fileResult.result}`);
+					} else {
+						console.warn(`处理文件失败: ${file.path}`, fileResult.error);
+					}
+				}
+
+				content += fileSummaries.join('\n\n');
+				
+				if (directSubfolders.length > 0) {
+					content += '\n\n';
+				}
+			}
+
+			// 处理直接子文件夹
+			if (directSubfolders.length > 0) {
+				content += `## Subfolder Summaries\n\n`;
+				const subfolderSummaries: string[] = [];
+
+				for (const subfolder of directSubfolders) {
+					const subfolderResult = await this.runTransformation({
+						filePath: subfolder.path,
+						contentType: 'folder',
+						transformationType: TransformationType.HIERARCHICAL_SUMMARY,
+						saveToDatabase: true
+					});
+
+					if (subfolderResult.success && subfolderResult.result) {
+						subfolderSummaries.push(`### ${subfolder.name}\n${subfolderResult.result}`);
+					} else {
+						console.warn(`处理子文件夹失败: ${subfolder.path}`, subfolderResult.error);
+					}
+				}
+
+				content += subfolderSummaries.join('\n\n');
+			}
+
+			return {
+				success: true,
+				content
+			};
+
+		} catch (error) {
+			return {
+				success: false,
+				error: `获取文件夹内容失败: ${error instanceof Error ? error.message : String(error)}`
+			};
+		}
+	}
+
+	/**
+	 * 处理工作区内容 - 根据workspace配置递归处理文件和文件夹
+	 */
+	private async processWorkspaceContent(
+		workspace: import('../../database/json/workspace/types').Workspace,
+		transformationType: TransformationType,
+		model?: LLMModel
+	): Promise<{
+		success: boolean;
+		content?: string;
+		error?: string;
+	}> {
+		try {
+			// 根据 workspace 配置获取相应的文件和文件夹
+			const workspaceFiles: string[] = []
+			const workspaceFolders: string[] = []
+
+			// 解析 workspace 的 content 配置
+			for (const contentItem of workspace.content) {
+				if (contentItem.type === 'folder') {
+					// 添加文件夹到列表
+					workspaceFolders.push(contentItem.content)
+				} else if (contentItem.type === 'tag') {
+					// 对于标签类型，搜索包含该标签的文件
+					const taggedFiles = this.getFilesByTag(contentItem.content)
+					workspaceFiles.push(...taggedFiles.map(f => f.path))
+				}
+			}
+
+			if (workspaceFiles.length === 0 && workspaceFolders.length === 0) {
+				return {
+					success: false,
+					error: `工作区 "${workspace.name}" 没有找到任何内容`
+				}
+			}
+
+			// 构建工作区内容描述
+			let content = `# Workspace Summary: ${workspace.name}\n\n`
+			const description = typeof workspace.metadata?.description === 'string' ? workspace.metadata.description : undefined
+			if (description) {
+				content += `Workspace Description: ${description}\n\n`
+			}
+
+			const childSummaries: string[] = []
+
+			// 处理工作区配置的文件
+			if (workspaceFiles.length > 0) {
+				content += `## File Summaries (${workspaceFiles.length} files)\n\n`
+				
+				for (const filePath of workspaceFiles) {
+					const fileName = filePath.split('/').pop() || filePath
+					
+					const fileResult = await this.runTransformation({
+						filePath: filePath,
+						contentType: 'document',
+						transformationType: TransformationType.DENSE_SUMMARY,
+						model: model,
+						saveToDatabase: true
+					})
+
+					if (fileResult.success && fileResult.result) {
+						childSummaries.push(`### ${fileName}\n${fileResult.result}`)
+					} else {
+						console.warn(`处理文件失败: ${filePath}`, fileResult.error)
+						childSummaries.push(`### ${fileName}\n*处理失败: ${fileResult.error}*`)
+					}
+				}
+
+				if (workspaceFolders.length > 0) {
+					content += '\n\n'
+				}
+			}
+
+			// 处理工作区配置的文件夹
+			if (workspaceFolders.length > 0) {
+				content += `## Folder Summaries (${workspaceFolders.length} folders)\n\n`
+				
+				for (const folderPath of workspaceFolders) {
+					const folderName = folderPath.split('/').pop() || folderPath
+					
+					const folderResult = await this.runTransformation({
+						filePath: folderPath,
+						contentType: 'folder',
+						transformationType: TransformationType.HIERARCHICAL_SUMMARY,
+						model: model,
+						saveToDatabase: true
+					})
+
+					if (folderResult.success && folderResult.result) {
+						childSummaries.push(`### ${folderName}/\n${folderResult.result}`)
+					} else {
+						console.warn(`处理文件夹失败: ${folderPath}`, folderResult.error)
+						childSummaries.push(`### ${folderName}/\n*处理失败: ${folderResult.error}*`)
+					}
+				}
+			}
+
+			// 合并所有子摘要
+			content += childSummaries.join('\n\n')
+
+			return {
+				success: true,
+				content
+			}
+
+		} catch (error) {
+			return {
+				success: false,
+				error: `处理工作区内容失败: ${error instanceof Error ? error.message : String(error)}`
+			}
 		}
 	}
 
@@ -633,42 +988,14 @@ export class TransEngine {
 				}
 				break;
 			}
+
+			case TransformationType.CONCISE_DENSE_SUMMARY:
+			case TransformationType.HIERARCHICAL_SUMMARY:
+				// 新的摘要类型不需要特殊的后处理，保持原样
+				break;
 		}
 
 		return processed;
-	}
-
-	/**
-	 * 批量执行转换
-	 */
-	async runBatchTransformations(
-		filePath: string,
-		transformationTypes: TransformationType[],
-		options?: {
-			model?: LLMModel;
-			saveToDatabase?: boolean;
-		}
-	): Promise<Record<string, TransformationResult>> {
-		const results: Record<string, TransformationResult> = {};
-
-		// 并行执行所有转换
-		const promises = transformationTypes.map(async (type) => {
-			const result = await this.runTransformation({
-				filePath: filePath,
-				transformationType: type,
-				model: options?.model,
-				saveToDatabase: options?.saveToDatabase
-			});
-			return { type, result };
-		});
-
-		const completedResults = await Promise.all(promises);
-
-		for (const { type, result } of completedResults) {
-			results[type] = result;
-		}
-
-		return results;
 	}
 
 	/**
@@ -680,4 +1007,592 @@ export class TransEngine {
 			description: config.description
 		}));
 	}
-} 
+
+	/**
+	 * 查询洞察数据库（类似 RAGEngine 的 processQuery 接口）
+	 */
+	async processQuery({
+		query,
+		scope,
+		limit,
+		minSimilarity,
+		insightTypes,
+	}: {
+		query: string
+		scope?: {
+			files: string[]
+			folders: string[]
+		}
+		limit?: number
+		minSimilarity?: number
+		insightTypes?: TransformationType[]
+	}): Promise<
+		(Omit<import('../../database/schema').SelectSourceInsight, 'embedding'> & {
+			similarity: number
+		})[]
+	> {
+		if (!this.embeddingModel || !this.insightManager) {
+			console.warn('TransEngine: embedding model or insight manager not available')
+			return []
+		}
+
+		try {
+			// 生成查询向量
+			const queryVector = await this.embeddingModel.getEmbedding(query)
+			
+			// 构建 sourcePaths 过滤条件
+			let sourcePaths: string[] | undefined
+			if (scope) {
+				sourcePaths = []
+				// 添加直接指定的文件
+				if (scope.files.length > 0) {
+					sourcePaths.push(...scope.files)
+				}
+				// 添加文件夹下的所有文件
+				if (scope.folders.length > 0) {
+					for (const folderPath of scope.folders) {
+						const folder = this.app.vault.getAbstractFileByPath(folderPath)
+						if (folder && folder instanceof TFolder) {
+							// 获取文件夹下的所有 Markdown 文件
+							const folderFiles = this.app.vault.getMarkdownFiles().filter(file => 
+								file.path.startsWith(folderPath + '/')
+							)
+							sourcePaths.push(...folderFiles.map(f => f.path))
+						}
+					}
+				}
+			}
+
+			// 执行相似度搜索
+			const results = await this.insightManager.performSimilaritySearch(
+				queryVector,
+				this.embeddingModel,
+				{
+					minSimilarity: minSimilarity ?? 0.3, // 默认最小相似度
+					limit: limit ?? 20, // 默认限制
+					sourcePaths: sourcePaths,
+					insightTypes: insightTypes?.map(type => type.toString()),
+				}
+			)
+
+			return results
+		} catch (error) {
+			console.error('TransEngine query failed:', error)
+			return []
+		}
+	}
+
+	/**
+	 * 获取所有洞察数据
+	 */
+	async getAllInsights(): Promise<Omit<import('../../database/schema').SelectSourceInsight, 'embedding'>[]> {
+		if (!this.embeddingModel || !this.insightManager) {
+			console.warn('TransEngine: embedding model or insight manager not available')
+			return []
+		}
+
+		try {
+			const allInsights = await this.insightManager.getAllInsights(this.embeddingModel)
+			// 移除 embedding 字段，避免返回大量数据
+			return allInsights.map((insight) => {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				const { embedding, ...rest } = insight;
+				return rest;
+			});
+		} catch (error) {
+			console.error('TransEngine getAllInsights failed:', error)
+			return []
+		}
+	}
+
+	/**
+	 * 根据标签获取文件
+	 */
+	private getFilesByTag(tag: string): import('obsidian').TFile[] {
+		const files = this.app.vault.getMarkdownFiles()
+		const taggedFiles: import('obsidian').TFile[] = []
+
+		for (const file of files) {
+			// 这里需要检查文件的前置元数据或内容中的标签
+			// 简单实现：检查文件内容中是否包含该标签
+			try {
+				const cache = this.app.metadataCache.getFileCache(file)
+				if (cache?.tags?.some(t => t.tag === `#${tag}` || t.tag === tag)) {
+					taggedFiles.push(file)
+				}
+			} catch (error) {
+				console.warn(`检查文件标签失败: ${file.path}`, error)
+			}
+		}
+
+		return taggedFiles
+	}
+
+	/**
+	 * 递归处理文件夹
+	 */
+	private async processFolderHierarchically(params: {
+		folderPath: string
+		llmModel: LLMModel
+		concurrencyLimiter: ConcurrencyLimiter
+		signal?: AbortSignal
+		onFileProcessed: () => void
+		onFolderProcessed: () => void
+	}): Promise<string | null> {
+		const { folderPath, llmModel, concurrencyLimiter, signal, onFileProcessed, onFolderProcessed } = params
+
+		const folder = this.app.vault.getAbstractFileByPath(folderPath)
+		if (!folder || !(folder instanceof TFolder)) {
+			return null
+		}
+
+		// 获取文件夹直接子级的文件和文件夹
+		const directFiles = this.app.vault.getMarkdownFiles().filter(file => {
+			const fileDirPath = file.path.substring(0, file.path.lastIndexOf('/'))
+			return fileDirPath === folderPath
+		})
+
+		const directSubfolders = folder.children.filter((child): child is TFolder => child instanceof TFolder)
+
+		if (directFiles.length === 0 && directSubfolders.length === 0) {
+			return null // 空文件夹
+		}
+
+		const childSummaries: string[] = []
+
+		// 并行处理直接子文件
+		if (directFiles.length > 0) {
+			const filePromises = directFiles.map(file => 
+				concurrencyLimiter.execute(async () => {
+					if (signal?.aborted) {
+						throw new Error('Operation was aborted')
+					}
+
+					const summary = await this.processSingleFile(file.path, llmModel)
+					if (summary) {
+						onFileProcessed()
+						return `**${file.name}**: ${summary}`
+					}
+					return null
+				})
+			)
+
+			const fileResults = await Promise.all(filePromises)
+			const validFileResults = fileResults.filter((result): result is string => result !== null)
+			childSummaries.push(...validFileResults)
+		}
+
+		// 并行处理直接子文件夹
+		if (directSubfolders.length > 0) {
+			const folderPromises = directSubfolders.map(subfolder => 
+				concurrencyLimiter.execute(async () => {
+					if (signal?.aborted) {
+						throw new Error('Operation was aborted')
+					}
+
+					const summary = await this.processFolderHierarchically({
+						folderPath: subfolder.path,
+						llmModel,
+						concurrencyLimiter,
+						signal,
+						onFileProcessed,
+						onFolderProcessed
+					})
+					if (summary) {
+						onFolderProcessed()
+						return `**${subfolder.name}/**: ${summary}`
+					}
+					return null
+				})
+			)
+
+			const folderResults = await Promise.all(folderPromises)
+			const validFolderResults = folderResults.filter((result): result is string => result !== null)
+			childSummaries.push(...validFolderResults)
+		}
+
+		if (childSummaries.length === 0) {
+			return null
+		}
+
+		// 生成当前文件夹的摘要
+		const combinedContent = childSummaries.join('\n\n')
+		const folderSummary = await this.generateHierarchicalSummary(
+			combinedContent,
+			`Folder: ${folderPath}`,
+			llmModel
+		)
+
+		// 保存文件夹摘要到数据库
+		await this.saveFolderSummaryToDatabase(folderSummary, folderPath)
+
+		return folderSummary
+	}
+
+	/**
+	 * 处理单个文件
+	 */
+	private async processSingleFile(filePath: string, llmModel: LLMModel): Promise<string | null> {
+		try {
+			// 检查缓存
+			const fileMetadata = await this.getFileMetadata(filePath)
+			if (!fileMetadata.success) {
+				console.warn(`无法获取文件元数据: ${filePath}`)
+				return null
+			}
+
+			const cacheResult = await this.checkDatabaseCache(
+				fileMetadata.sourcePath,
+				fileMetadata.sourceMtime,
+				TransformationType.CONCISE_DENSE_SUMMARY
+			)
+
+			if (cacheResult.foundCache && cacheResult.result.success && cacheResult.result.result) {
+				return cacheResult.result.result
+			}
+
+			// 获取文件内容
+			const contentResult = await this.getFileContent(filePath)
+			if (!contentResult.success) {
+				console.warn(`无法读取文件内容: ${filePath}`)
+				return null
+			}
+
+			// 验证内容
+			const contentValidation = DocumentProcessor.validateContent(contentResult.fileContent)
+			if (contentValidation.isErr()) {
+				console.warn(`文件内容无效: ${filePath}`)
+				return null
+			}
+
+			// 处理文档内容
+			const processedDocument = await DocumentProcessor.processContent(
+				contentResult.fileContent,
+				DocumentProcessor['DEFAULT_MAX_TOKENS']
+			)
+
+			// 生成摘要
+			const summary = await this.generateConciseDenseSummary(
+				processedDocument.processedContent,
+				llmModel
+			)
+
+			// 保存到数据库
+			await this.saveResultToDatabase(
+				summary,
+				TransformationType.CONCISE_DENSE_SUMMARY,
+				fileMetadata.sourcePath,
+				fileMetadata.sourceMtime,
+				'document'
+			)
+
+			return summary
+
+		} catch (error) {
+			console.warn(`处理文件失败: ${filePath}`, error)
+			return null
+		}
+	}
+
+	/**
+	 * 生成简洁密集摘要
+	 */
+	private async generateConciseDenseSummary(content: string, llmModel: LLMModel): Promise<string> {
+		const client = new TransformationLLMClient(this.llmManager, llmModel)
+		const messages: RequestMessage[] = [
+			{
+				role: 'system',
+				content: CONCISE_DENSE_SUMMARY_PROMPT
+			},
+			{
+				role: 'user',
+				content: content
+			}
+		]
+
+		const result = await client.queryChatModel(messages)
+		if (result.isErr()) {
+			throw new Error(`生成摘要失败: ${result.error.message}`)
+		}
+
+		return this.postProcessResult(result.value, TransformationType.CONCISE_DENSE_SUMMARY)
+	}
+
+	/**
+	 * 生成分层摘要
+	 */
+	private async generateHierarchicalSummary(
+		combinedContent: string, 
+		contextLabel: string, 
+		llmModel: LLMModel
+	): Promise<string> {
+		const client = new TransformationLLMClient(this.llmManager, llmModel)
+		const messages: RequestMessage[] = [
+			{
+				role: 'system',
+				content: HIERARCHICAL_SUMMARY_PROMPT
+			},
+			{
+				role: 'user',
+				content: `${contextLabel}\n\n${combinedContent}`
+			}
+		]
+
+		const result = await client.queryChatModel(messages)
+		if (result.isErr()) {
+			throw new Error(`生成分层摘要失败: ${result.error.message}`)
+		}
+
+		return this.postProcessResult(result.value, TransformationType.HIERARCHICAL_SUMMARY)
+	}
+
+	/**
+	 * 保存文件夹摘要到数据库
+	 */
+	private async saveFolderSummaryToDatabase(summary: string, folderPath: string): Promise<void> {
+		if (!this.embeddingModel || !this.insightManager) {
+			return
+		}
+
+		try {
+			const embedding = await this.embeddingModel.getEmbedding(summary)
+			await this.insightManager.storeInsight(
+				{
+					insightType: TransformationType.HIERARCHICAL_SUMMARY,
+					insight: summary,
+					sourceType: 'folder',
+					sourcePath: folderPath,
+					sourceMtime: Date.now(),
+					embedding: embedding,
+				},
+				this.embeddingModel
+			)
+			console.log(`文件夹摘要已保存到数据库: ${folderPath}`)
+		} catch (error) {
+			console.warn('保存文件夹摘要到数据库失败:', error)
+		}
+	}
+
+	/**
+	 * 删除工作区的所有转换
+	 * 
+	 * @param workspace 工作区对象，如果为 null 则删除默认 vault 工作区的转换
+	 * @returns 删除操作的结果
+	 */
+	async deleteWorkspaceTransformations(
+		workspace: import('../../database/json/workspace/types').Workspace | null = null
+	): Promise<{
+		success: boolean;
+		deletedCount: number;
+		error?: string;
+	}> {
+		if (!this.embeddingModel || !this.insightManager) {
+			return {
+				success: false,
+				deletedCount: 0,
+				error: '缺少必要的组件：嵌入模型或洞察管理器'
+			}
+		}
+
+		try {
+			const sourcePaths: string[] = []
+			let workspaceName: string
+
+			if (workspace) {
+				workspaceName = workspace.name
+				
+				// 添加工作区本身的洞察路径
+				sourcePaths.push(`workspace:${workspaceName}`)
+
+				// 解析工作区内容并收集所有相关路径
+				for (const contentItem of workspace.content) {
+					if (contentItem.type === 'folder') {
+						const folderPath = contentItem.content
+						
+						// 添加文件夹路径本身
+						sourcePaths.push(folderPath)
+						
+						// 获取文件夹下的所有文件
+						const files = this.app.vault.getMarkdownFiles().filter(file => 
+							file.path.startsWith(folderPath === '/' ? '' : folderPath + '/')
+						)
+						
+						// 添加所有文件路径
+						files.forEach(file => {
+							sourcePaths.push(file.path)
+						})
+
+						// 添加中间文件夹路径
+						files.forEach(file => {
+							const dirPath = file.path.substring(0, file.path.lastIndexOf('/'))
+							if (dirPath && dirPath !== folderPath) {
+								let currentPath = folderPath === '/' ? '' : folderPath
+								const pathParts = dirPath.substring(currentPath.length).split('/').filter(Boolean)
+								
+								for (let i = 0; i < pathParts.length; i++) {
+									currentPath += (currentPath ? '/' : '') + pathParts[i]
+									if (!sourcePaths.includes(currentPath)) {
+										sourcePaths.push(currentPath)
+									}
+								}
+							}
+						})
+
+					} else if (contentItem.type === 'tag') {
+						// 获取标签对应的所有文件
+						const tagFiles = this.getFilesByTag(contentItem.content)
+						
+						tagFiles.forEach(file => {
+							sourcePaths.push(file.path)
+							
+							// 添加文件所在的文件夹路径
+							const dirPath = file.path.substring(0, file.path.lastIndexOf('/'))
+							if (dirPath) {
+								const pathParts = dirPath.split('/').filter(Boolean)
+								let currentPath = ''
+								
+								for (let i = 0; i < pathParts.length; i++) {
+									currentPath += (currentPath ? '/' : '') + pathParts[i]
+									if (!sourcePaths.includes(currentPath)) {
+										sourcePaths.push(currentPath)
+									}
+								}
+							}
+						})
+					}
+				}
+			} else {
+				// 处理默认 vault 工作区 - 删除所有洞察
+				workspaceName = 'vault'
+				sourcePaths.push(`workspace:${workspaceName}`)
+				
+				// 获取所有洞察来确定删除数量
+				const allInsights = await this.insightManager.getAllInsights(this.embeddingModel)
+				
+				// 对于 vault 工作区，删除所有洞察
+				await this.insightManager.clearAllInsights(this.embeddingModel)
+				
+				console.log(`已删除 vault 工作区的所有 ${allInsights.length} 个转换`)
+				
+				return {
+					success: true,
+					deletedCount: allInsights.length
+				}
+			}
+
+			// 去重路径
+			const uniquePaths = [...new Set(sourcePaths)]
+			
+			// 获取将要删除的洞察数量
+			const existingInsights = await this.insightManager.getAllInsights(this.embeddingModel)
+			const insightsToDelete = existingInsights.filter(insight => 
+				uniquePaths.includes(insight.source_path)
+			)
+			const deletedCount = insightsToDelete.length
+
+			// 批量删除洞察
+			if (uniquePaths.length > 0) {
+				await this.insightManager.deleteInsightsBySourcePaths(uniquePaths, this.embeddingModel)
+				console.log(`已删除工作区 "${workspaceName}" 的 ${deletedCount} 个转换，涉及 ${uniquePaths.length} 个路径`)
+			}
+
+			return {
+				success: true,
+				deletedCount: deletedCount
+			}
+
+		} catch (error) {
+			console.error('删除工作区转换失败:', error)
+			return {
+				success: false,
+				deletedCount: 0,
+				error: `删除工作区转换失败: ${error instanceof Error ? error.message : String(error)}`
+			}
+		}
+	}
+
+	/**
+	 * 删除指定工作区名称的所有转换（便捷方法）
+	 * 
+	 * @param workspaceName 工作区名称
+	 * @returns 删除操作的结果
+	 */
+	async deleteWorkspaceTransformationsByName(workspaceName: string): Promise<{
+		success: boolean;
+		deletedCount: number;
+		error?: string;
+	}> {
+		if (!this.embeddingModel || !this.insightManager) {
+			return {
+				success: false,
+				deletedCount: 0,
+				error: '缺少必要的组件：嵌入模型或洞察管理器'
+			}
+		}
+
+		try {
+			// 删除工作区本身的洞察
+			const workspaceInsightPath = `workspace:${workspaceName}`
+			
+			// 获取所有洞察并筛选出该工作区相关的
+			const allInsights = await this.insightManager.getAllInsights(this.embeddingModel)
+			const workspaceInsights = allInsights.filter(insight => 
+				insight.source_path === workspaceInsightPath
+			)
+
+			if (workspaceInsights.length > 0) {
+				await this.insightManager.deleteInsightsBySourcePath(workspaceInsightPath, this.embeddingModel)
+				console.log(`已删除工作区 "${workspaceName}" 的 ${workspaceInsights.length} 个转换`)
+			}
+
+			return {
+				success: true,
+				deletedCount: workspaceInsights.length
+			}
+
+		} catch (error) {
+			console.error('删除工作区转换失败:', error)
+			return {
+				success: false,
+				deletedCount: 0,
+				error: `删除工作区转换失败: ${error instanceof Error ? error.message : String(error)}`
+			}
+		}
+	}
+
+	/**
+	 * 删除单个洞察
+	 * 
+	 * @param insightId 洞察ID
+	 * @returns 删除操作的结果
+	 */
+	async deleteSingleInsight(insightId: number): Promise<{
+		success: boolean;
+		error?: string;
+	}> {
+		if (!this.embeddingModel || !this.insightManager) {
+			return {
+				success: false,
+				error: '缺少必要的组件：嵌入模型或洞察管理器'
+			}
+		}
+
+		try {
+			// 直接按ID删除洞察
+			await this.insightManager.deleteInsightById(insightId, this.embeddingModel)
+			
+			console.log(`已删除洞察 ID: ${insightId}`)
+
+			return {
+				success: true
+			}
+
+		} catch (error) {
+			console.error('删除单个洞察失败:', error)
+			return {
+				success: false,
+				error: `删除单个洞察失败: ${error instanceof Error ? error.message : String(error)}`
+			}
+		}
+	}
+}

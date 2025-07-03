@@ -2,7 +2,7 @@ import * as path from 'path'
 
 import { BaseSerializedNode } from '@lexical/clipboard/clipboard'
 import { useMutation } from '@tanstack/react-query'
-import { Box, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
+import { Box, Brain, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
 import { App, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian'
 import {
 	forwardRef,
@@ -51,7 +51,7 @@ import {
 	MentionableCurrentFile,
 } from '../../types/mentionable'
 import { ApplyEditToFile, SearchAndReplace } from '../../utils/apply'
-import { listFilesAndFolders } from '../../utils/glob-utils'
+import { listFilesAndFolders, semanticSearchFiles } from '../../utils/glob-utils'
 import {
 	getMentionableKey,
 	serializeMentionable,
@@ -70,6 +70,7 @@ import CommandsView from './CommandsView'
 import CustomModeView from './CustomModeView'
 import FileReadResults from './FileReadResults'
 import HelloInfo from './HelloInfo'
+import InsightView from './InsightView'
 import MarkdownReasoningBlock from './Markdown/MarkdownReasoningBlock'
 import McpHubView from './McpHubView'; // Moved after MarkdownReasoningBlock
 import QueryProgress, { QueryProgressState } from './QueryProgress'
@@ -192,7 +193,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		}
 	}
 
-	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'workspace'>('chat')
+	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'workspace' | 'insights'>('chat')
 
 	const [selectedSerializedNodes, setSelectedSerializedNodes] = useState<BaseSerializedNode[]>([])
 
@@ -704,24 +705,25 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						}
 					}
 				} else if (toolArgs.type === 'semantic_search_files') {
-					const scope_folders = toolArgs.filepath
-						&& toolArgs.filepath !== ''
-						&& toolArgs.filepath !== '.'
-						&& toolArgs.filepath !== '/'
-						? { files: [], folders: [toolArgs.filepath] }
-						: undefined
-					const results = await (await getRAGEngine()).processQuery({
-						query: toolArgs.query,
-						scope: scope_folders,
-					})
-					let snippets = results.map(({ path, content, metadata }) => {
-						const contentWithLineNumbers = addLineNumbers(content, metadata.startLine)
-						return `<file_block_content location="${path}#L${metadata.startLine}-${metadata.endLine}">\n${contentWithLineNumbers}\n</file_block_content>`
-					}).join('\n\n')
-					if (snippets.length === 0) {
-						snippets = `No results found for '${toolArgs.query}'`
+					// 获取当前工作区
+					let currentWorkspace: Workspace | null = null
+					if (settings.workspace && settings.workspace !== 'vault') {
+						currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
 					}
-					const formattedContent = `[semantic_search_files for '${toolArgs.filepath}'] Result:\n${snippets}\n`;
+					
+					const snippets = await semanticSearchFiles(
+						await getRAGEngine(),
+						toolArgs.query,
+						toolArgs.filepath,
+						currentWorkspace || undefined,
+						app,
+						await getTransEngine()
+					)
+					
+					const contextInfo = currentWorkspace 
+						? `workspace '${currentWorkspace.name}'` 
+						: toolArgs.filepath || 'vault'
+					const formattedContent = `[semantic_search_files for '${contextInfo}'] Result:\n${snippets}\n`;
 					return {
 						type: 'semantic_search_files',
 						applyMsgId,
@@ -866,11 +868,12 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					try {
 						console.log("call_transformations", toolArgs)
 						// Validate that the transformation type is a valid enum member
-						if (!Object.values(TransformationType).includes(toolArgs.transformation as TransformationType)) {
+						const validTransformationTypes = Object.values(TransformationType) as string[]
+						if (!validTransformationTypes.includes(toolArgs.transformation)) {
 							throw new Error(`Unsupported transformation type: ${toolArgs.transformation}`);
 						}
 
-						const transformationType = toolArgs.transformation as TransformationType;
+						const transformationType = toolArgs.transformation;
 						const transEngine = await getTransEngine();
 
 						// Execute the transformation using the TransEngine
@@ -1030,7 +1033,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 									break;
 								
 								default:
-									results.push(`❌ 不支持的操作类型: ${operation.action}`);
+									results.push(`❌ 不支持的操作类型: ${String(operation.action)}`);
 							}
 						}
 						
@@ -1067,7 +1070,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					}
 				} else {
 					// 处理未知的工具类型
-					throw new Error(`Unsupported tool type: ${toolArgs.type}`);
+					throw new Error(`Unsupported tool type: ${(toolArgs as any).type || 'unknown'}`);
 				}
 			} catch (error) {
 				console.error('Failed to apply changes', error)
@@ -1369,6 +1372,18 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					>
 						<Server size={18} color={tab === 'mcp' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
+					<button
+						onClick={() => {
+							if (tab === 'insights') {
+								setTab('chat')
+							} else {
+								setTab('insights')
+							}
+						}}
+						className="infio-chat-list-dropdown"
+					>
+						<Brain size={18} color={tab === 'insights' ? 'var(--text-accent)' : 'var(--text-color)'} />
+					</button>
 				</div>
 			</div>
 			{/* main view */}
@@ -1568,6 +1583,10 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 			) : tab === 'workspace' ? (
 				<div className="infio-chat-commands">
 					<WorkspaceView />
+				</div>
+			) : tab === 'insights' ? (
+				<div className="infio-chat-commands">
+					<InsightView />
 				</div>
 			) : (
 				<div className="infio-chat-commands">
