@@ -16,10 +16,67 @@ import {
 } from '../llm/exception'
 import { NoStainlessOpenAI } from '../llm/ollama'
 
+// EmbeddingManager 类型定义
+type EmbeddingManager = {
+	modelLoaded: boolean
+	currentModel: string | null
+	loadModel(modelId: string, useGpu: boolean): Promise<any>
+	embed(text: string): Promise<{ vec: number[] }>
+	embedBatch(texts: string[]): Promise<{ vec: number[] }[]>
+}
+
 export const getEmbeddingModel = (
 	settings: InfioSettings,
+	embeddingManager?: EmbeddingManager,
 ): EmbeddingModel => {
 	switch (settings.embeddingModelProvider) {
+		case ApiProvider.LocalProvider: {
+			if (!embeddingManager) {
+				throw new Error('EmbeddingManager is required for LocalProvider')
+			}
+			
+			const modelInfo = GetEmbeddingModelInfo(settings.embeddingModelProvider, settings.embeddingModelId)
+			if (!modelInfo) {
+				throw new Error(`Embedding model ${settings.embeddingModelId} not found for provider ${settings.embeddingModelProvider}`)
+			}
+			
+			return {
+				id: settings.embeddingModelId,
+				dimension: modelInfo.dimensions,
+				supportsBatch: true,
+				getEmbedding: async (text: string) => {
+					try {
+						// 确保模型已加载
+						if (!embeddingManager.modelLoaded || embeddingManager.currentModel !== settings.embeddingModelId) {
+							console.log(`Loading model: ${settings.embeddingModelId}`)
+							await embeddingManager.loadModel(settings.embeddingModelId, true)
+						}
+						
+						const result = await embeddingManager.embed(text)
+						return result.vec
+					} catch (error) {
+						console.error('LocalProvider embedding error:', error)
+						throw new Error(`LocalProvider embedding failed: ${error.message}`)
+					}
+				},
+				getBatchEmbeddings: async (texts: string[]) => {
+					try {
+						// 确保模型已加载
+						if (!embeddingManager.modelLoaded || embeddingManager.currentModel !== settings.embeddingModelId) {
+							console.log(`Loading model: ${settings.embeddingModelId}`)
+							await embeddingManager.loadModel(settings.embeddingModelId, false)
+						}
+						
+						const results = await embeddingManager.embedBatch(texts)
+						console.log('results', results)
+						return results.map(result => result.vec)
+					} catch (error) {
+						console.error('LocalProvider batch embedding error:', error)
+						throw new Error(`LocalProvider batch embedding failed: ${error.message}`)
+					}
+				},
+			}
+		}
 		case ApiProvider.Infio: {
 			const openai = new OpenAI({
 				apiKey: settings.infioProvider.apiKey,

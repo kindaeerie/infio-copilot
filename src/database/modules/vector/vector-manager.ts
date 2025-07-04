@@ -113,7 +113,7 @@ export class VectorManager {
 
 		const textSplitter = new MarkdownTextSplitter({
 			chunkSize: options.chunkSize,
-			chunkOverlap: Math.floor(options.chunkSize * 0.15)
+			// chunkOverlap: Math.floor(options.chunkSize * 0.15)
 		})
 
 		const skippedFiles: string[] = []

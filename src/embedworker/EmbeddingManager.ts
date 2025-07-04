@@ -34,19 +34,28 @@ export class EmbeddingManager {
 
         // 统一监听来自 Worker 的所有消息
         this.worker.onmessage = (event) => {
-            const { id, result, error } = event.data;
+            try {
+                const { id, result, error } = event.data;
 
-            // 根据返回的 id 找到对应的 Promise 回调
-            const request = this.requests.get(id);
+                // 根据返回的 id 找到对应的 Promise 回调
+                const request = this.requests.get(id);
 
-            if (request) {
-                if (error) {
-                    request.reject(new Error(error));
-                } else {
-                    request.resolve(result);
+                if (request) {
+                    if (error) {
+                        request.reject(new Error(error));
+                    } else {
+                        request.resolve(result);
+                    }
+                    // 完成后从 Map 中删除
+                    this.requests.delete(id);
                 }
-                // 完成后从 Map 中删除
-                this.requests.delete(id);
+            } catch (err) {
+                console.error("Error processing worker message:", err);
+                // 拒绝所有待处理的请求
+                this.requests.forEach(request => {
+                    request.reject(new Error(`Worker message processing error: ${err.message}`));
+                });
+                this.requests.clear();
             }
         };
 
@@ -54,9 +63,13 @@ export class EmbeddingManager {
             console.error("EmbeddingWorker error:", error);
             // 拒绝所有待处理的请求
             this.requests.forEach(request => {
-                request.reject(error);
+                request.reject(new Error(`Worker error: ${error.message || 'Unknown worker error'}`));
             });
             this.requests.clear();
+            
+            // 重置状态
+            this.isModelLoaded = false;
+            this.currentModelId = null;
         };
     }
 

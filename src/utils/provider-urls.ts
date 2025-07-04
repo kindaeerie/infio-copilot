@@ -14,6 +14,7 @@ export const providerApiUrls: Record<ApiProvider, string> = {
 	[ApiProvider.Grok]: 'https://console.x.ai/',
 	[ApiProvider.Ollama]: '', // Ollama 不需要API Key
 	[ApiProvider.OpenAICompatible]: '', // 自定义兼容API，无固定URL
+	[ApiProvider.LocalProvider]: '', // 本地提供者，无固定URL
 };
 
 // 获取指定provider的API Key获取URL

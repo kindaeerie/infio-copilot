@@ -10,9 +10,19 @@ import { InfioSettings } from '../../types/settings'
 
 import { getEmbeddingModel } from './embedding'
 
+// EmbeddingManager 类型定义
+type EmbeddingManager = {
+	modelLoaded: boolean
+	currentModel: string | null
+	loadModel(modelId: string, useGpu: boolean): Promise<any>
+	embed(text: string): Promise<{ vec: number[] }>
+	embedBatch(texts: string[]): Promise<{ vec: number[] }[]>
+}
+
 export class RAGEngine {
 	private app: App
 	private settings: InfioSettings
+	private embeddingManager?: EmbeddingManager
 	private vectorManager: VectorManager | null = null
 	private embeddingModel: EmbeddingModel | null = null
 	private initialized = false
@@ -21,13 +31,15 @@ export class RAGEngine {
 		app: App,
 		settings: InfioSettings,
 		dbManager: DBManager,
+		embeddingManager?: EmbeddingManager,
 	) {
 		this.app = app
 		this.settings = settings
+		this.embeddingManager = embeddingManager
 		this.vectorManager = dbManager.getVectorManager()
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
-				this.embeddingModel = getEmbeddingModel(settings)
+				this.embeddingModel = getEmbeddingModel(settings, embeddingManager)
 			} catch (error) {
 				console.warn('Failed to initialize embedding model:', error)
 				this.embeddingModel = null
@@ -46,7 +58,7 @@ export class RAGEngine {
 		this.settings = settings
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
-				this.embeddingModel = getEmbeddingModel(settings)
+				this.embeddingModel = getEmbeddingModel(settings, this.embeddingManager)
 			} catch (error) {
 				console.warn('Failed to initialize embedding model:', error)
 				this.embeddingModel = null

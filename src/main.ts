@@ -623,7 +623,7 @@ export default class InfioPlugin extends Plugin {
 		if (!this.ragEngineInitPromise) {
 			this.ragEngineInitPromise = (async () => {
 				const dbManager = await this.getDbManager()
-				this.ragEngine = new RAGEngine(this.app, this.settings, dbManager)
+				this.ragEngine = new RAGEngine(this.app, this.settings, dbManager, this.embeddingManager)
 				return this.ragEngine
 			})()
 		}
