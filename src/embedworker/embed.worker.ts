@@ -48,7 +48,7 @@ async function loadTransformers() {
 		env.allowRemoteModels = true;
 
 		// 配置 WASM 后端 - 修复线程配置
-		env.backends.onnx.wasm.numThreads = 4; // 在 Worker 中使用单线程，避免竞态条件
+		env.backends.onnx.wasm.numThreads = 1; // 在 Worker 中使用单线程，避免竞态条件
 		env.backends.onnx.wasm.simd = true;
 
 		// 禁用 Node.js 特定功能
@@ -201,7 +201,7 @@ async function embedBatch(inputs: EmbedInput[]): Promise<EmbedResult[]> {
 		}
 
 		// 批处理大小（可以根据需要调整）
-		const batchSize = 1;
+		const batchSize = 8;
 
 		if (filteredInputs.length > batchSize) {
 			console.log(`Processing ${filteredInputs.length} inputs in batches of ${batchSize}`);

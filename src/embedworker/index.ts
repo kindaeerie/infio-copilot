@@ -8,8 +8,8 @@ export { EmbeddingManager };
 
 // 导出类型定义
 export type {
-    EmbedResult,
-    ModelLoadResult,
-    ModelUnloadResult,
-    TokenCountResult
+	EmbedResult,
+	ModelLoadResult,
+	ModelUnloadResult,
+	TokenCountResult
 } from './EmbeddingManager';

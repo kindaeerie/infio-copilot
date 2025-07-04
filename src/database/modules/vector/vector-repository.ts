@@ -33,6 +33,17 @@ export class VectorRepository {
     return result.rows.map((row: { path: string }) => row.path)
   }
 
+  async getMaxMtime(embeddingModel: EmbeddingModel): Promise<number | null> {
+    if (!this.db) {
+      throw new DatabaseNotInitializedException()
+    }
+    const tableName = this.getTableName(embeddingModel)
+    const result = await this.db.query<{ max_mtime: number | null }>(
+      `SELECT MAX(mtime) as max_mtime FROM "${tableName}"`
+    )
+    return result.rows[0]?.max_mtime || null
+  }
+
   async getVectorsByFilePath(
     filePath: string,
     embeddingModel: EmbeddingModel,

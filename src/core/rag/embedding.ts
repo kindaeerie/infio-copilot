@@ -64,7 +64,7 @@ export const getEmbeddingModel = (
 						// 确保模型已加载
 						if (!embeddingManager.modelLoaded || embeddingManager.currentModel !== settings.embeddingModelId) {
 							console.log(`Loading model: ${settings.embeddingModelId}`)
-							await embeddingManager.loadModel(settings.embeddingModelId, false)
+							await embeddingManager.loadModel(settings.embeddingModelId, true)
 						}
 						
 						const results = await embeddingManager.embedBatch(texts)

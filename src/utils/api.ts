@@ -1641,6 +1641,7 @@ export const localProviderDefaultAutoCompleteModelId = null // this is not suppo
 export const localProviderDefaultEmbeddingModelId: keyof typeof localProviderEmbeddingModels = "TaylorAI/bge-micro-v2"
 
 export const localProviderEmbeddingModels = {
+	'TaylorAI/bge-micro-v2': { dimensions: 384, description: 'BGE-micro-v2 (本地，512令牌，384维)' },
 	'Xenova/all-MiniLM-L6-v2': { dimensions: 384, description: 'All-MiniLM-L6-v2 (推荐，轻量级)' },
 	'Xenova/bge-small-en-v1.5': { dimensions: 384, description: 'BGE-small-en-v1.5' },
 	'Xenova/bge-base-en-v1.5': { dimensions: 768, description: 'BGE-base-en-v1.5 (更高质量)' },
@@ -1651,8 +1652,6 @@ export const localProviderEmbeddingModels = {
 	'Xenova/gte-small': { dimensions: 384, description: 'GTE-small' },
 	'Xenova/e5-small-v2': { dimensions: 384, description: 'E5-small-v2' },
 	'Xenova/e5-base-v2': { dimensions: 768, description: 'E5-base-v2 (更高质量)' },
-	// 新增的模型
-	'TaylorAI/bge-micro-v2': { dimensions: 384, description: 'BGE-micro-v2 (本地，512令牌，384维)' },
 	'Snowflake/snowflake-arctic-embed-xs': { dimensions: 384, description: 'Snowflake Arctic Embed XS (本地，512令牌，384维)' },
 	'Snowflake/snowflake-arctic-embed-s': { dimensions: 384, description: 'Snowflake Arctic Embed Small (本地，512令牌，384维)' },
 	'Snowflake/snowflake-arctic-embed-m': { dimensions: 768, description: 'Snowflake Arctic Embed Medium (本地，512令牌，768维)' },
