@@ -1,4 +1,4 @@
-// @ts-expect-error - parse5 and JSON5 types are not perfectly aligned with the dynamic parsing logic
+// @ts-nocheck
 import JSON5 from 'json5'
 import { parseFragment } from 'parse5'
 

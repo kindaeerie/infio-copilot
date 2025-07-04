@@ -21,8 +21,5 @@ By waiting for and carefully considering the user's response after each tool use
 }
 
 export function getToolUseGuidelinesSection(mode?: string): string {
-	if (mode === 'learn') {
-		return getLearnModeToolUseGuidelines();
-	}
 	return getDefaultToolUseGuidelines();
 }

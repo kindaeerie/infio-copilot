@@ -59,8 +59,9 @@ const WorkspaceEditModal = ({
       setAvailableFolders(folders.sort())
 
       // 直接使用 Obsidian 的内置接口获取所有标签
-      try {
-				const tagsObject = app.metadataCache.getTags() // 获取所有标签 {'#tag1': 2, '#tag2': 4}
+			try {
+				// @ts-ignore
+				const tagsObject = app.metadataCache.getTags() as Record<string, number> // 获取所有标签 {'#tag1': 2, '#tag2': 4}
         const tags = Object.keys(tagsObject).sort()
         setAvailableTags(tags)
       } catch (error) {

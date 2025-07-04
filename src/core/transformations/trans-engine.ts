@@ -981,8 +981,9 @@ export class TransEngine {
 				}
 				break;
 			}
-
-			case TransformationType.CONCISE_DENSE_SUMMARY:
+			case TransformationType.DENSE_SUMMARY:
+				// 新的摘要类型不需要特殊的后处理，保持原样
+				break;
 			case TransformationType.HIERARCHICAL_SUMMARY:
 				// 新的摘要类型不需要特殊的后处理，保持原样
 				break;
@@ -1237,7 +1238,7 @@ export class TransEngine {
 			const cacheResult = await this.checkDatabaseCache(
 				fileMetadata.sourcePath,
 				fileMetadata.sourceMtime,
-				TransformationType.CONCISE_DENSE_SUMMARY
+				TransformationType.DENSE_SUMMARY
 			)
 
 			if (cacheResult.foundCache && cacheResult.result.success && cacheResult.result.result) {
@@ -1273,7 +1274,7 @@ export class TransEngine {
 			// 保存到数据库
 			await this.saveResultToDatabase(
 				summary,
-				TransformationType.CONCISE_DENSE_SUMMARY,
+				TransformationType.DENSE_SUMMARY,
 				fileMetadata.sourcePath,
 				fileMetadata.sourceMtime,
 				'document'
@@ -1295,7 +1296,7 @@ export class TransEngine {
 		const messages: RequestMessage[] = [
 			{
 				role: 'system',
-				content: CONCISE_DENSE_SUMMARY_PROMPT
+				content: DENSE_SUMMARY_PROMPT
 			},
 			{
 				role: 'user',
@@ -1308,7 +1309,7 @@ export class TransEngine {
 			throw new Error(`生成摘要失败: ${result.error.message}`)
 		}
 
-		return this.postProcessResult(result.value, TransformationType.CONCISE_DENSE_SUMMARY)
+		return this.postProcessResult(result.value, TransformationType.DENSE_SUMMARY)
 	}
 
 	/**

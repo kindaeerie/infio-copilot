@@ -5,6 +5,7 @@ import { ChatConversationMeta } from '../../../types/chat'
 import { AbstractJsonRepository } from '../base'
 import { CHAT_DIR, ROOT_DIR } from '../constants'
 import { EmptyChatTitleException } from '../exception'
+import { WorkspaceManager } from '../workspace/WorkspaceManager'
 
 import {
 	CHAT_SCHEMA_VERSION,
@@ -16,27 +17,34 @@ export class ChatManager extends AbstractJsonRepository<
 	ChatConversation,
 	ChatConversationMeta
 > {
-	constructor(app: App) {
+	private workspaceManager?: WorkspaceManager
+
+	constructor(app: App, workspaceManager?: WorkspaceManager) {
 		super(app, `${ROOT_DIR}/${CHAT_DIR}`)
+		this.workspaceManager = workspaceManager
 	}
 
 	protected generateFileName(chat: ChatConversation): string {
-		// Format: v{schemaVersion}_{title}_{updatedAt}_{id}.json
+		// 新格式: v{schemaVersion}_{title}_{updatedAt}_{id}_{workspaceId}.json
+		// 如果没有工作区，使用 'vault' 作为默认值
 		const encodedTitle = encodeURIComponent(chat.title)
-		return `v${chat.schemaVersion}_${encodedTitle}_${chat.updatedAt}_${chat.id}.json`
+		const workspaceId = chat.workspace || 'vault'
+		return `v${chat.schemaVersion}_${encodedTitle}_${chat.updatedAt}_${chat.id}_${workspaceId}.json`
 	}
 
 	protected parseFileName(fileName: string): ChatConversationMeta | null {
-		// Parse: v{schemaVersion}_{title}_{updatedAt}_{id}.json
+		// 使用一个正则表达式，工作区部分为可选: v{schemaVersion}_{title}_{updatedAt}_{id}_{workspaceId}?.json
 		const regex = new RegExp(
-			`^v${CHAT_SCHEMA_VERSION}_(.+)_(\\d+)_([0-9a-f-]+)\\.json$`,
+			`^v${CHAT_SCHEMA_VERSION}_(.+)_(\\d+)_([0-9a-f-]+)(?:_([^_]+))?\\.json$`,
 		)
 		const match = fileName.match(regex)
+
 		if (!match) return null
 
 		const title = decodeURIComponent(match[1])
 		const updatedAt = parseInt(match[2], 10)
 		const id = match[3]
+		const workspaceId = match[4] // 可能为undefined（老格式）
 
 		return {
 			id,
@@ -44,6 +52,8 @@ export class ChatManager extends AbstractJsonRepository<
 			title,
 			updatedAt,
 			createdAt: 0,
+			// 如果没有工作区信息（老格式），则认为是vault（全局消息）
+			workspace: workspaceId === 'vault' ? undefined : workspaceId,
 		}
 	}
 
@@ -66,6 +76,20 @@ export class ChatManager extends AbstractJsonRepository<
 		}
 
 		await this.create(newChat)
+
+		// 如果有工作区信息，添加到工作区的聊天历史中
+		if (newChat.workspace && this.workspaceManager) {
+			try {
+				await this.workspaceManager.addChatToWorkspace(
+					newChat.workspace,
+					newChat.id,
+					newChat.title
+				)
+			} catch (error) {
+				console.error('Failed to add chat to workspace:', error)
+			}
+		}
+
 		return newChat
 	}
 
@@ -102,6 +126,23 @@ export class ChatManager extends AbstractJsonRepository<
 		}
 
 		await this.update(chat, updatedChat)
+
+		// 如果标题或工作区发生变化，更新工作区的聊天历史
+		if (this.workspaceManager && (updates.title !== undefined || updates.workspace !== undefined)) {
+			const workspaceId = updatedChat.workspace || chat.workspace
+			if (workspaceId) {
+				try {
+					await this.workspaceManager.addChatToWorkspace(
+						workspaceId,
+						updatedChat.id,
+						updatedChat.title
+					)
+				} catch (error) {
+					console.error('Failed to update chat in workspace:', error)
+				}
+			}
+		}
+
 		return updatedChat
 	}
 
@@ -111,8 +152,21 @@ export class ChatManager extends AbstractJsonRepository<
 
 		if (targetsToDelete.length === 0) return false
 
+		// 获取聊天的工作区信息（从第一个匹配的元数据中获取）
+		const chatToDelete = await this.findById(id)
+		const workspaceId = chatToDelete?.workspace
+
 		// Delete all files associated with this ID
 		await Promise.all(targetsToDelete.map(meta => this.delete(meta.fileName)))
+
+		// 从工作区的聊天历史中移除
+		if (workspaceId && this.workspaceManager) {
+			try {
+				await this.workspaceManager.removeChatFromWorkspace(workspaceId, id)
+			} catch (error) {
+				console.error('Failed to remove chat from workspace:', error)
+			}
+		}
 
 		return true
 	}
@@ -126,7 +180,10 @@ export class ChatManager extends AbstractJsonRepository<
 			if (!chatsById.has(meta.id)) {
 				chatsById.set(meta.id, [])
 			}
-			chatsById.get(meta.id)!.push(meta)
+			const chatGroup = chatsById.get(meta.id)
+			if (chatGroup) {
+				chatGroup.push(meta)
+			}
 		}
 
 		const filesToDelete: string[] = []
@@ -151,11 +208,12 @@ export class ChatManager extends AbstractJsonRepository<
 		return filesToDelete.length
 	}
 
-	public async listChats(): Promise<ChatConversationMeta[]> {
+	public async listChats(workspaceFilter?: string): Promise<ChatConversationMeta[]> {
+		console.log('listChats', workspaceFilter)
 		const metadata = await this.listMetadata()
 
 		// Use a Map to store the latest version of each chat by ID.
-		const latestChats = new Map<string, ChatConversationMeta>()
+		const latestChats = new Map<string, ChatConversationMeta & { fileName: string }>()
 
 		for (const meta of metadata) {
 			const existing = latestChats.get(meta.id)
@@ -165,7 +223,27 @@ export class ChatManager extends AbstractJsonRepository<
 		}
 
 		const uniqueMetadata = Array.from(latestChats.values())
-		const sorted = uniqueMetadata.sort((a, b) => b.updatedAt - a.updatedAt)
+
+		// 将metadata转换为ChatConversationMeta格式
+		const chatMetadata: ChatConversationMeta[] = uniqueMetadata.map((meta) => ({
+			id: meta.id,
+			schemaVersion: meta.schemaVersion,
+			title: meta.title,
+			updatedAt: meta.updatedAt,
+			createdAt: meta.createdAt,
+			workspace: meta.workspace
+		}))
+
+		// 如果指定了工作区过滤器，则过滤对话
+		let filteredMetadata = chatMetadata
+		if (workspaceFilter !== undefined && workspaceFilter !== 'vault') {
+			// 获取指定工作区的对话
+			filteredMetadata = chatMetadata.filter(meta =>
+				meta.workspace === workspaceFilter
+			)
+		}
+
+		const sorted = filteredMetadata.sort((a, b) => b.updatedAt - a.updatedAt)
 		return sorted
 	}
 }

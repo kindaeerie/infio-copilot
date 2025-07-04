@@ -148,7 +148,7 @@ const SearchView = () => {
 					minSimilarity: 0.3,
 				})
 				
-				setInsightResults(results)
+				setInsightResults(results as any)
 				setSearchResults([])
 			}
 		} catch (error) {

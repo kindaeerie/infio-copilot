@@ -879,7 +879,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						// Execute the transformation using the TransEngine
 						const transformationResult = await transEngine.runTransformation({
 							filePath: toolArgs.path,
-							transformationType: transformationType,
+							transformationType: transformationType as TransformationType,
 							model: {
 								provider: settings.applyModelProvider,
 								modelId: settings.applyModelId,

@@ -9,6 +9,7 @@ export type ChatConversation = {
   createdAt: number
   updatedAt: number
   schemaVersion: number
+  workspace?: string // 工作区ID，可选字段用于向后兼容
 }
 
 export type ChatConversationMetadata = {
@@ -16,4 +17,5 @@ export type ChatConversationMetadata = {
   title: string
   updatedAt: number
   schemaVersion: number
+  workspace?: string // 工作区ID，可选字段用于向后兼容
 }

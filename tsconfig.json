@@ -71,5 +71,5 @@
     // }
   },
   // Specify which files to include in compilation
-  "include": ["src/**/*.ts", "src/**/*.tsx", "__mocks__"]
+  	"include": ["src/**/*.ts", "src/**/*.tsx", "__mocks__", "src/embedworker/*.worker.ts", "src/embedworker/*.worker.js"]
 }

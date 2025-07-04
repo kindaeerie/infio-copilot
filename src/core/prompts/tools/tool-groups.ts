@@ -61,7 +61,7 @@ export type ToolName = keyof typeof TOOL_DISPLAY_NAMES
 
 // Tool helper functions
 export function getToolName(toolConfig: string | readonly [ToolName, ...unknown[]]): ToolName {
-	return typeof toolConfig === "string" ? toolConfig : toolConfig[0]
+	return typeof toolConfig === "string" ? toolConfig as ToolName : toolConfig[0]
 }
 
 export function getToolOptions(toolConfig: string | readonly [ToolName, ...unknown[]]): unknown {

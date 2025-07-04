@@ -112,5 +112,5 @@ export function getRulesSection(
 	if (mode === 'learn') {
 		return getLearnModeRulesSection(cwd, searchTool);
 	}
-	return getObsidianRulesSection(mode, cwd, searchTool, supportsComputerUse, diffStrategy, experiments);
+	return getObsidianRulesSection(mode, cwd, searchTool);
 }

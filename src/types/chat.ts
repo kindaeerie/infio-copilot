@@ -81,4 +81,5 @@ export type ChatConversationMeta = {
 	title: string
 	createdAt: number
 	updatedAt: number
+	workspace?: string
 }

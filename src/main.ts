@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { EditorView } from '@codemirror/view'
 // import { PGlite } from '@electric-sql/pglite'
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile } from 'obsidian'
+import { Editor, MarkdownView, Modal, Notice, Plugin, TFile } from 'obsidian'
 
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
@@ -388,7 +388,7 @@ export default class InfioPlugin extends Plugin {
 			name: '测试 Dataview（简单查询）',
 			callback: async () => {
 				console.log('开始测试 Dataview...');
-				
+
 				if (!this.dataviewManager) {
 					new Notice('DataviewManager 未初始化');
 					return;
@@ -401,11 +401,11 @@ export default class InfioPlugin extends Plugin {
 				}
 
 				console.log('Dataview API 可用，执行简单查询...');
-				
+
 				try {
 					// 执行一个最简单的查询
 					const result = await this.dataviewManager.executeQuery('LIST FROM ""');
-					
+
 					if (result.success) {
 						new Notice('Dataview 查询成功！结果已在控制台输出');
 						console.log('查询结果:', result.data);
@@ -416,6 +416,47 @@ export default class InfioPlugin extends Plugin {
 				} catch (error) {
 					console.error('执行测试查询失败:', error);
 					new Notice('执行测试查询时发生错误');
+				}
+			},
+		});
+
+		// 添加本地嵌入测试命令
+		this.addCommand({
+			id: 'test-local-embed',
+			name: '测试本地嵌入模型',
+			callback: async () => {
+				try {
+					// 动态导入嵌入管理器
+					const { embeddingManager } = await import('./embedworker/index');
+										
+					// 加载模型
+					await embeddingManager.loadModel("Xenova/all-MiniLM-L6-v2", true);
+					
+					// 测试嵌入 "hello world"
+					const testText = "hello world";
+					
+					const result = await embeddingManager.embed(testText);
+					
+					// 显示结果
+					const resultMessage = `
+	嵌入测试完成！
+	文本: "${testText}"
+	Token 数量: ${result.tokens}
+	向量维度: ${result.vec.length}
+	向量前4个值: [${result.vec.slice(0, 4).map(v => v.toFixed(4)).join(', ')}...]
+					`.trim();
+					
+					console.log('本地嵌入测试结果:', result);
+					
+					// 创建模态框显示结果
+					const modal = new Modal(this.app);
+					modal.titleEl.setText('本地嵌入测试结果');
+					modal.contentEl.createEl('pre', { text: resultMessage });
+					modal.open();
+					
+				} catch (error) {
+					console.error('嵌入测试失败:', error);
+					new Notice(`嵌入测试失败: ${error.message}`, 5000);
 				}
 			},
 		});
