@@ -11,6 +11,7 @@ export enum ApiProvider {
 	Grok = "Grok",
 	Ollama = "Ollama",
 	OpenAICompatible = "OpenAICompatible",
+	LocalProvider = "LocalProvider",
 }
 
 export type LLMModel = {

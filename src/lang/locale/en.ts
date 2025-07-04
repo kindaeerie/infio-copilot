@@ -257,6 +257,11 @@ export default {
 			searchOrEnterModelName: 'Search or enter model name...',
 			enterCustomModelName: 'Enter custom model name',
 			custom: 'Custom: ',
+			localProviderDescription: 'Local embedding models run on your device using WASM technology, providing privacy and offline capability.',
+			localProviderFeature0: 'Currently only supports embedding models',
+			localProviderFeature1: 'Complete privacy - data never leaves your device',
+			localProviderFeature2: 'No API costs - runs entirely locally',
+			localProviderFeature3: 'Offline capability - works without internet connection',
 			testConnection: {
 				testApiConnection: 'Test API Connection',
 				testingConnection: 'Testing connection...',

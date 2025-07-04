@@ -259,6 +259,11 @@ export default {
 			searchOrEnterModelName: '搜索或输入模型名称...',
 			enterCustomModelName: '输入自定义模型名称',
 			custom: '自定义: ',
+			localProviderDescription: '本地嵌入模型使用 WASM 技术在您的设备上运行，提供隐私保护和离线功能。',
+			localProviderFeature0: '目前仅支持嵌入模型',
+			localProviderFeature1: '完全隐私 - 数据不会离开您的设备',
+			localProviderFeature2: '无 API 费用 - 完全本地运行',
+			localProviderFeature3: '离线功能 - 无需网络连接即可工作',
 			testConnection: {
 				testApiConnection: '测试 API 连接',
 				testingConnection: '正在测试连接...',

@@ -1635,6 +1635,24 @@ export const grokModels = {
 	}
 } as const satisfies Record<string, ModelInfo>
 
+// LocalProvider (本地嵌入模型)
+export const localProviderDefaultModelId = null // this is not supported for chat/autocomplete
+export const localProviderDefaultAutoCompleteModelId = null // this is not supported for chat/autocomplete  
+export const localProviderDefaultEmbeddingModelId: keyof typeof localProviderEmbeddingModels = "Xenova/all-MiniLM-L6-v2"
+
+export const localProviderEmbeddingModels = {
+	'Xenova/all-MiniLM-L6-v2': { dimensions: 384, description: 'All-MiniLM-L6-v2 (推荐，轻量级)' },
+	'Xenova/bge-small-en-v1.5': { dimensions: 384, description: 'BGE-small-en-v1.5' },
+	'Xenova/bge-base-en-v1.5': { dimensions: 768, description: 'BGE-base-en-v1.5 (更高质量)' },
+	'Xenova/jina-embeddings-v2-base-zh': { dimensions: 768, description: 'Jina-v2-base-zh (中英双语)' },
+	'Xenova/jina-embeddings-v2-small-en': { dimensions: 512, description: 'Jina-v2-small-en' },
+	'Xenova/multilingual-e5-small': { dimensions: 384, description: 'E5-small (多语言)' },
+	'Xenova/multilingual-e5-base': { dimensions: 768, description: 'E5-base (多语言，更高质量)' },
+	'Xenova/gte-small': { dimensions: 384, description: 'GTE-small' },
+	'Xenova/e5-small-v2': { dimensions: 384, description: 'E5-small-v2' },
+	'Xenova/e5-base-v2': { dimensions: 768, description: 'E5-base-v2 (更高质量)' }
+} as const satisfies Record<string, EmbeddingModelInfo>
+
 /// helper functions
 // get all providers, used for the provider dropdown
 export const GetAllProviders = (): ApiProvider[] => {
@@ -1651,6 +1669,7 @@ export const GetAllProviders = (): ApiProvider[] => {
 		ApiProvider.Groq,
 		ApiProvider.Ollama,
 		ApiProvider.OpenAICompatible,
+		ApiProvider.LocalProvider,
 	]
 }
 
@@ -1663,6 +1682,7 @@ export const GetEmbeddingProviders = (): ApiProvider[] => {
 		ApiProvider.SiliconFlow,
 		ApiProvider.OpenAICompatible,
 		ApiProvider.Ollama,
+		ApiProvider.LocalProvider,
 	]
 }
 
@@ -1695,6 +1715,8 @@ export const GetProviderModels = async (provider: ApiProvider, settings?: InfioS
 			return {}
 		case ApiProvider.OpenAICompatible:
 			return {}
+		case ApiProvider.LocalProvider:
+			return {} 
 		default:
 			return {}
 	}
@@ -1729,6 +1751,8 @@ export const GetProviderModelsWithSettings = async (provider: ApiProvider, setti
 			return {}
 		case ApiProvider.OpenAICompatible:
 			return {}
+		case ApiProvider.LocalProvider:
+			return {} // LocalProvider only supports embedding models
 		default:
 			return {}
 	}
@@ -1755,6 +1779,8 @@ export const GetEmbeddingProviderModels = (provider: ApiProvider): Record<string
 			return openAINativeEmbeddingModels;
 		case ApiProvider.AlibabaQwen:
 			return qwenEmbeddingModels;
+		case ApiProvider.LocalProvider:
+			return localProviderEmbeddingModels;
 		default:
 			return {}
 	}
@@ -1831,6 +1857,12 @@ export const GetDefaultModelId = (provider: ApiProvider): { chat: string, autoCo
 				"chat": grokDefaultModelId,
 				"autoComplete": grokDefaultAutoCompleteModelId,
 				"embedding": grokDefaultEmbeddingModelId,
+			}
+		case ApiProvider.LocalProvider:
+			return {
+				"chat": localProviderDefaultModelId,
+				"autoComplete": localProviderDefaultAutoCompleteModelId,
+				"embedding": localProviderDefaultEmbeddingModelId,
 			}
 		default:
 			return {

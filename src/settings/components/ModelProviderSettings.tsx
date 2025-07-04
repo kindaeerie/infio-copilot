@@ -4,7 +4,10 @@ import { t } from '../../lang/helpers';
 import InfioPlugin from "../../main";
 import { ApiProvider } from '../../types/llm/model';
 import { InfioSettings } from '../../types/settings';
-import { GetAllProviders, GetDefaultModelId, GetEmbeddingProviders } from '../../utils/api';
+import {
+	GetAllProviders, GetDefaultModelId, GetEmbeddingProviders,
+	localProviderDefaultEmbeddingModelId
+} from '../../utils/api';
 import { getProviderApiUrl } from '../../utils/provider-urls';
 
 import { ApiKeyComponent, CustomUrlComponent } from './FormComponents';
@@ -27,7 +30,8 @@ type ProviderSettingKey =
 	| 'groqProvider'
 	| 'grokProvider'
 	| 'ollamaProvider'
-	| 'openaicompatibleProvider';
+	| 'openaicompatibleProvider'
+	| 'localproviderProvider';
 
 const keyMap: Record<ApiProvider, ProviderSettingKey> = {
 	'Infio': 'infioProvider',
@@ -42,6 +46,7 @@ const keyMap: Record<ApiProvider, ProviderSettingKey> = {
 	'Grok': 'grokProvider',
 	'Ollama': 'ollamaProvider',
 	'OpenAICompatible': 'openaicompatibleProvider',
+	'LocalProvider': 'localproviderProvider',
 };
 
 export const getProviderSettingKey = (provider: ApiProvider): ProviderSettingKey => {
@@ -124,6 +129,11 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 				hasUpdates = true;
 				console.debug(t("settings.ModelProvider.embeddingModelConfigured", { provider: embeddingProvider, model: embeddingDefaultModels.embedding }));
 			}
+		} else { // use local provider
+			newSettings.embeddingModelProvider = ApiProvider.LocalProvider;
+			newSettings.embeddingModelId = localProviderDefaultEmbeddingModelId;
+			hasUpdates = true;
+			console.debug(t("settings.ModelProvider.embeddingModelConfigured", { provider: ApiProvider.LocalProvider, model: localProviderDefaultEmbeddingModelId }));
 		}
 
 		// 一次性更新所有设置
@@ -294,12 +304,12 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		const providerSettingKey = getProviderSettingKey(provider);
 		const providerSettings = settings[providerSettingKey] || {};
 		const currentModels = providerSettings.models || [];
-		
+
 		// 如果是自定义模型且不在列表中，则添加
-		const updatedModels = isCustom && !currentModels.includes(modelId) 
-			? [...currentModels, modelId] 
+		const updatedModels = isCustom && !currentModels.includes(modelId)
+			? [...currentModels, modelId]
 			: currentModels;
-		
+
 		handleSettingsUpdate({
 			...settings,
 			chatModelProvider: provider,
@@ -316,12 +326,12 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		const providerSettingKey = getProviderSettingKey(provider);
 		const providerSettings = settings[providerSettingKey] || {};
 		const currentModels = providerSettings.models || [];
-		
+
 		// 如果是自定义模型且不在列表中，则添加
-		const updatedModels = isCustom && !currentModels.includes(modelId) 
-			? [...currentModels, modelId] 
+		const updatedModels = isCustom && !currentModels.includes(modelId)
+			? [...currentModels, modelId]
 			: currentModels;
-		
+
 		handleSettingsUpdate({
 			...settings,
 			applyModelProvider: provider,
@@ -338,12 +348,12 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		const providerSettingKey = getProviderSettingKey(provider);
 		const providerSettings = settings[providerSettingKey] || {};
 		const currentModels = providerSettings.models || [];
-		
+
 		// 如果是自定义模型且不在列表中，则添加
-		const updatedModels = isCustom && !currentModels.includes(modelId) 
-			? [...currentModels, modelId] 
+		const updatedModels = isCustom && !currentModels.includes(modelId)
+			? [...currentModels, modelId]
 			: currentModels;
-		
+
 		handleSettingsUpdate({
 			...settings,
 			embeddingModelProvider: provider,
@@ -392,25 +402,43 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 
 		return (
 			<div className="provider-config">
-				{provider !== ApiProvider.Ollama && (
-					<ApiKeyComponent
-						name={t("settings.ModelProvider.setApiKey", { provider })}
-						placeholder={t("settings.ApiProvider.enterApiKey")}
-						description={generateApiKeyDescription(provider)}
-						value={providerSetting.apiKey || ''}
-						onChange={(value) => updateProviderApiKey(provider, value)}
-						onTest={() => testApiConnection(provider)}
-					/>
-				)}
+				{provider === ApiProvider.LocalProvider ? (
+					<div className="local-provider-info">
+						<p className="local-provider-description">
+							{t("settings.ModelProvider.localProviderDescription")}
+						</p>
+						<div className="local-provider-features">
+							<ul>
+								<li>• {t("settings.ModelProvider.localProviderFeature0")}</li>
+								<li>• {t("settings.ModelProvider.localProviderFeature1")}</li>
+								<li>• {t("settings.ModelProvider.localProviderFeature2")}</li>
+								<li>• {t("settings.ModelProvider.localProviderFeature3")}</li>
+							</ul>
+						</div>
+					</div>
+				) : (
+					<>
+						{provider !== ApiProvider.Ollama && (
+							<ApiKeyComponent
+								name={t("settings.ModelProvider.setApiKey", { provider })}
+								placeholder={t("settings.ApiProvider.enterApiKey")}
+								description={generateApiKeyDescription(provider)}
+								value={providerSetting.apiKey || ''}
+								onChange={(value) => updateProviderApiKey(provider, value)}
+								onTest={() => testApiConnection(provider)}
+							/>
+						)}
 
-				<CustomUrlComponent
-					name={t("settings.ApiProvider.useCustomBaseUrl")}
-					placeholder={t("settings.ApiProvider.enterCustomUrl")}
-					useCustomUrl={providerSetting.useCustomUrl || false}
-					baseUrl={providerSetting.baseUrl || ''}
-					onToggleCustomUrl={(value) => updateProviderUseCustomUrl(provider, value)}
-					onChangeBaseUrl={(value) => updateProviderBaseUrl(provider, value)}
-				/>
+						<CustomUrlComponent
+							name={t("settings.ApiProvider.useCustomBaseUrl")}
+							placeholder={t("settings.ApiProvider.enterCustomUrl")}
+							useCustomUrl={providerSetting.useCustomUrl || false}
+							baseUrl={providerSetting.baseUrl || ''}
+							onToggleCustomUrl={(value) => updateProviderUseCustomUrl(provider, value)}
+							onChangeBaseUrl={(value) => updateProviderBaseUrl(provider, value)}
+						/>
+					</>
+				)}
 			</div>
 		);
 	};
@@ -682,6 +710,43 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 				.theme-dark .provider-config-section,
 				.theme-dark .model-selection-section {
 					background: var(--background-primary-alt);
+					border-color: var(--background-modifier-border-hover);
+				}
+
+				/* LocalProvider 特殊样式 */
+				.local-provider-info {
+					padding: var(--size-4-3);
+					background: var(--background-secondary);
+					border-radius: var(--radius-m);
+					border: 1px solid var(--background-modifier-border);
+				}
+
+				.local-provider-description {
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					margin-bottom: var(--size-4-2);
+					line-height: 1.5;
+				}
+
+				.local-provider-features {
+					margin-top: var(--size-4-2);
+				}
+
+				.local-provider-features ul {
+					list-style: none;
+					padding: 0;
+					margin: 0;
+					color: var(--text-muted);
+				}
+
+				.local-provider-features li {
+					padding: var(--size-2-1) 0;
+					font-size: var(--font-ui-small);
+					line-height: 1.4;
+				}
+
+				.theme-dark .local-provider-info {
+					background: var(--background-secondary-alt);
 					border-color: var(--background-modifier-border-hover);
 				}
 				`}
