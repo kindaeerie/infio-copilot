@@ -71,7 +71,7 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 	};
 
 	const providers = GetAllProviders(); // 按照重要程度排序
-	const embeddingProviders = GetEmbeddingProviders(); // 按照重要程度排序
+	// const embeddingProviders = GetEmbeddingProviders(); // 按照重要程度排序
 
 	// 获取已设置API Key的提供商列表
 	const getSettedProviders = (): ApiProvider[] => {
@@ -95,7 +95,8 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		const selectedProvider = providers.find(provider => settedProviders.includes(provider));
 
 		// 选择embedding的提供商（按embeddingProviders排序选择最靠前的）
-		const embeddingProvider = embeddingProviders.find(provider => settedProviders.includes(provider));
+		// const embeddingProvider = embeddingProviders.find(provider => settedProviders.includes(provider));
+		const embeddingProvider = ApiProvider.LocalProvider; // default to local provider
 
 		// 准备要更新的设置对象
 		const newSettings = { ...settings };
@@ -119,6 +120,7 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 			}
 		}
 
+		// todo: this is a temporary fix for the embedding provider, we should remove this after the embedding provider is implemented
 		if (embeddingProvider) {
 			const embeddingDefaultModels = GetDefaultModelId(embeddingProvider);
 

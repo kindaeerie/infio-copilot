@@ -1638,7 +1638,7 @@ export const grokModels = {
 // LocalProvider (本地嵌入模型)
 export const localProviderDefaultModelId = null // this is not supported for chat/autocomplete
 export const localProviderDefaultAutoCompleteModelId = null // this is not supported for chat/autocomplete  
-export const localProviderDefaultEmbeddingModelId: keyof typeof localProviderEmbeddingModels = "Xenova/all-MiniLM-L6-v2"
+export const localProviderDefaultEmbeddingModelId: keyof typeof localProviderEmbeddingModels = "TaylorAI/bge-micro-v2"
 
 export const localProviderEmbeddingModels = {
 	'Xenova/all-MiniLM-L6-v2': { dimensions: 384, description: 'All-MiniLM-L6-v2 (推荐，轻量级)' },
@@ -1650,7 +1650,17 @@ export const localProviderEmbeddingModels = {
 	'Xenova/multilingual-e5-base': { dimensions: 768, description: 'E5-base (多语言，更高质量)' },
 	'Xenova/gte-small': { dimensions: 384, description: 'GTE-small' },
 	'Xenova/e5-small-v2': { dimensions: 384, description: 'E5-small-v2' },
-	'Xenova/e5-base-v2': { dimensions: 768, description: 'E5-base-v2 (更高质量)' }
+	'Xenova/e5-base-v2': { dimensions: 768, description: 'E5-base-v2 (更高质量)' },
+	// 新增的模型
+	'TaylorAI/bge-micro-v2': { dimensions: 384, description: 'BGE-micro-v2 (本地，512令牌，384维)' },
+	'Snowflake/snowflake-arctic-embed-xs': { dimensions: 384, description: 'Snowflake Arctic Embed XS (本地，512令牌，384维)' },
+	'Snowflake/snowflake-arctic-embed-s': { dimensions: 384, description: 'Snowflake Arctic Embed Small (本地，512令牌，384维)' },
+	'Snowflake/snowflake-arctic-embed-m': { dimensions: 768, description: 'Snowflake Arctic Embed Medium (本地，512令牌，768维)' },
+	'TaylorAI/gte-tiny': { dimensions: 384, description: 'GTE-tiny (本地，512令牌，384维)' },
+	'Mihaiii/Ivysaur': { dimensions: 384, description: 'Ivysaur (本地，512令牌，384维)' },
+	'andersonbcdefg/bge-small-4096': { dimensions: 384, description: 'BGE-small-4K (本地，4096令牌，384维)' },
+	'nomic-ai/nomic-embed-text-v1.5': { dimensions: 768, description: 'Nomic-embed-text-v1.5 (本地，2048令牌，768维)' },
+	'nomic-ai/nomic-embed-text-v1': { dimensions: 768, description: 'Nomic-embed-text (本地，2048令牌，768维)' }
 } as const satisfies Record<string, EmbeddingModelInfo>
 
 /// helper functions

@@ -1,22 +1,23 @@
-import { backOff } from 'exponential-backoff'
-import { MarkdownTextSplitter } from 'langchain/text_splitter'
-import { minimatch } from 'minimatch'
-import { App, Notice, TFile } from 'obsidian'
-import pLimit from 'p-limit'
+import { backOff } from 'exponential-backoff';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import removeMarkdown from "markdown-to-text";
+import { minimatch } from 'minimatch';
+import { App, Notice, TFile } from 'obsidian';
+import pLimit from 'p-limit';
 
-import { IndexProgress } from '../../../components/chat-view/QueryProgress'
+import { IndexProgress } from '../../../components/chat-view/QueryProgress';
 import {
 	LLMAPIKeyInvalidException,
 	LLMAPIKeyNotSetException,
 	LLMBaseUrlNotSetException,
 	LLMRateLimitExceededException,
-} from '../../../core/llm/exception'
-import { InsertVector, SelectVector } from '../../../database/schema'
-import { EmbeddingModel } from '../../../types/embedding'
-import { openSettingsModalWithError } from '../../../utils/open-settings-modal'
-import { DBManager } from '../../database-manager'
+} from '../../../core/llm/exception';
+import { InsertVector, SelectVector } from '../../../database/schema';
+import { EmbeddingModel } from '../../../types/embedding';
+import { openSettingsModalWithError } from '../../../utils/open-settings-modal';
+import { DBManager } from '../../database-manager';
 
-import { VectorRepository } from './vector-repository'
+import { VectorRepository } from './vector-repository';
 
 export class VectorManager {
 	private app: App
@@ -111,10 +112,25 @@ export class VectorManager {
 			return
 		}
 
-		const textSplitter = new MarkdownTextSplitter({
+		// Embed the files
+		const overlap = Math.floor(options.chunkSize * 0.15)
+		const textSplitter = new RecursiveCharacterTextSplitter({
 			chunkSize: options.chunkSize,
-			// chunkOverlap: Math.floor(options.chunkSize * 0.15)
-		})
+			chunkOverlap: overlap,
+			separators: [
+				"\n\n",
+				"\n",
+				".",
+				",",
+				" ",
+				"\u200b",  // Zero-width space
+				"\uff0c",  // Fullwidth comma
+				"\u3001",  // Ideographic comma
+				"\uff0e",  // Fullwidth full stop
+				"\u3002",  // Ideographic full stop
+				"",
+			],
+		});
 
 		const skippedFiles: string[] = []
 		const contentChunks: InsertVector[] = (
@@ -127,18 +143,25 @@ export class VectorManager {
 						const fileDocuments = await textSplitter.createDocuments([
 							fileContent,
 						])
-						return fileDocuments.map((chunk): InsertVector => {
-							return {
-								path: file.path,
-								mtime: file.stat.mtime,
-								content: chunk.pageContent.replace(/\0/g, ''), // 再次清理，确保安全
-								embedding: [],
-								metadata: {
-									startLine: Number(chunk.metadata.loc.lines.from),
-									endLine: Number(chunk.metadata.loc.lines.to),
-								},
-							}
-						})
+						return fileDocuments
+							.map((chunk): InsertVector | null => {
+								const content = removeMarkdown(chunk.pageContent).replace(/\0/g, '')
+								if (!content || content.trim().length === 0) { 
+									console.log("skipped chunk", chunk.pageContent)
+									return null
+								}
+								return {
+									path: file.path,
+									mtime: file.stat.mtime,
+									content,
+									embedding: [],
+									metadata: {
+										startLine: Number(chunk.metadata.loc.lines.from),
+										endLine: Number(chunk.metadata.loc.lines.to),
+									},
+								}
+							})
+							.filter((chunk): chunk is InsertVector => chunk !== null)
 					} catch (error) {
 						console.warn(`跳过文件 ${file.path}:`, error.message)
 						skippedFiles.push(file.path)
@@ -327,18 +350,24 @@ export class VectorManager {
 				fileContent,
 			])
 
-			const contentChunks: InsertVector[] = fileDocuments.map((chunk): InsertVector => {
-				return {
-					path: file.path,
-					mtime: file.stat.mtime,
-					content: chunk.pageContent.replace(/\0/g, ''), // 再次清理，确保安全
-					embedding: [],
-					metadata: {
-						startLine: Number(chunk.metadata.loc.lines.from),
-						endLine: Number(chunk.metadata.loc.lines.to),
-					},
-				}
-			})
+			const contentChunks: InsertVector[] = fileDocuments
+				.map((chunk): InsertVector | null => {
+					const content = removeMarkdown(chunk.pageContent).replace(/\0/g, '')
+					if (!content || content.trim().length === 0) {
+						return null
+					}
+					return {
+						path: file.path,
+						mtime: file.stat.mtime,
+						content,
+						embedding: [],
+						metadata: {
+							startLine: Number(chunk.metadata.loc.lines.from),
+							endLine: Number(chunk.metadata.loc.lines.to),
+						},
+					}
+				})
+				.filter((chunk): chunk is InsertVector => chunk !== null)
 
 			// 减少批量大小以降低内存压力
 			const insertBatchSize = 16 // 从64降低到16

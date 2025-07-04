@@ -149,6 +149,9 @@ importers:
       lucide-react:
         specifier: ^0.447.0
         version: 0.447.0(react@18.3.1)
+      markdown-to-text:
+        specifier: ^0.1.1
+        version: 0.1.1
       mermaid:
         specifier: ^11.6.0
         version: 11.6.0
@@ -2741,6 +2744,9 @@ packages:
   '@types/babel__traverse@7.20.6':
     resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
 
+  '@types/chai@4.3.20':
+    resolution: {integrity: sha512-/pC9HAB5I/xMlc5FP77qjCnI16ChlJfW0tGa0IUcFn38VJrTV6DeZ60NU5KZBtaOZqjdpwTWohz5HU1RrhiYxQ==}
+
   '@types/codemirror@5.60.8':
     resolution: {integrity: sha512-VjFgDF/eB+Aklcy15TtOTLQeMjTo07k7KAjql8OK5Dirr7a6sJY4T1uVBDuTVG9VEmn1uUsohOpYnVfgC6/jyw==}
 
@@ -2909,6 +2915,9 @@ packages:
   '@types/mermaid@9.2.0':
     resolution: {integrity: sha512-AlvLWYer6u4BkO4QzMkHo0t9RkvVIgqggVZmO+5snUiuX2caTKqtdqygX6GeE1VQa/TnXw9WoH0spcmHtG0inQ==}
     deprecated: This is a stub types definition. mermaid provides its own type definitions, so you do not need this installed.
+
+  '@types/mocha@8.2.3':
+    resolution: {integrity: sha512-ekGvFhFgrc2zYQoX4JeZPmVzZxw6Dtllga7iGHzfbYIYkAMUx/sAFP2GdFpLff+vdHXu5fl7WX9AT+TtqYcsyw==}
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
@@ -5410,6 +5419,9 @@ packages:
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+
+  markdown-to-text@0.1.1:
+    resolution: {integrity: sha512-co/J5l8mJ2RK9wD/nQRGwO7JxoeyfvVNtOZll016EdAX2qYkwCWMdtYvJO42b41Ho7GFEJMuly9llf0Nj+ReQw==}
 
   marked@15.0.12:
     resolution: {integrity: sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA==}
@@ -9713,6 +9725,8 @@ snapshots:
     dependencies:
       '@babel/types': 7.26.9
 
+  '@types/chai@4.3.20': {}
+
   '@types/codemirror@5.60.8':
     dependencies:
       '@types/tern': 0.23.9
@@ -9918,6 +9932,8 @@ snapshots:
       mermaid: 11.6.0
     transitivePeerDependencies:
       - supports-color
+
+  '@types/mocha@8.2.3': {}
 
   '@types/ms@2.1.0': {}
 
@@ -12925,6 +12941,11 @@ snapshots:
       tmpl: 1.0.5
 
   markdown-table@3.0.4: {}
+
+  markdown-to-text@0.1.1:
+    dependencies:
+      '@types/chai': 4.3.20
+      '@types/mocha': 8.2.3
 
   marked@15.0.12: {}
 
