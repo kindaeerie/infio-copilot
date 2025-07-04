@@ -14,6 +14,7 @@ import { RAGEngine } from './core/rag/rag-engine'
 import { TransEngine } from './core/transformations/trans-engine'
 import { DBManager } from './database/database-manager'
 import { migrateToJsonDatabase } from './database/json/migrateToJsonDatabase'
+import { EmbeddingManager } from './embedworker/EmbeddingManager'
 import EventListener from "./event-listener"
 import { t } from './lang/helpers'
 import { PreviewView } from './PreviewView'
@@ -52,6 +53,7 @@ export default class InfioPlugin extends Plugin {
 	mcpHub: McpHub | null = null
 	ragEngine: RAGEngine | null = null
 	transEngine: TransEngine | null = null
+	embeddingManager: EmbeddingManager | null = null
 	inlineEdit: InlineEdit | null = null
 	diffStrategy?: DiffStrategy
 	dataviewManager: DataviewManager | null = null
@@ -72,6 +74,10 @@ export default class InfioPlugin extends Plugin {
 
 		// initialize dataview manager
 		this.dataviewManager = createDataviewManager(this.app)
+
+		// initialize embedding manager
+		this.embeddingManager = new EmbeddingManager()
+		console.log('EmbeddingManager initialized')
 
 		// add icon to ribbon
 		this.addRibbonIcon('wand-sparkles', t('main.openInfioCopilot'), () =>
@@ -426,16 +432,18 @@ export default class InfioPlugin extends Plugin {
 			name: '测试本地嵌入模型',
 			callback: async () => {
 				try {
-					// 动态导入嵌入管理器
-					const { embeddingManager } = await import('./embedworker/index');
-										
+					if (!this.embeddingManager) {
+						new Notice('EmbeddingManager 未初始化', 5000);
+						return;
+					}
+					
 					// 加载模型
-					await embeddingManager.loadModel("Xenova/all-MiniLM-L6-v2", true);
+					await this.embeddingManager.loadModel("Xenova/all-MiniLM-L6-v2", true);
 					
 					// 测试嵌入 "hello world"
 					const testText = "hello world";
 					
-					const result = await embeddingManager.embed(testText);
+					const result = await this.embeddingManager.embed(testText);
 					
 					// 显示结果
 					const resultMessage = `
@@ -480,6 +488,9 @@ export default class InfioPlugin extends Plugin {
 		// MCP Hub cleanup
 		this.mcpHub?.dispose()
 		this.mcpHub = null
+		// EmbeddingManager cleanup
+		this.embeddingManager?.terminate()
+		this.embeddingManager = null
 		// Dataview cleanup
 		this.dataviewManager = null
 	}
@@ -636,6 +647,10 @@ export default class InfioPlugin extends Plugin {
 
 		// if initialization is running, wait for it to complete instead of creating a new initialization promise
 		return this.transEngineInitPromise
+	}
+
+	getEmbeddingManager(): EmbeddingManager | null {
+		return this.embeddingManager
 	}
 
 	private async migrateToJsonStorage() {
