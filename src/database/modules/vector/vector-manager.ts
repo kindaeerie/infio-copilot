@@ -156,7 +156,6 @@ export class VectorManager {
 								// 保存原始内容，不在此处调用 removeMarkdown
 								const rawContent = chunk.pageContent.replace(/\0/g, '')
 								if (!rawContent || rawContent.trim().length === 0) {
-									console.log("skipped chunk", chunk.pageContent)
 									return null
 								}
 								return {

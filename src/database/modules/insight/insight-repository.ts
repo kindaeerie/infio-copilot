@@ -30,7 +30,6 @@ export class InsightRepository {
     const result = await this.db.query<SelectSourceInsight>(
       `SELECT * FROM "${tableName}" ORDER BY created_at DESC`
 		)
-		console.log(result.rows)
     return result.rows
   }
 

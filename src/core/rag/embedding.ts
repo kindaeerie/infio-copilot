@@ -68,7 +68,6 @@ export const getEmbeddingModel = (
 						}
 						
 						const results = await embeddingManager.embedBatch(texts)
-						console.log('results', results)
 						return results.map(result => result.vec)
 					} catch (error) {
 						console.error('LocalProvider batch embedding error:', error)

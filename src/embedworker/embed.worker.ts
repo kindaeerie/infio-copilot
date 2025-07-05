@@ -83,7 +83,7 @@ async function loadModel(modelKey: string, useGpu: boolean = false) {
 			progress_callback: (progress: any) => {
 				try {
 					if (progress && typeof progress === 'object') {
-						console.log('Model loading progress:', progress);
+						// console.log('Model loading progress:', progress);
 					}
 				} catch (error) {
 					// 忽略进度回调错误，避免中断模型加载

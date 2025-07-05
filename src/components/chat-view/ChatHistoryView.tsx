@@ -79,7 +79,6 @@ const ChatHistoryView = ({
 
 	// filter conversations list
 	const filteredConversations = useMemo(() => {
-		console.log('filteredConversations', chatList)
 		let filtered = chatList
 
 		// Apply search filter

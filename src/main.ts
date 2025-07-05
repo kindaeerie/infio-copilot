@@ -414,7 +414,7 @@ export default class InfioPlugin extends Plugin {
 
 					if (result.success) {
 						new Notice('Dataview 查询成功！结果已在控制台输出');
-						console.log('查询结果:', result.data);
+						// console.log('查询结果:', result.data);
 					} else {
 						new Notice(`查询失败: ${result.error}`);
 						console.error('查询错误:', result.error);

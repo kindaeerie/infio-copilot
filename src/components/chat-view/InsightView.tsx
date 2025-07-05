@@ -223,9 +223,7 @@ const InsightView = () => {
 				currentItem: '保存结果'
 			})
 
-			if (result.success) {
-				console.log('工作区洞察初始化完成:', result.result)
-				
+			if (result.success) {				
 				// 刷新洞察列表
 				await loadInsights()
 				
