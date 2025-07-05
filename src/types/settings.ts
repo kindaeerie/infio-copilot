@@ -210,6 +210,7 @@ const openAICompatibleModelSchema = z.object({
 
 const ragOptionsSchema = z.object({
 	chunkSize: z.number().catch(1000),
+	batchSize: z.number().catch(32),
 	thresholdTokens: z.number().catch(8192),
 	minSimilarity: z.number().catch(0.0),
 	limit: z.number().catch(10),
@@ -367,7 +368,8 @@ export const InfioSettingsSchema = z.object({
 
 	// RAG Options
 	ragOptions: ragOptionsSchema.catch({
-		chunkSize: 1000,
+		batchSize: 32,
+		chunkSize: 500,
 		thresholdTokens: 8192,
 		minSimilarity: 0.0,
 		limit: 10,

@@ -358,6 +358,8 @@ export default {
 			excludePatternsDescription: 'Files matching ANY of these patterns will be excluded from indexing. One pattern per line. Uses glob patterns (e.g., "private/*", "*.tmp"). Leave empty to exclude nothing. After changing this, use the command "Rebuild entire vault index" to apply changes.',
 			chunkSize: 'Chunk size',
 			chunkSizeDescription: 'Set the chunk size for text splitting. After changing this, please re-index the vault using the "Rebuild entire vault index" command.',
+			batchSize: 'Batch size',
+			batchSizeDescription: 'Set the batch size for embedding. A smaller value may reduce memory usage. After changing this, please re-index the vault using the "Rebuild entire vault index" command.',
 			thresholdTokens: 'Threshold tokens',
 			thresholdTokensDescription: 'Maximum number of tokens before switching to RAG. If the total tokens from mentioned files exceed this, RAG will be used instead of including all file contents.',
 			minSimilarity: 'Minimum similarity',

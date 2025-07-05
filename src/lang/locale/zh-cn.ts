@@ -360,6 +360,8 @@ export default {
 			excludePatternsDescription: '匹配任何这些模式的文件将从索引中排除。每行一个模式。使用 glob 模式（例如，"private/*", "*.tmp"）。留空以不排除任何内容。更改后，请使用命令 "重建整个 Vault 索引" 来应用更改。',
 			chunkSize: '分块大小',
 			chunkSizeDescription: '设置文本分割的分块大小。更改后，请使用 "重建整个 Vault 索引" 命令重新索引 Vault。',
+			batchSize: '批处理大小',
+			batchSizeDescription: '设置嵌入的批处理大小。较小的值可以减少内存使用。更改后，请使用 "重建整个 Vault 索引" 命令重新索引 Vault。',
 			thresholdTokens: '阈值 Tokens',
 			thresholdTokensDescription: '切换到 RAG 之前的最大 Tokens 数。如果提及文件的总 Tokens 超过此值，将使用 RAG 而不是包含所有文件内容。',
 			minSimilarity: '最小相似度',

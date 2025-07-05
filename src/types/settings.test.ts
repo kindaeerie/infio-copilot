@@ -16,7 +16,7 @@ describe('parseSmartCopilotSettings', () => {
 				top_p: 0.1,
 				frequency_penalty: 0.25,
 				presence_penalty: 0,
-				max_tokens: 800,
+				max_tokens: 4096,
 			},
 			systemMessage: DEFAULT_SETTINGS.systemMessage,
 			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,
@@ -34,6 +34,7 @@ describe('parseSmartCopilotSettings', () => {
 		})
 		expect(result).toEqual({
 			version: 0.4,
+			workspace: '',
 			activeModels: DEFAULT_MODELS,
 			activeProviderTab: 'Infio',
 			infioApiKey: '',
@@ -61,6 +62,13 @@ describe('parseSmartCopilotSettings', () => {
 			defaultProvider: 'Infio',
 			alibabaQwenProvider: {
 				name: 'AlibabaQwen',
+				apiKey: '',
+				baseUrl: '',
+				useCustomUrl: false,
+				models: [],
+			},
+			localproviderProvider: {
+				name: 'LocalProvider',
 				apiKey: '',
 				baseUrl: '',
 				useCustomUrl: false,
@@ -97,7 +105,8 @@ describe('parseSmartCopilotSettings', () => {
 			},
 			systemPrompt: '',
 			ragOptions: {
-				chunkSize: 1000,
+				batchSize: 32,
+				chunkSize: 500,
 				thresholdTokens: 8192,
 				minSimilarity: 0.0,
 				limit: 10,
@@ -118,7 +127,7 @@ describe('parseSmartCopilotSettings', () => {
 				top_p: 0.1,
 				frequency_penalty: 0.25,
 				presence_penalty: 0,
-				max_tokens: 800,
+				max_tokens: 4096,
 			},
 			systemMessage: DEFAULT_SETTINGS.systemMessage,
 			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,
@@ -224,7 +233,8 @@ describe('settings migration', () => {
 			embeddingModel: 'text-embedding-3-small',
 			systemPrompt: 'system prompt',
 			ragOptions: {
-				chunkSize: 1000,
+				batchSize: 32,
+				chunkSize: 500,
 				thresholdTokens: 8192,
 				minSimilarity: 0.0,
 				limit: 10,
@@ -239,7 +249,7 @@ describe('settings migration', () => {
 				top_p: 0.1,
 				frequency_penalty: 0.25,
 				presence_penalty: 0,
-				max_tokens: 800,
+				max_tokens: 4096,
 			},
 			systemMessage: DEFAULT_SETTINGS.systemMessage,
 			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,
@@ -259,6 +269,7 @@ describe('settings migration', () => {
 		const result = parseInfioSettings(oldSettings)
 		expect(result).toEqual({
 			version: 0.4,
+			workspace: '',
 			activeModels: DEFAULT_MODELS,
 			activeProviderTab: 'Infio',
 			infioApiKey: '',
@@ -286,6 +297,13 @@ describe('settings migration', () => {
 			defaultProvider: 'Infio',
 			alibabaQwenProvider: {
 				name: 'AlibabaQwen',
+				apiKey: '',
+				baseUrl: '',
+				useCustomUrl: false,
+				models: [],
+			},
+			localproviderProvider: {
+				name: 'LocalProvider',
 				apiKey: '',
 				baseUrl: '',
 				useCustomUrl: false,
@@ -322,7 +340,8 @@ describe('settings migration', () => {
 			},
 			systemPrompt: 'system prompt',
 			ragOptions: {
-				chunkSize: 1000,
+				batchSize: 32,
+				chunkSize: 500,
 				thresholdTokens: 8192,
 				minSimilarity: 0.0,
 				limit: 10,
@@ -343,7 +362,7 @@ describe('settings migration', () => {
 				top_p: 0.1,
 				frequency_penalty: 0.25,
 				presence_penalty: 0,
-				max_tokens: 800,
+				max_tokens: 4096,
 			},
 			systemMessage: DEFAULT_SETTINGS.systemMessage,
 			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,

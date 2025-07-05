@@ -27,7 +27,7 @@ export class VectorManager {
 	constructor(app: App, dbManager: DBManager) {
 		this.app = app
 		this.dbManager = dbManager
-		this.repository = new VectorRepository(app, dbManager.getPgClient() as any)
+		this.repository = new VectorRepository(app, dbManager.getPgClient())
 	}
 
 	async performSimilaritySearch(
@@ -59,7 +59,7 @@ export class VectorManager {
 			if (typeof global !== 'undefined' && global.gc) {
 				global.gc()
 			} else if (typeof window !== 'undefined' && (window as any).gc) {
-				(window as any).gc()
+				((window as any).gc as () => void)();
 			}
 		} catch (e) {
 			// 忽略垃圾回收错误
@@ -80,6 +80,7 @@ export class VectorManager {
 		embeddingModel: EmbeddingModel,
 		options: {
 			chunkSize: number
+			batchSize: number
 			excludePatterns: string[]
 			includePatterns: string[]
 			reindexAll?: boolean
@@ -194,17 +195,15 @@ export class VectorManager {
 
 		const embeddingProgress = { completed: 0 }
 		// 减少批量大小以降低内存压力
-		const insertBatchSize = 32
+		const batchSize = options.batchSize
 		let batchCount = 0
 
 		try {
 			if (embeddingModel.supportsBatch) {
 				// 支持批量处理的提供商：使用流式处理逻辑
-				const embeddingBatchSize = 32
-
-				for (let i = 0; i < contentChunks.length; i += embeddingBatchSize) {
+				for (let i = 0; i < contentChunks.length; i += batchSize) {
 					batchCount++
-					const batchChunks = contentChunks.slice(i, Math.min(i + embeddingBatchSize, contentChunks.length))
+					const batchChunks = contentChunks.slice(i, Math.min(i + batchSize, contentChunks.length))
 
 					const embeddedBatch: InsertVector[] = []
 
@@ -267,13 +266,13 @@ export class VectorManager {
 				const abortController = new AbortController()
 
 				// 流式处理：分批处理并立即插入
-				for (let i = 0; i < contentChunks.length; i += insertBatchSize) {
+				for (let i = 0; i < contentChunks.length; i += batchSize) {
 					if (abortController.signal.aborted) {
 						throw new Error('Operation was aborted')
 					}
 
 					batchCount++
-					const batchChunks = contentChunks.slice(i, Math.min(i + insertBatchSize, contentChunks.length))
+					const batchChunks = contentChunks.slice(i, Math.min(i + batchSize, contentChunks.length))
 					const embeddedBatch: InsertVector[] = []
 
 					const tasks = batchChunks.map((chunk) =>
@@ -357,6 +356,7 @@ export class VectorManager {
 	async UpdateFileVectorIndex(
 		embeddingModel: EmbeddingModel,
 		chunkSize: number,
+		batchSize: number,
 		file: TFile
 	) {
 		try {
@@ -412,19 +412,15 @@ export class VectorManager {
 				})
 				.filter((chunk): chunk is InsertVector => chunk !== null)
 
-			// 减少批量大小以降低内存压力
-			const insertBatchSize = 16 // 从64降低到16
 			let batchCount = 0
 
 			try {
 				if (embeddingModel.supportsBatch) {
 					// 支持批量处理的提供商：使用流式处理逻辑
-					const embeddingBatchSize = 16 // 从64降低到16
-
-					for (let i = 0; i < contentChunks.length; i += embeddingBatchSize) {
+					for (let i = 0; i < contentChunks.length; i += batchSize) {
 						batchCount++
-						console.log(`Embedding batch ${batchCount} of ${Math.ceil(contentChunks.length / embeddingBatchSize)}`)
-						const batchChunks = contentChunks.slice(i, Math.min(i + embeddingBatchSize, contentChunks.length))
+						console.log(`Embedding batch ${batchCount} of ${Math.ceil(contentChunks.length / batchSize)}`)
+						const batchChunks = contentChunks.slice(i, Math.min(i + batchSize, contentChunks.length))
 
 						const embeddedBatch: InsertVector[] = []
 
@@ -480,13 +476,13 @@ export class VectorManager {
 					const abortController = new AbortController()
 
 					// 流式处理：分批处理并立即插入
-					for (let i = 0; i < contentChunks.length; i += insertBatchSize) {
+					for (let i = 0; i < contentChunks.length; i += batchSize) {
 						if (abortController.signal.aborted) {
 							throw new Error('Operation was aborted')
 						}
 
 						batchCount++
-						const batchChunks = contentChunks.slice(i, Math.min(i + insertBatchSize, contentChunks.length))
+						const batchChunks = contentChunks.slice(i, Math.min(i + batchSize, contentChunks.length))
 						const embeddedBatch: InsertVector[] = []
 
 						const tasks = batchChunks.map((chunk) =>

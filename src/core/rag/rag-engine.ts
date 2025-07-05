@@ -88,6 +88,7 @@ export class RAGEngine {
 			this.embeddingModel,
 			{
 				chunkSize: this.settings.ragOptions.chunkSize,
+				batchSize: this.settings.ragOptions.batchSize,
 				excludePatterns: this.settings.ragOptions.excludePatterns,
 				includePatterns: this.settings.ragOptions.includePatterns,
 				reindexAll: options.reindexAll,
@@ -112,6 +113,7 @@ export class RAGEngine {
 		await this.vectorManager.UpdateFileVectorIndex(
 			this.embeddingModel,
 			this.settings.ragOptions.chunkSize,
+			this.settings.ragOptions.batchSize,
 			file,
 		)
 	}
