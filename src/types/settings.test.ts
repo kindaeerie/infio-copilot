@@ -33,7 +33,7 @@ describe('parseSmartCopilotSettings', () => {
 			debugMode: false,
 		})
 		expect(result).toEqual({
-			version: 0.4,
+			version: 0.5,
 			workspace: '',
 			activeModels: DEFAULT_MODELS,
 			activeProviderTab: 'Infio',
@@ -268,7 +268,7 @@ describe('settings migration', () => {
 
 		const result = parseInfioSettings(oldSettings)
 		expect(result).toEqual({
-			version: 0.4,
+			version: 0.5,
 			workspace: '',
 			activeModels: DEFAULT_MODELS,
 			activeProviderTab: 'Infio',
