@@ -210,7 +210,7 @@ const openAICompatibleModelSchema = z.object({
 })
 
 const ragOptionsSchema = z.object({
-	chunkSize: z.number().catch(1000),
+	chunkSize: z.number().catch(500),
 	batchSize: z.number().catch(32),
 	thresholdTokens: z.number().catch(8192),
 	minSimilarity: z.number().catch(0.0),
