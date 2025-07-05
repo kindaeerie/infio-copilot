@@ -21,9 +21,21 @@ export interface TokenCountResult {
 	tokens: number;
 }
 
+// Worker 消息类型定义
+interface WorkerMessage {
+	id: number;
+	result?: unknown;
+	error?: string;
+}
+
+interface WorkerRequest {
+	resolve: (value: unknown) => void;
+	reject: (reason?: unknown) => void;
+}
+
 export class EmbeddingManager {
 	private worker: Worker;
-	private requests = new Map<number, { resolve: (value: any) => void; reject: (reason?: any) => void }>();
+	private requests = new Map<number, WorkerRequest>();
 	private nextRequestId = 0;
 	private isModelLoaded = false;
 	private currentModelId: string | null = null;
@@ -35,7 +47,7 @@ export class EmbeddingManager {
 		// 统一监听来自 Worker 的所有消息
 		this.worker.onmessage = (event) => {
 			try {
-				const { id, result, error } = event.data;
+				const { id, result, error } = event.data as WorkerMessage;
 
 				// 根据返回的 id 找到对应的 Promise 回调
 				const request = this.requests.get(id);
@@ -53,7 +65,7 @@ export class EmbeddingManager {
 				console.error("Error processing worker message:", err);
 				// 拒绝所有待处理的请求
 				this.requests.forEach(request => {
-					request.reject(new Error(`Worker message processing error: ${err.message}`));
+					request.reject(new Error(`Worker message processing error: ${(err as Error).message}`));
 				});
 				this.requests.clear();
 			}
@@ -73,14 +85,7 @@ export class EmbeddingManager {
 		};
 	}
 
-
-
-	/**
-	 * 向 Worker 发送一个请求，并返回一个 Promise，该 Promise 将在收到响应时解析。
-	 * @param method 要调用的方法 (e.g., 'load', 'embed_batch')
-	 * @param params 方法所需的参数
-	 */
-	private postRequest<T>(method: string, params: any): Promise<T> {
+	private postRequest<T>(method: string, params: unknown): Promise<T> {
 		return new Promise<T>((resolve, reject) => {
 			const id = this.nextRequestId++;
 			this.requests.set(id, { resolve, reject });
@@ -88,11 +93,6 @@ export class EmbeddingManager {
 		});
 	}
 
-	/**
-	 * 加载指定的嵌入模型到 Worker 中。
-	 * @param modelId 模型ID, 例如 'TaylorAI/bge-micro-v2'
-	 * @param useGpu 是否使用GPU加速，默认为false
-	 */
 	public async loadModel(modelId: string, useGpu: boolean = false): Promise<ModelLoadResult> {
 		console.log(`Loading embedding model: ${modelId}, GPU: ${useGpu}`);
 

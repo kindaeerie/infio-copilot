@@ -1,7 +1,5 @@
-// 完整的嵌入 Worker，使用 Transformers.js
 console.log('Embedding worker loaded');
 
-// 类型定义
 interface EmbedInput {
 	embed_input: string;
 }
@@ -55,7 +53,6 @@ async function loadTransformers() {
 		env.useFS = false;
 		env.useBrowserCache = true;
 
-		// 存储导入的函数
 		(globalThis as any).pipelineFactory = pipelineFactory;
 		(globalThis as any).AutoTokenizer = AutoTokenizer;
 		(globalThis as any).env = env;
@@ -68,7 +65,6 @@ async function loadTransformers() {
 	}
 }
 
-// 加载模型
 async function loadModel(modelKey: string, useGpu: boolean = false) {
 	try {
 		console.log(`Loading model: ${modelKey}, GPU: ${useGpu}`);
@@ -141,7 +137,6 @@ async function loadModel(modelKey: string, useGpu: boolean = false) {
 	}
 }
 
-// 卸载模型
 async function unloadModel() {
 	try {
 		console.log('Unloading model...');
@@ -168,7 +163,6 @@ async function unloadModel() {
 	}
 }
 
-// 计算 token 数量
 async function countTokens(input: string) {
 	try {
 		if (!tokenizer) {
@@ -184,7 +178,6 @@ async function countTokens(input: string) {
 	}
 }
 
-// 生成嵌入向量
 async function embedBatch(inputs: EmbedInput[]): Promise<EmbedResult[]> {
 	try {
 		if (!pipeline || !tokenizer) {
@@ -201,7 +194,7 @@ async function embedBatch(inputs: EmbedInput[]): Promise<EmbedResult[]> {
 		}
 
 		// 批处理大小（可以根据需要调整）
-		const batchSize = 8;
+		const batchSize = 1;
 
 		if (filteredInputs.length > batchSize) {
 			console.log(`Processing ${filteredInputs.length} inputs in batches of ${batchSize}`);
@@ -224,7 +217,6 @@ async function embedBatch(inputs: EmbedInput[]): Promise<EmbedResult[]> {
 	}
 }
 
-// 处理单个批次
 async function processBatch(batchInputs: EmbedInput[]): Promise<EmbedResult[]> {
 	try {
 		// 计算每个输入的 token 数量
@@ -295,7 +287,6 @@ async function processBatch(batchInputs: EmbedInput[]): Promise<EmbedResult[]> {
 	}
 }
 
-// 处理消息
 async function processMessage(data: WorkerMessage): Promise<WorkerResponse> {
 	const { method, params, id, worker_id } = data;
 
@@ -362,7 +353,6 @@ async function processMessage(data: WorkerMessage): Promise<WorkerResponse> {
 	}
 }
 
-// 监听消息
 self.addEventListener('message', async (event) => {
 	try {
 		console.log('Worker received message:', event.data);
@@ -389,7 +379,6 @@ self.addEventListener('message', async (event) => {
 	}
 });
 
-// 添加全局错误处理
 self.addEventListener('error', (event) => {
 	console.error('Worker global error:', event);
 	self.postMessage({
@@ -398,7 +387,6 @@ self.addEventListener('error', (event) => {
 	});
 });
 
-// 添加未处理的 Promise 拒绝处理
 self.addEventListener('unhandledrejection', (event) => {
 	console.error('Worker unhandled promise rejection:', event);
 	self.postMessage({
