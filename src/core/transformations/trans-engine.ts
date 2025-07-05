@@ -20,6 +20,15 @@ import { SIMPLE_SUMMARY_DESCRIPTION, SIMPLE_SUMMARY_PROMPT } from '../prompts/tr
 import { TABLE_OF_CONTENTS_DESCRIPTION, TABLE_OF_CONTENTS_PROMPT } from '../prompts/transformations/table-of-contents';
 import { getEmbeddingModel } from '../rag/embedding';
 
+// EmbeddingManager 类型定义
+type EmbeddingManager = {
+	modelLoaded: boolean
+	currentModel: string | null
+	loadModel(modelId: string, useGpu: boolean): Promise<any>
+	embed(text: string): Promise<{ vec: number[] }>
+	embedBatch(texts: string[]): Promise<{ vec: number[] }[]>
+}
+
 /**
  * 并发控制工具类
  */
@@ -298,21 +307,24 @@ export class TransEngine {
 	private llmManager: LLMManager;
 	private insightManager: InsightManager | null = null;
 	private embeddingModel: EmbeddingModel | null = null;
+	private embeddingManager?: EmbeddingManager;
 
 	constructor(
 		app: App,
 		settings: InfioSettings,
 		dbManager: DBManager,
+		embeddingManager?: EmbeddingManager,
 	) {
 		this.app = app;
 		this.settings = settings;
 		this.llmManager = new LLMManager(settings);
 		this.insightManager = dbManager.getInsightManager();
+		this.embeddingManager = embeddingManager;
 		
 		// 初始化 embedding model
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
-				this.embeddingModel = getEmbeddingModel(settings);
+				this.embeddingModel = getEmbeddingModel(settings, embeddingManager);
 			} catch (error) {
 				console.warn('Failed to initialize embedding model:', error);
 				this.embeddingModel = null;
@@ -334,7 +346,7 @@ export class TransEngine {
 		// 重新初始化 embedding model
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
-				this.embeddingModel = getEmbeddingModel(settings);
+				this.embeddingModel = getEmbeddingModel(settings, this.embeddingManager);
 			} catch (error) {
 				console.warn('Failed to initialize embedding model:', error);
 				this.embeddingModel = null;
@@ -395,7 +407,12 @@ export class TransEngine {
 	> {
 		// 如果没有必要的参数，跳过缓存检查
 		if (!this.embeddingModel || !this.insightManager) {
-			console.log("no embeddingModel or insightManager");
+			console.log("TransEngine: 跳过缓存检查");
+			console.log("embeddingModel:", this.embeddingModel ? "已初始化" : "未初始化");
+			console.log("insightManager:", this.insightManager ? "已初始化" : "未初始化");
+			console.log("embeddingModelId:", this.settings.embeddingModelId);
+			console.log("embeddingModelProvider:", this.settings.embeddingModelProvider);
+			console.log("提示：请在插件设置中配置嵌入模型，或点击'一键配置'按钮");
 			return {
 				success: true,
 				foundCache: false
@@ -488,6 +505,11 @@ export class TransEngine {
 		contentType: 'document' | 'tag' | 'folder'
 	): Promise<void> {
 		if (!this.embeddingModel || !this.insightManager) {
+			console.log("TransEngine: 无法保存到数据库");
+			console.log("embeddingModel:", this.embeddingModel ? "已初始化" : "未初始化");
+			console.log("insightManager:", this.insightManager ? "已初始化" : "未初始化");
+			console.log("embeddingModelId:", this.settings.embeddingModelId);
+			console.log("embeddingModelProvider:", this.settings.embeddingModelProvider);
 			return;
 		}
 
@@ -1027,6 +1049,11 @@ export class TransEngine {
 	> {
 		if (!this.embeddingModel || !this.insightManager) {
 			console.warn('TransEngine: embedding model or insight manager not available')
+			console.log("embeddingModel:", this.embeddingModel ? "已初始化" : "未初始化");
+			console.log("insightManager:", this.insightManager ? "已初始化" : "未初始化");
+			console.log("embeddingModelId:", this.settings.embeddingModelId);
+			console.log("embeddingModelProvider:", this.settings.embeddingModelProvider);
+			console.log("提示：请在插件设置中配置嵌入模型，或点击'一键配置'按钮");
 			return []
 		}
 
@@ -1082,6 +1109,11 @@ export class TransEngine {
 	async getAllInsights(): Promise<Omit<import('../../database/schema').SelectSourceInsight, 'embedding'>[]> {
 		if (!this.embeddingModel || !this.insightManager) {
 			console.warn('TransEngine: embedding model or insight manager not available')
+			console.log("embeddingModel:", this.embeddingModel ? "已初始化" : "未初始化");
+			console.log("insightManager:", this.insightManager ? "已初始化" : "未初始化");
+			console.log("embeddingModelId:", this.settings.embeddingModelId);
+			console.log("embeddingModelProvider:", this.settings.embeddingModelProvider);
+			console.log("提示：请在插件设置中配置嵌入模型，或点击'一键配置'按钮");
 			return []
 		}
 

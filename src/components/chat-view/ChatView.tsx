@@ -630,17 +630,17 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					if (settings.workspace && settings.workspace !== 'vault') {
 						currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
 					}
-					
+
 					const files = await listFilesAndFolders(
-						app.vault, 
-						toolArgs.filepath, 
-						toolArgs.recursive, 
+						app.vault,
+						toolArgs.filepath,
+						toolArgs.recursive,
 						currentWorkspace || undefined,
 						app
 					)
-					
-					const contextInfo = currentWorkspace 
-						? `workspace '${currentWorkspace.name}'` 
+
+					const contextInfo = currentWorkspace
+						? `workspace '${currentWorkspace.name}'`
 						: toolArgs.filepath || 'vault root'
 					const formattedContent = `[list_files for '${contextInfo}'] Result:\n${files.join('\n')}\n`;
 					return {
@@ -710,7 +710,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					if (settings.workspace && settings.workspace !== 'vault') {
 						currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
 					}
-					
+
 					const snippets = await semanticSearchFiles(
 						await getRAGEngine(),
 						toolArgs.query,
@@ -719,9 +719,9 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						app,
 						await getTransEngine()
 					)
-					
-					const contextInfo = currentWorkspace 
-						? `workspace '${currentWorkspace.name}'` 
+
+					const contextInfo = currentWorkspace
+						? `workspace '${currentWorkspace.name}'`
 						: toolArgs.filepath || 'vault'
 					const formattedContent = `[semantic_search_files for '${contextInfo}'] Result:\n${snippets}\n`;
 					return {
@@ -842,14 +842,14 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 
 					// 执行 Dataview 查询
 					const result = await dataviewManager.executeQuery(toolArgs.query)
-					
+
 					let formattedContent: string;
 					if (result.success) {
 						formattedContent = `[dataview_query] 查询成功:\n${result.data}`;
 					} else {
 						formattedContent = `[dataview_query] 查询失败:\n${result.error}`;
 					}
-					
+
 					return {
 						type: 'dataview_query',
 						applyMsgId,
@@ -893,7 +893,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 
 						// Build the result message
 						let formattedContent = `[${toolArgs.transformation}] transformation complete:\n\n${transformationResult.result}`;
-						
+
 						if (transformationResult.truncated) {
 							formattedContent += `\n\n*Note: The original content was too long (${transformationResult.originalTokens} tokens) and was truncated to ${transformationResult.processedTokens} tokens for processing.*`;
 						}
@@ -930,7 +930,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 				} else if (toolArgs.type === 'manage_files') {
 					try {
 						const results: string[] = [];
-						
+
 						// 处理每个文件操作
 						for (const operation of toolArgs.operations) {
 							switch (operation.action) {
@@ -945,7 +945,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 										}
 									}
 									break;
-								
+
 								case 'move':
 									if (operation.source_path && operation.destination_path) {
 										// 使用 getAbstractFileByPath 而不是 getFileByPath，这样可以获取文件和文件夹
@@ -967,7 +967,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 										}
 									}
 									break;
-								
+
 								case 'delete':
 									if (operation.path) {
 										// 使用 getAbstractFileByPath 而不是 getFileByPath
@@ -989,7 +989,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 										}
 									}
 									break;
-								
+
 								case 'copy':
 									if (operation.source_path && operation.destination_path) {
 										// 文件夹复制比较复杂，需要递归处理
@@ -1016,7 +1016,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 										}
 									}
 									break;
-								
+
 								case 'rename':
 									if (operation.path && operation.new_name) {
 										// 使用 getAbstractFileByPath 而不是 getFileByPath
@@ -1031,14 +1031,14 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 										}
 									}
 									break;
-								
+
 								default:
 									results.push(`❌ 不支持的操作类型: ${String(operation.action)}`);
 							}
 						}
-						
+
 						const formattedContent = `[manage_files] 文件管理操作结果:\n${results.join('\n')}`;
-						
+
 						return {
 							type: 'manage_files',
 							applyMsgId,
@@ -1165,15 +1165,15 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		}
 
 		const activeFile = app.workspace.getActiveFile()
-		
+
 		// 🎯 关键优化：只有当活动文件真正发生变化时才更新
 		if (activeFile === currentActiveFileRef.current) {
 			return // 文件没有变化，不需要更新
 		}
-		
+
 		// 更新文件引用
 		currentActiveFileRef.current = activeFile
-		
+
 		if (!activeFile) return
 
 		const mentionable: Omit<MentionableCurrentFile, 'id'> = {
@@ -1312,15 +1312,15 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					</button>
 					<button
 						onClick={() => {
-							if (tab === 'workspace') {
+							if (tab === 'insights') {
 								setTab('chat')
 							} else {
-								setTab('workspace')
+								setTab('insights')
 							}
 						}}
 						className="infio-chat-list-dropdown"
 					>
-						<Box size={18} color={tab === 'workspace' ? 'var(--text-accent)' : 'var(--text-color)'} />
+						<Brain size={18} color={tab === 'insights' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
 					<button
 						onClick={() => {
@@ -1333,6 +1333,18 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						className="infio-chat-list-dropdown"
 					>
 						<Search size={18} color={tab === 'search' ? 'var(--text-accent)' : 'var(--text-color)'} />
+					</button>
+					<button
+						onClick={() => {
+							if (tab === 'workspace') {
+								setTab('chat')
+							} else {
+								setTab('workspace')
+							}
+						}}
+						className="infio-chat-list-dropdown"
+					>
+						<Box size={18} color={tab === 'workspace' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
 					<button
 						onClick={() => {
@@ -1371,18 +1383,6 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						className="infio-chat-list-dropdown"
 					>
 						<Server size={18} color={tab === 'mcp' ? 'var(--text-accent)' : 'var(--text-color)'} />
-					</button>
-					<button
-						onClick={() => {
-							if (tab === 'insights') {
-								setTab('chat')
-							} else {
-								setTab('insights')
-							}
-						}}
-						className="infio-chat-list-dropdown"
-					>
-						<Brain size={18} color={tab === 'insights' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
 				</div>
 			</div>

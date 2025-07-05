@@ -640,7 +640,7 @@ export default class InfioPlugin extends Plugin {
 		if (!this.transEngineInitPromise) {
 			this.transEngineInitPromise = (async () => {
 				const dbManager = await this.getDbManager()
-				this.transEngine = new TransEngine(this.app, this.settings, dbManager)
+				this.transEngine = new TransEngine(this.app, this.settings, dbManager, this.embeddingManager)
 				return this.transEngine
 			})()
 		}

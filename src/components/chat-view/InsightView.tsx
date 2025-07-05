@@ -50,6 +50,8 @@ const InsightView = () => {
 	// 删除洞察状态
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [deletingInsightId, setDeletingInsightId] = useState<number | null>(null)
+	// 确认对话框状态
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
 	const loadInsights = useCallback(async () => {
 		setIsLoading(true)
@@ -243,6 +245,11 @@ const InsightView = () => {
 		}
 	}, [getTransEngine, settings, workspaceManager, loadInsights])
 
+	// 确认删除工作区洞察
+	const handleDeleteWorkspaceInsights = useCallback(() => {
+		setShowDeleteConfirm(true)
+	}, [])
+
 	// 删除工作区洞察
 	const deleteWorkspaceInsights = useCallback(async () => {
 		setIsDeleting(true)
@@ -279,6 +286,17 @@ const InsightView = () => {
 			setIsDeleting(false)
 		}
 	}, [getTransEngine, settings, workspaceManager, loadInsights])
+
+	// 确认删除工作区洞察
+	const confirmDeleteWorkspaceInsights = useCallback(async () => {
+		setShowDeleteConfirm(false)
+		await deleteWorkspaceInsights()
+	}, [deleteWorkspaceInsights])
+
+	// 取消删除确认
+	const cancelDeleteConfirm = useCallback(() => {
+		setShowDeleteConfirm(false)
+	}, [])
 
 	// 删除单个洞察
 	const deleteSingleInsight = useCallback(async (insightId: number) => {
@@ -482,7 +500,7 @@ const InsightView = () => {
 							{isInitializing ? '初始化中...' : '初始化洞察'}
 						</button>
 						<button
-							onClick={deleteWorkspaceInsights}
+							onClick={handleDeleteWorkspaceInsights}
 							disabled={isDeleting || isLoading || isInitializing}
 							className="obsidian-insight-delete-btn"
 							title="删除当前工作区的所有转换和洞察"
@@ -561,6 +579,42 @@ const InsightView = () => {
 							</div>
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* 确认删除对话框 */}
+			{showDeleteConfirm && (
+				<div className="obsidian-confirm-dialog-overlay">
+					<div className="obsidian-confirm-dialog">
+						<div className="obsidian-confirm-dialog-header">
+							<h3>确认删除</h3>
+						</div>
+						<div className="obsidian-confirm-dialog-body">
+							<p>
+								您确定要删除当前工作区的所有洞察吗？
+							</p>
+							<p className="obsidian-confirm-dialog-warning">
+								⚠️ 这个操作不可撤销，将删除所有生成的转换和洞察数据。
+							</p>
+							<div className="obsidian-confirm-dialog-scope">
+								<strong>影响范围:</strong> {currentScope}
+							</div>
+						</div>
+						<div className="obsidian-confirm-dialog-footer">
+							<button
+								onClick={cancelDeleteConfirm}
+								className="obsidian-confirm-dialog-cancel-btn"
+							>
+								取消
+							</button>
+							<button
+								onClick={confirmDeleteWorkspaceInsights}
+								className="obsidian-confirm-dialog-confirm-btn"
+							>
+								确认删除
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 
@@ -1097,6 +1151,117 @@ const InsightView = () => {
 					font-size: var(--font-ui-small);
 					color: var(--text-faint);
 					font-style: italic;
+				}
+
+				/* 确认对话框样式 */
+				.obsidian-confirm-dialog-overlay {
+					position: fixed;
+					top: 0;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					background-color: rgba(0, 0, 0, 0.5);
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					z-index: 1000;
+				}
+
+				.obsidian-confirm-dialog {
+					background-color: var(--background-primary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-l);
+					box-shadow: var(--shadow-l);
+					max-width: 400px;
+					width: 90%;
+					max-height: 80vh;
+					overflow: hidden;
+				}
+
+				.obsidian-confirm-dialog-header {
+					padding: 16px 20px;
+					border-bottom: 1px solid var(--background-modifier-border);
+					background-color: var(--background-secondary);
+				}
+
+				.obsidian-confirm-dialog-header h3 {
+					margin: 0;
+					color: var(--text-normal);
+					font-size: var(--font-ui-large);
+					font-weight: 600;
+				}
+
+				.obsidian-confirm-dialog-body {
+					padding: 20px;
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					line-height: 1.5;
+				}
+
+				.obsidian-confirm-dialog-body p {
+					margin: 0 0 12px 0;
+				}
+
+				.obsidian-confirm-dialog-warning {
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 12px;
+					margin: 12px 0;
+					color: var(--text-error);
+					font-size: var(--font-ui-small);
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-scope {
+					background-color: var(--background-secondary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 8px 12px;
+					margin: 12px 0 0 0;
+					font-size: var(--font-ui-small);
+					color: var(--text-muted);
+				}
+
+				.obsidian-confirm-dialog-footer {
+					padding: 16px 20px;
+					border-top: 1px solid var(--background-modifier-border);
+					background-color: var(--background-secondary);
+					display: flex;
+					justify-content: flex-end;
+					gap: 12px;
+				}
+
+				.obsidian-confirm-dialog-cancel-btn {
+					padding: 8px 16px;
+					background-color: var(--interactive-normal);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					color: var(--text-normal);
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-cancel-btn:hover {
+					background-color: var(--interactive-hover);
+				}
+
+				.obsidian-confirm-dialog-confirm-btn {
+					padding: 8px 16px;
+					background-color: #dc3545;
+					border: 1px solid #dc3545;
+					border-radius: var(--radius-s);
+					color: white;
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-confirm-btn:hover {
+					background-color: #c82333;
+					border-color: #c82333;
 				}
 				`}
 			</style>
