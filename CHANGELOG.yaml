@@ -1,4 +1,7 @@
 releases:
+  - version: "0.7.1"
+    fixes:
+      - "fix settings migration"
   - version: "0.7.0"
     features:
       - "add insight transformation"
