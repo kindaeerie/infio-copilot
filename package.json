@@ -62,7 +62,7 @@
 		"@google/genai": "^1.2.0",
 		"@google/generative-ai": "^0.21.0",
 		"@huggingface/transformers": "^3.6.1",
-		"@langchain/core": "^0.3.26",
+		"@langchain/core": "^0.3.40",
 		"@lexical/clipboard": "^0.17.1",
 		"@lexical/react": "^0.17.1",
 		"@lexical/rich-text": "^0.27.2",
@@ -126,6 +126,12 @@
 		"string-similarity": "^4.0.4",
 		"styled-components": "^6.1.19",
 		"uuid": "^10.0.0",
-		"zod": "^3.22.4"
+		"zod": "3.24.2"
+	},
+	"pnpm": {
+		"overrides": {
+			"zod": "3.24.2",
+			"@langchain/core": "0.3.40"
+		}
 	}
 }
