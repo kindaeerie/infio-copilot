@@ -496,10 +496,77 @@ export default {
 			useMcpToolFrom: "使用来自以下的 MCP 工具：",
 		}
 	},
+	insights: {
+		title: "AI 洞察",
+		initializeInsights: "初始化洞察",
+		clearInsights: "清除洞察",
+		refresh: "刷新",
+		initializing: "初始化中...",
+		deleting: "删除中...",
+		loading: "加载中...",
+		initializingWorkspace: "正在初始化工作区洞察...",
+		initializingDescription: "这可能需要几分钟时间，请耐心等待",
+		stage: {
+			preparing: "准备初始化工作区洞察",
+			completing: "正在完成初始化",
+			savingResults: "保存结果"
+		},
+		deleteConfirm: {
+			title: "确认删除",
+			message: "您确定要删除当前工作区的所有洞察吗？",
+			warning: "⚠️ 这个操作不可撤销，将删除所有生成的转换和洞察数据。",
+			scopeLabel: "影响范围:",
+			cancel: "取消",
+			confirm: "确认删除"
+		},
+		stats: {
+			itemsAndInsights: "{items} 个项目，{insights} 个洞察",
+			workspace: "{count}工作区",
+			folder: "{count}文件夹",
+			file: "{count}文件",
+			scopeLabel: "范围:"
+		},
+		types: {
+			denseSummary: "📋 密集摘要",
+			simpleSummary: "📄 简单摘要",
+			keyInsights: "💡 关键洞察",
+			analyzePaper: "🔬 论文分析",
+			tableOfContents: "📑 目录大纲",
+			reflections: "🤔 思考反思"
+		},
+		fileGroup: {
+			workspacePrefix: "🌐 工作区:",
+			folderPrefix: "📁"
+		},
+		noResults: {
+			title: "当前范围内没有找到洞察数据",
+			hint: "请尝试在文档上运行转换工具来生成 AI 洞察"
+		},
+		tooltips: {
+			initialize: "初始化当前工作区的洞察，会递归处理所有文件并生成摘要",
+			clear: "删除当前工作区的所有转换和洞察"
+		},
+		success: {
+			workspaceInitialized: '工作区 "{name}" 洞察初始化成功',
+			workspaceDeleted: '工作区 "{name}" 的 {count} 个转换已成功删除',
+			insightDeleted: '洞察 ID {id} 已成功删除'
+		},
+		error: {
+			initializationFailed: "工作区洞察初始化失败:",
+			deletionFailed: "删除工作区洞察失败:",
+			singleDeletionFailed: "删除洞察失败:",
+			fileNotFound: "在vault中找不到文件:",
+			folderNotFound: "文件夹不存在:"
+		},
+		progress: {
+			current: "正在处理: {item}"
+		}
+	},
 	workspace: {
 		title: "工作区管理",
 		shortTitle: "工作区",
 		description: "管理和切换不同的工作区（笔记库）",
+		entireVault: "整个 Vault",
 		createNew: "创建新工作区",
 		recentWorkspaces: "最近的工作区",
 		loading: "正在加载工作区列表...",

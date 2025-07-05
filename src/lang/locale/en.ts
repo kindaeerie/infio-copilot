@@ -494,10 +494,77 @@ export default {
 		toolNoDescription: "No description",
 		useMcpToolFrom: "Use MCP tool from",
 	},
+	insights: {
+		title: "AI Insights",
+		initializeInsights: "Initialize Insights",
+		clearInsights: "Clear Insights",
+		refresh: "Refresh",
+		initializing: "Initializing...",
+		deleting: "Deleting...",
+		loading: "Loading...",
+		initializingWorkspace: "Initializing workspace insights...",
+		initializingDescription: "This may take a few minutes, please be patient",
+		stage: {
+			preparing: "Preparing to initialize workspace insights",
+			completing: "Completing initialization",
+			savingResults: "Saving results"
+		},
+		deleteConfirm: {
+			title: "Confirm Delete",
+			message: "Are you sure you want to delete all insights for the current workspace?",
+			warning: "⚠️ This action cannot be undone and will delete all generated transformation and insight data.",
+			scopeLabel: "Affected scope:",
+			cancel: "Cancel",
+			confirm: "Confirm Delete"
+		},
+		stats: {
+			itemsAndInsights: "{items} items, {insights} insights",
+			workspace: "{count} workspace",
+			folder: "{count} folder",
+			file: "{count} file",
+			scopeLabel: "Scope:"
+		},
+		types: {
+			denseSummary: "📋 Dense Summary",
+			simpleSummary: "📄 Simple Summary",
+			keyInsights: "💡 Key Insights",
+			analyzePaper: "🔬 Paper Analysis",
+			tableOfContents: "📑 Table of Contents",
+			reflections: "🤔 Reflections"
+		},
+		fileGroup: {
+			workspacePrefix: "🌐 Workspace:",
+			folderPrefix: "📁"
+		},
+		noResults: {
+			title: "No insight data found in the current scope",
+			hint: "Please try running transformation tools on documents to generate AI insights"
+		},
+		tooltips: {
+			initialize: "Initialize insights for the current workspace, will recursively process all files and generate summaries",
+			clear: "Delete all transformations and insights for the current workspace"
+		},
+		success: {
+			workspaceInitialized: 'Workspace "{name}" insights initialization successful',
+			workspaceDeleted: 'Successfully deleted {count} transformations for workspace "{name}"',
+			insightDeleted: 'Insight ID {id} successfully deleted'
+		},
+		error: {
+			initializationFailed: "Workspace insight initialization failed:",
+			deletionFailed: "Failed to delete workspace insights:",
+			singleDeletionFailed: "Failed to delete insight:",
+			fileNotFound: "File not found in vault:",
+			folderNotFound: "Folder does not exist:"
+		},
+		progress: {
+			current: "Processing: {item}"
+		}
+	},
 	workspace: {
 		title: "Workspace Management",
 		shortTitle: "Workspace",
 		description: "Manage and switch between different workspaces (note vaults)",
+		entireVault: "Entire Vault",
 		createNew: "Create New Workspace",
 		recentWorkspaces: "Recent Workspaces",
 		loading: "Loading workspace list...",

@@ -67,9 +67,9 @@ const InsightView = () => {
 			// 设置范围信息
 			let scopeDescription = ''
 			if (currentWorkspace) {
-				scopeDescription = `工作区: ${currentWorkspace.name}`
+				scopeDescription = `${t('insights.fileGroup.workspacePrefix')} ${currentWorkspace.name}`
 			} else {
-				scopeDescription = '整个 Vault'
+				scopeDescription = t('insights.stats.scopeLabel') + ' ' + t('workspace.entireVault')
 			}
 			setCurrentScope(scopeDescription)
 
@@ -192,7 +192,7 @@ const InsightView = () => {
 			
 			// 设置初始进度状态
 			setInitProgress({
-				stage: '准备初始化工作区洞察',
+				stage: t('insights.stage.preparing'),
 				current: 0,
 				total: 1,
 				currentItem: currentWorkspace.name
@@ -217,10 +217,10 @@ const InsightView = () => {
 
 			// 更新进度为完成状态
 			setInitProgress({
-				stage: '正在完成初始化',
+				stage: t('insights.stage.completing'),
 				current: 1,
 				total: 1,
-				currentItem: '保存结果'
+				currentItem: t('insights.stage.savingResults')
 			})
 
 			if (result.success) {				
@@ -228,15 +228,15 @@ const InsightView = () => {
 				await loadInsights()
 				
 				// 显示成功消息
-				console.log(`工作区 "${currentWorkspace.name}" 洞察初始化成功`)
+				console.log(t('insights.success.workspaceInitialized', { name: currentWorkspace.name }))
 			} else {
-				console.error('工作区洞察初始化失败:', result.error)
-				throw new Error(result.error || '初始化失败')
+				console.error(t('insights.error.initializationFailed'), result.error)
+				throw new Error(result.error || t('insights.error.initializationFailed'))
 			}
 
 		} catch (error) {
-			console.error('初始化工作区洞察时出错:', error)
-			// 可以在这里添加错误提示
+			console.error(t('insights.error.initializationFailed'), error)
+			setInsightResults([])
 		} finally {
 			setIsInitializing(false)
 			setInitProgress(null)
@@ -266,19 +266,19 @@ const InsightView = () => {
 
 			if (result.success) {
 				const workspaceName = currentWorkspace?.name || 'vault'
-				console.log(`工作区 "${workspaceName}" 的 ${result.deletedCount} 个转换已成功删除`)
+				console.log(t('insights.success.workspaceDeleted', { name: workspaceName, count: result.deletedCount }))
 				
 				// 刷新洞察列表
 				await loadInsights()
 				
 				// 可以在这里添加用户通知，比如显示删除成功的消息
 			} else {
-				console.error('删除工作区洞察失败:', result.error)
+				console.error(t('insights.error.deletionFailed'), result.error)
 				// 可以在这里添加错误提示
 			}
 
 		} catch (error) {
-			console.error('删除工作区洞察时出错:', error)
+			console.error(t('insights.error.deletionFailed'), error)
 			// 可以在这里添加错误提示
 		} finally {
 			setIsDeleting(false)
@@ -307,17 +307,17 @@ const InsightView = () => {
 			const result = await transEngine.deleteSingleInsight(insightId)
 
 			if (result.success) {
-				console.log(`洞察 ID ${insightId} 已成功删除`)
+				console.log(t('insights.success.insightDeleted', { id: insightId }))
 				
 				// 刷新洞察列表
 				await loadInsights()
 			} else {
-				console.error('删除洞察失败:', result.error)
+				console.error(t('insights.error.singleDeletionFailed'), result.error)
 				// 可以在这里添加错误提示
 			}
 
 		} catch (error) {
-			console.error('删除洞察时出错:', error)
+			console.error(t('insights.error.singleDeletionFailed'), error)
 			// 可以在这里添加错误提示
 		} finally {
 			setDeletingInsightId(null)
@@ -341,7 +341,7 @@ const InsightView = () => {
 
 		// 检查路径是否存在
 		if (!insight.source_path) {
-			console.error('❌ [InsightView] 文件路径为空')
+			console.error(t('insights.error.fileNotFound') + ' ' + insight.source_path)
 			return
 		}
 
@@ -367,14 +367,14 @@ const InsightView = () => {
 				}
 				console.debug('✅ [InsightView] 在文件管理器中显示文件夹')
 			} else {
-				console.warn('❌ [InsightView] 文件夹不存在:', insight.source_path)
+				console.warn(t('insights.error.folderNotFound'), insight.source_path)
 			}
 			return
 		} else {
 			// 文件洞察 - 正常打开文件
 			const file = app.vault.getFileByPath(insight.source_path)
 			if (!file) {
-				console.error('❌ [InsightView] 在vault中找不到文件:', insight.source_path)
+				console.error(t('insights.error.fileNotFound'), insight.source_path)
 				return
 			}
 
@@ -422,10 +422,10 @@ const InsightView = () => {
 			// 根据源路径类型确定显示名称和类型
 			if (sourcePath.startsWith('workspace:')) {
 				const workspaceName = sourcePath.replace('workspace:', '')
-				displayName = `🌐 工作区: ${workspaceName}`
+				displayName = `${t('insights.fileGroup.workspacePrefix')} ${workspaceName}`
 				groupType = 'workspace'
 			} else if (result.source_type === 'folder') {
-				displayName = `📁 ${sourcePath.split('/').pop() || sourcePath}`
+				displayName = `${t('insights.fileGroup.folderPrefix')} ${sourcePath.split('/').pop() || sourcePath}`
 				groupType = 'folder'
 			} else {
 				displayName = sourcePath.split('/').pop() || sourcePath
@@ -472,12 +472,12 @@ const InsightView = () => {
 	// 获取洞察类型的显示名称
 	const getInsightTypeDisplayName = (insightType: string) => {
 		const typeMapping: Record<string, string> = {
-			'dense_summary': '📋 密集摘要',
-			'simple_summary': '📄 简单摘要',
-			'key_insights': '💡 关键洞察',
-			'analyze_paper': '🔬 论文分析',
-			'table_of_contents': '📑 目录大纲',
-			'reflections': '🤔 思考反思'
+			'dense_summary': t('insights.types.denseSummary'),
+			'simple_summary': t('insights.types.simpleSummary'),
+			'key_insights': t('insights.types.keyInsights'),
+			'analyze_paper': t('insights.types.analyzePaper'),
+			'table_of_contents': t('insights.types.tableOfContents'),
+			'reflections': t('insights.types.reflections')
 		}
 		return typeMapping[insightType] || insightType.toUpperCase()
 	}
@@ -487,30 +487,30 @@ const InsightView = () => {
 			{/* 头部信息 */}
 			<div className="obsidian-insight-header">
 				<div className="obsidian-insight-title">
-					<h3>{t('insights.title') || 'AI 洞察'}</h3>
+					<h3>{t('insights.title')}</h3>
 					<div className="obsidian-insight-actions">
 						<button
 							onClick={initializeWorkspaceInsights}
 							disabled={isInitializing || isLoading || isDeleting}
 							className="obsidian-insight-init-btn"
-							title="初始化当前工作区的洞察，会递归处理所有文件并生成摘要"
+							title={t('insights.tooltips.initialize')}
 						>
-							{isInitializing ? '初始化中...' : '初始化洞察'}
+							{isInitializing ? t('insights.initializing') : t('insights.initializeInsights')}
 						</button>
 						<button
 							onClick={handleDeleteWorkspaceInsights}
 							disabled={isDeleting || isLoading || isInitializing}
 							className="obsidian-insight-delete-btn"
-							title="删除当前工作区的所有转换和洞察"
+							title={t('insights.tooltips.clear')}
 						>
-							{isDeleting ? '删除中...' : '清除洞察'}
+							{isDeleting ? t('insights.deleting') : t('insights.clearInsights')}
 						</button>
 						<button
 							onClick={loadInsights}
 							disabled={isLoading || isInitializing || isDeleting}
 							className="obsidian-insight-refresh-btn"
 						>
-							{isLoading ? '加载中...' : '刷新'}
+							{isLoading ? t('insights.loading') : t('insights.refresh')}
 						</button>
 					</div>
 				</div>
@@ -519,23 +519,23 @@ const InsightView = () => {
 				{hasLoaded && !isLoading && (
 					<div className="obsidian-insight-stats">
 						<div className="obsidian-insight-stats-line">
-							{insightGroupedResults.length} 个项目，{insightResults.length} 个洞察
+							{t('insights.stats.itemsAndInsights', { items: insightGroupedResults.length, insights: insightResults.length })}
 							{insightGroupedResults.length > 0 && (
 								<span className="obsidian-insight-breakdown">
 									{' '}(
 									{insightGroupedResults.filter(g => g.groupType === 'workspace').length > 0 && 
-										`${insightGroupedResults.filter(g => g.groupType === 'workspace').length}工作区 `}
+										`${t('insights.stats.workspace', { count: insightGroupedResults.filter(g => g.groupType === 'workspace').length })} `}
 									{insightGroupedResults.filter(g => g.groupType === 'folder').length > 0 && 
-										`${insightGroupedResults.filter(g => g.groupType === 'folder').length}文件夹 `}
+										`${t('insights.stats.folder', { count: insightGroupedResults.filter(g => g.groupType === 'folder').length })} `}
 									{insightGroupedResults.filter(g => g.groupType === 'file').length > 0 && 
-										`${insightGroupedResults.filter(g => g.groupType === 'file').length}文件`}
+										`${t('insights.stats.file', { count: insightGroupedResults.filter(g => g.groupType === 'file').length })}`}
 									)
 								</span>
 							)}
 						</div>
 						{currentScope && (
 							<div className="obsidian-insight-scope">
-								范围: {currentScope}
+								{t('insights.stats.scopeLabel')} {currentScope}
 							</div>
 						)}
 					</div>
@@ -545,7 +545,7 @@ const InsightView = () => {
 			{/* 加载进度 */}
 			{isLoading && (
 				<div className="obsidian-insight-loading">
-					正在加载洞察...
+					{t('insights.loading')}
 				</div>
 			)}
 
@@ -553,8 +553,8 @@ const InsightView = () => {
 			{isInitializing && (
 				<div className="obsidian-insight-initializing">
 					<div className="obsidian-insight-init-header">
-						<h4>正在初始化工作区洞察...</h4>
-						<p>这可能需要几分钟时间，请耐心等待</p>
+						<h4>{t('insights.initializingWorkspace')}</h4>
+						<p>{t('insights.initializingDescription')}</p>
 					</div>
 					{initProgress && (
 						<div className="obsidian-insight-progress">
@@ -573,7 +573,7 @@ const InsightView = () => {
 								></div>
 							</div>
 							<div className="obsidian-insight-progress-item">
-								正在处理: {initProgress.currentItem}
+								{t('insights.progress.current', { item: initProgress.currentItem })}
 							</div>
 						</div>
 					)}
@@ -585,17 +585,17 @@ const InsightView = () => {
 				<div className="obsidian-confirm-dialog-overlay">
 					<div className="obsidian-confirm-dialog">
 						<div className="obsidian-confirm-dialog-header">
-							<h3>确认删除</h3>
+							<h3>{t('insights.deleteConfirm.title')}</h3>
 						</div>
 						<div className="obsidian-confirm-dialog-body">
 							<p>
-								您确定要删除当前工作区的所有洞察吗？
+								{t('insights.deleteConfirm.message')}
 							</p>
 							<p className="obsidian-confirm-dialog-warning">
-								⚠️ 这个操作不可撤销，将删除所有生成的转换和洞察数据。
+								{t('insights.deleteConfirm.warning')}
 							</p>
 							<div className="obsidian-confirm-dialog-scope">
-								<strong>影响范围:</strong> {currentScope}
+								<strong>{t('insights.deleteConfirm.scopeLabel')}</strong> {currentScope}
 							</div>
 						</div>
 						<div className="obsidian-confirm-dialog-footer">
@@ -603,13 +603,13 @@ const InsightView = () => {
 								onClick={cancelDeleteConfirm}
 								className="obsidian-confirm-dialog-cancel-btn"
 							>
-								取消
+								{t('insights.deleteConfirm.cancel')}
 							</button>
 							<button
 								onClick={confirmDeleteWorkspaceInsights}
 								className="obsidian-confirm-dialog-confirm-btn"
 							>
-								确认删除
+								{t('insights.deleteConfirm.confirm')}
 							</button>
 						</div>
 					</div>
@@ -685,9 +685,9 @@ const InsightView = () => {
 																deleteSingleInsight(insight.id)
 															}}
 															disabled={deletingInsightId === insight.id}
-															title="删除此洞察"
+															title={t('insights.tooltips.clear')}
 														>
-															{deletingInsightId === insight.id ? '删除中...' : '🗑️'}
+															{deletingInsightId === insight.id ? t('insights.deleting') : '🗑️'}
 														</button>
 													</div>
 												</div>
@@ -707,9 +707,9 @@ const InsightView = () => {
 
 				{!isLoading && hasLoaded && insightGroupedResults.length === 0 && (
 					<div className="obsidian-no-results">
-						<p>当前范围内没有找到洞察数据</p>
+						<p>{t('insights.noResults.title')}</p>
 						<p className="obsidian-no-results-hint">
-							请尝试在文档上运行转换工具来生成 AI 洞察
+							{t('insights.noResults.hint')}
 						</p>
 					</div>
 				)}
