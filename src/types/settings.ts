@@ -6,6 +6,7 @@ import {
 	MAX_MAX_CHAR_LIMIT,
 	MIN_DELAY,
 	MIN_MAX_CHAR_LIMIT,
+	MIN_MAX_TOKENS,
 	fewShotExampleSchema,
 	modelOptionsSchema
 } from '../settings/versions/shared';
@@ -13,7 +14,7 @@ import { DEFAULT_SETTINGS } from "../settings/versions/v1/v1";
 import { ApiProvider } from '../types/llm/model';
 import { isRegexValid, isValidIgnorePattern } from '../utils/auto-complete';
 
-export const SETTINGS_SCHEMA_VERSION = 0.4
+export const SETTINGS_SCHEMA_VERSION = 0.5
 
 const InfioProviderSchema = z.object({
 	name: z.literal('Infio'),
@@ -434,7 +435,26 @@ const MIGRATIONS: Migration[] = [
 		toVersion: 0.4,
 		migrate: (data) => {
 			const newData = { ...data }
+			newData.version = 0.4
+			return newData
+		},
+	},
+	{
+		fromVersion: 0.4,
+		toVersion: 0.5,
+		migrate: (data) => {
+			const newData = { ...data }
 			newData.version = SETTINGS_SCHEMA_VERSION
+			
+			// Handle max_tokens minimum value increase from 800 to 4096
+			if (newData.modelOptions && typeof newData.modelOptions === 'object') {
+				const modelOptions = newData.modelOptions as Record<string, any>
+				if (typeof modelOptions.max_tokens === 'number' && modelOptions.max_tokens < MIN_MAX_TOKENS) {
+					console.log(`Updating max_tokens from ${modelOptions.max_tokens} to ${MIN_MAX_TOKENS} due to minimum value change`)
+					modelOptions.max_tokens = MIN_MAX_TOKENS
+				}
+			}
+			
 			return newData
 		},
 	},

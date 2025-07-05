@@ -5,6 +5,7 @@ import {
 	MAX_DELAY, MAX_MAX_CHAR_LIMIT,
 	MIN_DELAY,
 	MIN_MAX_CHAR_LIMIT,
+	MIN_MAX_TOKENS,
 	azureOAIApiSettingsSchema,
 	fewShotExampleSchema,
 	modelOptionsSchema,
@@ -151,7 +152,7 @@ export const DEFAULT_SETTINGS = {
 		top_p: 0.1,
 		frequency_penalty: 0.25,
 		presence_penalty: 0,
-		max_tokens: 800,
+		max_tokens: MIN_MAX_TOKENS,
 	},
 	// Prompt settings
 	systemMessage: `Your job is to predict the most logical text that should be written at the location of the <mask/>.

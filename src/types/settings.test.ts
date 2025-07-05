@@ -454,4 +454,82 @@ describe('settings migration', () => {
 			},
 		})
 	})
+
+	it('should migrate max_tokens from old value to new minimum', () => {
+		// Test case: user has old max_tokens value (800) that needs to be migrated
+		const settingsWithOldMaxTokens = {
+			version: 0.4,
+			modelOptions: {
+				temperature: 1,
+				top_p: 0.1,
+				frequency_penalty: 0.25,
+				presence_penalty: 0,
+				max_tokens: 800, // Old value that's below new minimum
+			},
+			// Include other required fields for valid settings
+			autocompleteEnabled: true,
+			advancedMode: false,
+			apiProvider: 'openai',
+			triggers: DEFAULT_SETTINGS.triggers,
+			delay: 500,
+			systemMessage: DEFAULT_SETTINGS.systemMessage,
+			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,
+			userMessageTemplate: '{{prefix}}<mask/>{{suffix}}',
+			chainOfThoughRemovalRegex: '(.|\\n)*ANSWER:',
+			dontIncludeDataviews: true,
+			maxPrefixCharLimit: 4000,
+			maxSuffixCharLimit: 4000,
+			removeDuplicateMathBlockIndicator: true,
+			removeDuplicateCodeBlockIndicator: true,
+			ignoredFilePatterns: '**/secret/**\n',
+			ignoredTags: '',
+			cacheSuggestions: true,
+			debugMode: false,
+		}
+
+		const result = parseInfioSettings(settingsWithOldMaxTokens)
+		
+		// Should successfully parse and migrate max_tokens to 4096
+		expect(result.modelOptions.max_tokens).toBe(4096)
+		expect(result.version).toBe(0.5)
+	})
+
+	it('should not change max_tokens if it is already above minimum', () => {
+		// Test case: user has max_tokens already above minimum
+		const settingsWithValidMaxTokens = {
+			version: 0.4,
+			modelOptions: {
+				temperature: 1,
+				top_p: 0.1,
+				frequency_penalty: 0.25,
+				presence_penalty: 0,
+				max_tokens: 6000, // Already above minimum
+			},
+			// Include other required fields for valid settings
+			autocompleteEnabled: true,
+			advancedMode: false,
+			apiProvider: 'openai',
+			triggers: DEFAULT_SETTINGS.triggers,
+			delay: 500,
+			systemMessage: DEFAULT_SETTINGS.systemMessage,
+			fewShotExamples: DEFAULT_SETTINGS.fewShotExamples,
+			userMessageTemplate: '{{prefix}}<mask/>{{suffix}}',
+			chainOfThoughRemovalRegex: '(.|\\n)*ANSWER:',
+			dontIncludeDataviews: true,
+			maxPrefixCharLimit: 4000,
+			maxSuffixCharLimit: 4000,
+			removeDuplicateMathBlockIndicator: true,
+			removeDuplicateCodeBlockIndicator: true,
+			ignoredFilePatterns: '**/secret/**\n',
+			ignoredTags: '',
+			cacheSuggestions: true,
+			debugMode: false,
+		}
+
+		const result = parseInfioSettings(settingsWithValidMaxTokens)
+		
+		// Should keep the existing max_tokens value since it's already valid
+		expect(result.modelOptions.max_tokens).toBe(6000)
+		expect(result.version).toBe(0.5)
+	})
 })
