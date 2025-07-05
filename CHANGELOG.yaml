@@ -1,4 +1,10 @@
 releases:
+  - version: "0.7.0"
+    features:
+      - "add insight transformation"
+      - "add workspace"
+      - "add dataview support"
+      - "add local embedding model support"
   - version: "0.6.18"
     fixes:
       - "fix mermaid block style, add copy btn"
