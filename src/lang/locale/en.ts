@@ -497,6 +497,7 @@ export default {
 	insights: {
 		title: "AI Insights",
 		initializeInsights: "Initialize Insights",
+		updateInsights: "Update Insights",
 		clearInsights: "Clear Insights",
 		refresh: "Refresh",
 		initializing: "Initializing...",
@@ -516,6 +517,20 @@ export default {
 			scopeLabel: "Affected scope:",
 			cancel: "Cancel",
 			confirm: "Confirm Delete"
+		},
+		initConfirm: {
+			initTitle: "Confirm Initialize Insights",
+			updateTitle: "Confirm Update Insights",
+			initMessage: "Are you sure you want to initialize insights for the current workspace? This will generate AI summaries and analysis.",
+			updateMessage: "Are you sure you want to update insights for the current workspace? This will generate AI summaries and analysis for modified or new files.",
+			modelLabel: "Using model:",
+			workspaceLabel: "Target workspace:",
+			defaultModel: "Default model",
+			initWarning: "⚠️ This process may take a long time and will incur API costs.",
+			updateWarning: "⚠️ This process may take some time and will incur API costs. Only modified or new files will be processed.",
+			cancel: "Cancel",
+			initConfirm: "Confirm Initialize",
+			updateConfirm: "Confirm Update"
 		},
 		stats: {
 			itemsAndInsights: "{items} items, {insights} insights",
@@ -542,6 +557,7 @@ export default {
 		},
 		tooltips: {
 			initialize: "Initialize insights for the current workspace, will recursively process all files and generate summaries",
+			update: "Update insights for the current workspace, generate summaries for modified or new files",
 			clear: "Delete all transformations and insights for the current workspace"
 		},
 		success: {

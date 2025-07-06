@@ -174,7 +174,7 @@ const WorkspaceSelect = () => {
 					background-color: var(--background-modifier-hover);
 					box-shadow: none;
 					border: none;
-					padding: var(--size-4-1) var(--size-4-1);
+					padding: var(--size-4-1) var(--size-4-3);
 					font-size: var(--font-small);
 					font-weight: var(--font-medium);
 					color: var(--text-muted);

@@ -1286,7 +1286,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 			{/* header view */}
 			<div className="infio-chat-header">
 				<div className="infio-chat-header-title">
-					{t('workspace.shortTitle')}: <WorkspaceSelect />
+					<WorkspaceSelect />
 				</div>
 				<div className="infio-chat-header-buttons">
 					<button

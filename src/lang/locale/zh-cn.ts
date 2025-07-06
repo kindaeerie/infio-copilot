@@ -499,6 +499,7 @@ export default {
 	insights: {
 		title: "AI 洞察",
 		initializeInsights: "初始化洞察",
+		updateInsights: "更新洞察",
 		clearInsights: "清除洞察",
 		refresh: "刷新",
 		initializing: "初始化中...",
@@ -518,6 +519,20 @@ export default {
 			scopeLabel: "影响范围:",
 			cancel: "取消",
 			confirm: "确认删除"
+		},
+		initConfirm: {
+			initTitle: "确认初始化洞察",
+			updateTitle: "确认更新洞察",
+			initMessage: "您确定要初始化当前工作区的洞察吗？这将生成 AI 摘要和分析。",
+			updateMessage: "您确定要更新当前工作区的洞察吗？这将为修改或新增的文件生成 AI 摘要和分析。",
+			modelLabel: "使用模型:",
+			workspaceLabel: "目标工作区:",
+			defaultModel: "默认模型",
+			initWarning: "⚠️ 这个过程可能需要较长时间，并会产生 API 费用。",
+			updateWarning: "⚠️ 这个过程可能需要一些时间，并会产生 API 费用。只会处理修改或新增的文件。",
+			cancel: "取消",
+			initConfirm: "确认初始化",
+			updateConfirm: "确认更新"
 		},
 		stats: {
 			itemsAndInsights: "{items} 个项目，{insights} 个洞察",
@@ -544,6 +559,7 @@ export default {
 		},
 		tooltips: {
 			initialize: "初始化当前工作区的洞察，会递归处理所有文件并生成摘要",
+			update: "更新当前工作区的洞察，为修改或新增的文件生成摘要",
 			clear: "删除当前工作区的所有转换和洞察"
 		},
 		success: {
