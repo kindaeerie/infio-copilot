@@ -1,4 +1,8 @@
 releases:
+  - version: "0.7.2"
+    fixes:
+      - "fix workspace vector index error"
+      - "update insight and search view style"
   - version: "0.7.1"
     fixes:
       - "fix settings migration"
