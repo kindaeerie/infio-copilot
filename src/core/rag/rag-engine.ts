@@ -16,7 +16,7 @@ import { getEmbeddingModel } from './embedding'
 type EmbeddingManager = {
 	modelLoaded: boolean
 	currentModel: string | null
-	loadModel(modelId: string, useGpu: boolean): Promise<any>
+	loadModel(modelId: string, useGpu: boolean): Promise<unknown>
 	embed(text: string): Promise<{ vec: number[] }>
 	embedBatch(texts: string[]): Promise<{ vec: number[] }[]>
 }
@@ -248,7 +248,6 @@ export class RAGEngine {
 
 		if (workspace) {
 			// 获取工作区中的所有文件路径
-			const folders: string[] = []
 			const files: string[] = []
 
 			for (const item of workspace.content) {

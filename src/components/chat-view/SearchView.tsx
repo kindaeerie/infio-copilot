@@ -354,8 +354,6 @@ const SearchView = () => {
 		setShowRAGInitConfirm(true)
 	}, [])
 
-
-
 	// 确认初始化 RAG 向量
 	const confirmInitWorkspaceRAG = useCallback(async () => {
 		setShowRAGInitConfirm(false)
