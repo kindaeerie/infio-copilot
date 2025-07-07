@@ -723,7 +723,7 @@ const InsightView = () => {
 								<div className="obsidian-confirm-dialog-info-item">
 									<strong>{t('insights.initConfirm.modelLabel')}</strong> 
 									<span className="obsidian-confirm-dialog-model">
-										{settings.chatModelProvider} / {settings.chatModelId || t('insights.initConfirm.defaultModel')}
+										{settings.chatModelProvider}/{settings.chatModelId || t('insights.initConfirm.defaultModel')}
 									</span>
 								</div>
 								<div className="obsidian-confirm-dialog-info-item">

@@ -105,12 +105,18 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		if (selectedProvider) {
 			const defaultModels = GetDefaultModelId(selectedProvider);
 
-			// 设置chat和autocomplete模型
+			// 设置chat、insight和autocomplete模型
 			if (defaultModels.chat) {
 				newSettings.chatModelProvider = selectedProvider;
 				newSettings.chatModelId = defaultModels.chat;
 				hasUpdates = true;
 				console.debug(t("settings.ModelProvider.chatModelConfigured", { provider: selectedProvider, model: defaultModels.chat }));
+			}
+			if (defaultModels.insight) {
+				newSettings.insightModelProvider = selectedProvider;
+				newSettings.insightModelId = defaultModels.insight;
+				hasUpdates = true;
+				console.debug(t("settings.ModelProvider.insightModelConfigured", { provider: selectedProvider, model: defaultModels.insight }));
 			}
 			if (defaultModels.autoComplete) {
 				newSettings.applyModelProvider = selectedProvider;
@@ -367,6 +373,28 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 		});
 	};
 
+	const updateInsightModelId = (provider: ApiProvider, modelId: string, isCustom: boolean = false) => {
+		console.debug(`updateInsightModelId: ${provider} -> ${modelId}, isCustom: ${isCustom}`)
+		const providerSettingKey = getProviderSettingKey(provider);
+		const providerSettings = settings[providerSettingKey] || {};
+		const currentModels = providerSettings.models || [];
+
+		// 如果是自定义模型且不在列表中，则添加
+		const updatedModels = isCustom && !currentModels.includes(modelId)
+			? [...currentModels, modelId]
+			: currentModels;
+
+		handleSettingsUpdate({
+			...settings,
+			insightModelProvider: provider,
+			insightModelId: modelId,
+			[providerSettingKey]: {
+				...providerSettings,
+				models: updatedModels
+			}
+		});
+	};
+
 	// 生成包含链接的API Key描述
 	const generateApiKeyDescription = (provider: ApiProvider): React.ReactNode => {
 		const apiUrl = getProviderApiUrl(provider);
@@ -491,6 +519,15 @@ const CustomProviderSettings: React.FC<CustomProviderSettingsProps> = ({ plugin,
 						provider={settings.chatModelProvider || ApiProvider.OpenAI}
 						modelId={settings.chatModelId}
 						updateModel={updateChatModelId}
+					/>
+
+					<ComboBoxComponent
+						name={t("settings.Models.insightModel")}
+						description={t("settings.Models.insightModelDescription")}
+						settings={settings}
+						provider={settings.insightModelProvider || ApiProvider.Infio}
+						modelId={settings.insightModelId}
+						updateModel={updateInsightModelId}
 					/>
 
 					<ComboBoxComponent

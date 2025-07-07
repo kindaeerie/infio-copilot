@@ -188,4 +188,94 @@ export class VectorRepository {
     const result = await this.db.query<SearchResult>(query, params)
     return result.rows
   }
+
+  async getWorkspaceStatistics(
+    embeddingModel: EmbeddingModel,
+    scope?: {
+      files: string[]
+      folders: string[]
+    }
+  ): Promise<{
+    totalFiles: number
+    totalChunks: number
+  }> {
+    if (!this.db) {
+      throw new DatabaseNotInitializedException()
+    }
+    const tableName = this.getTableName(embeddingModel)
+
+    let scopeCondition = ''
+    const params: unknown[] = []
+    let paramIndex = 1
+
+    if (scope) {
+      const conditions: string[] = []
+
+      if (scope.files.length > 0) {
+        conditions.push(`path = ANY($${paramIndex})`)
+        params.push(scope.files)
+        paramIndex++
+      }
+
+      if (scope.folders.length > 0) {
+        const folderConditions = scope.folders.map((folder, idx) => {
+          params.push(`${folder}/%`)
+          return `path LIKE $${paramIndex + idx}`
+        })
+        conditions.push(`(${folderConditions.join(' OR ')})`)
+        paramIndex += scope.folders.length
+      }
+
+      if (conditions.length > 0) {
+        scopeCondition = `WHERE (${conditions.join(' OR ')})`
+      }
+    }
+
+    const query = `
+      SELECT 
+        COUNT(DISTINCT path) as total_files,
+        COUNT(*) as total_chunks
+      FROM "${tableName}"
+      ${scopeCondition}
+    `
+
+    const result = await this.db.query<{
+      total_files: number
+      total_chunks: number
+    }>(query, params)
+
+    const row = result.rows[0]
+    return {
+      totalFiles: Number(row?.total_files || 0),
+      totalChunks: Number(row?.total_chunks || 0)
+    }
+  }
+
+  async getVaultStatistics(embeddingModel: EmbeddingModel): Promise<{
+    totalFiles: number
+    totalChunks: number
+  }> {
+    if (!this.db) {
+      throw new DatabaseNotInitializedException()
+    }
+    const tableName = this.getTableName(embeddingModel)
+
+    const query = `
+      SELECT 
+        COUNT(DISTINCT path) as total_files,
+        COUNT(*) as total_chunks
+      FROM "${tableName}"
+    `
+
+    const result = await this.db.query<{
+      total_files: number
+      total_chunks: number
+    }>(query)
+
+    const row = result.rows[0]
+    return {
+      totalFiles: Number(row?.total_files || 0),
+      totalChunks: Number(row?.total_chunks || 0)
+    }
+  }
 }

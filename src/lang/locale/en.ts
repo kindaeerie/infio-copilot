@@ -239,6 +239,8 @@ export default {
 			autocompleteModelDescription: 'Model used for code and text autocompletion, providing intelligent writing suggestions',
 			embeddingModel: 'Embedding model:',
 			embeddingModelDescription: 'Model used for document vectorization and semantic search, supporting RAG functionality',
+			insightModel: 'Insight model:',
+			insightModelDescription: 'Model used for generating intelligent insights and analysis, providing deep content understanding',
 		},
 		
 		// Model Provider Settings
@@ -249,6 +251,7 @@ export default {
 			oneClickConfig: 'One-Click Config',
 			oneClickConfigTooltip: 'Automatically configure models to recommended models from providers with API keys set',
 			chatModelConfigured: 'Chat model configured automatically: {provider}/{model}',
+			insightModelConfigured: 'Insight model configured automatically: {provider}/{model}',
 			autocompleteModelConfigured: 'Autocomplete model configured automatically: {provider}/{model}',
 			embeddingModelConfigured: 'Embedding model configured automatically: {provider}/{model}',
 			provider: 'Provider',

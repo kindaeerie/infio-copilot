@@ -69,6 +69,35 @@ const SearchView = () => {
 	// 当前搜索范围信息
 	const [currentSearchScope, setCurrentSearchScope] = useState<string>('')
 
+	// 统计信息状态
+	const [statisticsInfo, setStatisticsInfo] = useState<{
+		totalFiles: number
+		totalChunks: number
+	} | null>(null)
+	const [isLoadingStats, setIsLoadingStats] = useState(false)
+
+	// 工作区 RAG 向量初始化状态
+	const [isInitializingRAG, setIsInitializingRAG] = useState(false)
+	const [ragInitProgress, setRAGInitProgress] = useState<{
+		type: 'indexing' | 'querying' | 'querying-done'
+		indexProgress?: {
+			completedChunks: number
+			totalChunks: number
+			totalFiles: number
+		}
+	} | null>(null)
+	const [ragInitSuccess, setRAGInitSuccess] = useState<{
+		show: boolean
+		totalFiles?: number
+		totalChunks?: number
+		workspaceName?: string
+	}>({ show: false })
+	
+	// 删除和确认对话框状态
+	const [isDeleting, setIsDeleting] = useState(false)
+	const [showRAGInitConfirm, setShowRAGInitConfirm] = useState(false)
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
 	const handleSearch = useCallback(async (editorState?: SerializedEditorState) => {
 		let searchTerm = ''
 		
@@ -170,6 +199,148 @@ const SearchView = () => {
 			return () => clearTimeout(timer)
 		}
 	}, [searchMode, handleSearch]) // 监听搜索模式变化
+
+	// 加载统计信息
+	const loadStatistics = useCallback(async () => {
+		setIsLoadingStats(true)
+		
+		try {
+			// 获取当前工作区
+			let currentWorkspace: Workspace | null = null
+			if (settings.workspace && settings.workspace !== 'vault') {
+				currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
+			}
+
+			const ragEngine = await getRAGEngine()
+			const stats = await ragEngine.getWorkspaceStatistics(currentWorkspace)
+			setStatisticsInfo(stats)
+
+		} catch (error) {
+			console.error('加载统计信息失败:', error)
+			setStatisticsInfo({ totalFiles: 0, totalChunks: 0 })
+		} finally {
+			setIsLoadingStats(false)
+		}
+	}, [getRAGEngine, settings, workspaceManager])
+
+	// 初始化工作区 RAG 向量
+	const initializeWorkspaceRAG = useCallback(async () => {
+		setIsInitializingRAG(true)
+		setRAGInitProgress(null)
+
+		try {
+			// 获取当前工作区
+			let currentWorkspace: Workspace | null = null
+			if (settings.workspace && settings.workspace !== 'vault') {
+				currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
+			}
+
+			if (!currentWorkspace) {
+				// 如果没有当前工作区，使用默认的 vault 工作区
+				currentWorkspace = await workspaceManager.ensureDefaultVaultWorkspace()
+			}
+
+			const ragEngine = await getRAGEngine()
+			
+			// 使用新的 updateWorkspaceIndex 方法
+			await ragEngine.updateWorkspaceIndex(
+				currentWorkspace,
+				{ reindexAll: true },
+				(progress) => {
+					setRAGInitProgress(progress)
+				}
+			)
+
+			// 刷新统计信息
+			await loadStatistics()
+
+			// 显示成功消息
+			console.log(`✅ 工作区 RAG 向量初始化完成: ${currentWorkspace.name}`)
+			
+			// 显示成功状态
+			setRAGInitSuccess({
+				show: true,
+				totalFiles: ragInitProgress?.indexProgress?.totalFiles || 0,
+				totalChunks: ragInitProgress?.indexProgress?.totalChunks || 0,
+				workspaceName: currentWorkspace.name
+			})
+			
+			// 3秒后自动隐藏成功消息
+			setTimeout(() => {
+				setRAGInitSuccess({ show: false })
+			}, 5000)
+
+		} catch (error) {
+			console.error('工作区 RAG 向量初始化失败:', error)
+			setRAGInitSuccess({ show: false })
+		} finally {
+			setIsInitializingRAG(false)
+			setRAGInitProgress(null)
+		}
+	}, [getRAGEngine, settings, workspaceManager, loadStatistics])
+
+	// 清除工作区索引
+	const clearWorkspaceIndex = useCallback(async () => {
+		setIsDeleting(true)
+
+		try {
+			// 获取当前工作区
+			let currentWorkspace: Workspace | null = null
+			if (settings.workspace && settings.workspace !== 'vault') {
+				currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
+			}
+
+			const ragEngine = await getRAGEngine()
+			await ragEngine.clearWorkspaceIndex(currentWorkspace)
+
+			// 刷新统计信息
+			await loadStatistics()
+
+			console.log('✅ 工作区索引清除完成')
+
+		} catch (error) {
+			console.error('清除工作区索引失败:', error)
+		} finally {
+			setIsDeleting(false)
+		}
+	}, [getRAGEngine, settings, workspaceManager, loadStatistics])
+
+	// 组件加载时自动获取统计信息
+	useEffect(() => {
+		loadStatistics()
+	}, [loadStatistics])
+
+	// 确认初始化/更新 RAG 向量
+	const handleInitWorkspaceRAG = useCallback(() => {
+		setShowRAGInitConfirm(true)
+	}, [])
+
+	// 确认删除工作区索引
+	const handleDeleteWorkspaceIndex = useCallback(() => {
+		setShowDeleteConfirm(true)
+	}, [])
+
+	// 确认初始化 RAG 向量
+	const confirmInitWorkspaceRAG = useCallback(async () => {
+		setShowRAGInitConfirm(false)
+		await initializeWorkspaceRAG()
+	}, [initializeWorkspaceRAG])
+
+	// 确认删除工作区索引
+	const confirmDeleteWorkspaceIndex = useCallback(async () => {
+		setShowDeleteConfirm(false)
+		await clearWorkspaceIndex()
+	}, [clearWorkspaceIndex])
+
+	// 取消初始化确认
+	const cancelRAGInitConfirm = useCallback(() => {
+		setShowRAGInitConfirm(false)
+	}, [])
+
+	// 取消删除确认
+	const cancelDeleteConfirm = useCallback(() => {
+		setShowDeleteConfirm(false)
+	}, [])
 
 	const handleResultClick = (result: Omit<SelectVector, 'embedding'> & { similarity: number }) => {
 		// 如果用户正在选择文本，不触发点击事件
@@ -355,36 +526,80 @@ const SearchView = () => {
 
 	return (
 		<div className="obsidian-search-container">
-			{/* 搜索输入框 */}
-			<div className="obsidian-search-header">
-				<SearchInputWithActions
-					ref={searchInputRef}
-					initialSerializedEditorState={searchEditorState}
-					onChange={setSearchEditorState}
-					onSubmit={handleSearch}
-					mentionables={mentionables}
-					setMentionables={setMentionables}
-					placeholder="语义搜索（按回车键搜索）..."
-					autoFocus={true}
-					disabled={isSearching}
-				/>
-				
-				{/* 搜索模式切换 */}
-				<div className="obsidian-search-mode-toggle">
-					<button
-						className={`obsidian-search-mode-btn ${searchMode === 'notes' ? 'active' : ''}`}
-						onClick={() => setSearchMode('notes')}
-						title="搜索原始笔记内容"
-					>
-						📝 原始笔记
-					</button>
-					<button
-						className={`obsidian-search-mode-btn ${searchMode === 'insights' ? 'active' : ''}`}
-						onClick={() => setSearchMode('insights')}
-						title="搜索 AI 洞察内容"
-					>
-						🧠 AI 洞察
-					</button>
+			{/* 头部信息 */}
+			<div className="obsidian-search-header-wrapper">
+				<div className="obsidian-search-title">
+					<h3>语义索引</h3>
+					<div className="obsidian-search-actions">
+						<button
+							onClick={handleInitWorkspaceRAG}
+							disabled={isInitializingRAG || isDeleting || isSearching}
+							className="obsidian-search-init-btn"
+							title={statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引'}
+						>
+							{isInitializingRAG ? '🔄 正在初始化...' : (statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '🔄 更新索引' : '🚀 初始化索引')}
+						</button>
+						<button
+							onClick={handleDeleteWorkspaceIndex}
+							disabled={isDeleting || isInitializingRAG || isSearching}
+							className="obsidian-search-delete-btn"
+							title="清除索引"
+						>
+							{isDeleting ? '🗑️ 正在清除...' : '🗑️ 清除索引'}
+						</button>
+					</div>
+				</div>
+
+				{/* 统计信息 */}
+				{!isLoadingStats && statisticsInfo && (
+					<div className="obsidian-search-stats">
+						<div className="obsidian-search-stats-overview">
+							<div className="obsidian-search-stats-main">
+								<span className="obsidian-search-stats-number">{statisticsInfo.totalChunks}</span>
+								<span className="obsidian-search-stats-label">个向量块</span>
+							</div>
+							<div className="obsidian-search-stats-breakdown">
+								<div className="obsidian-search-stats-item">
+									<span className="obsidian-search-stats-item-icon">📄</span>
+									<span className="obsidian-search-stats-item-value">{statisticsInfo.totalFiles}</span>
+									<span className="obsidian-search-stats-item-label">文件</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* 搜索输入框 */}
+				<div className="obsidian-search-input-section">
+					<SearchInputWithActions
+						ref={searchInputRef}
+						initialSerializedEditorState={searchEditorState}
+						onChange={setSearchEditorState}
+						onSubmit={handleSearch}
+						mentionables={mentionables}
+						setMentionables={setMentionables}
+						placeholder="语义搜索（按回车键搜索）..."
+						autoFocus={true}
+						disabled={isSearching}
+					/>
+					
+					{/* 搜索模式切换 */}
+					<div className="obsidian-search-mode-toggle">
+						<button
+							className={`obsidian-search-mode-btn ${searchMode === 'notes' ? 'active' : ''}`}
+							onClick={() => setSearchMode('notes')}
+							title="搜索原始笔记内容"
+						>
+							📝 原始笔记
+						</button>
+						<button
+							className={`obsidian-search-mode-btn ${searchMode === 'insights' ? 'active' : ''}`}
+							onClick={() => setSearchMode('insights')}
+							title="搜索 AI 洞察内容"
+						>
+							🧠 AI 洞察
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -398,11 +613,6 @@ const SearchView = () => {
 							`${insightGroupedResults.length} 个文件，${insightResults.length} 个洞察`
 						)}
 					</div>
-					{currentSearchScope && (
-						<div className="obsidian-search-scope">
-							搜索范围: {currentSearchScope}
-						</div>
-					)}
 				</div>
 			)}
 
@@ -410,6 +620,151 @@ const SearchView = () => {
 			{isSearching && (
 				<div className="obsidian-search-loading">
 					正在搜索...
+				</div>
+			)}
+
+			{/* RAG 初始化进度 */}
+			{isInitializingRAG && (
+				<div className="obsidian-rag-initializing">
+					<div className="obsidian-rag-init-header">
+						<h4>正在初始化工作区 RAG 向量索引</h4>
+						<p>为当前工作区的文件建立向量索引，提高搜索精度</p>
+					</div>
+					{ragInitProgress && ragInitProgress.type === 'indexing' && ragInitProgress.indexProgress && (
+						<div className="obsidian-rag-progress">
+							<div className="obsidian-rag-progress-info">
+								<span className="obsidian-rag-progress-stage">建立向量索引</span>
+								<span className="obsidian-rag-progress-counter">
+									{ragInitProgress.indexProgress.completedChunks} / {ragInitProgress.indexProgress.totalChunks} 块
+								</span>
+							</div>
+							<div className="obsidian-rag-progress-bar">
+								<div 
+									className="obsidian-rag-progress-fill"
+									style={{ 
+										width: `${(ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100}%` 
+									}}
+								></div>
+							</div>
+							<div className="obsidian-rag-progress-details">
+								<div className="obsidian-rag-progress-files">
+									共 {ragInitProgress.indexProgress.totalFiles} 个文件
+								</div>
+								<div className="obsidian-rag-progress-percentage">
+									{Math.round((ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100)}%
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* RAG 初始化成功消息 */}
+			{ragInitSuccess.show && (
+				<div className="obsidian-rag-success">
+					<div className="obsidian-rag-success-content">
+						<span className="obsidian-rag-success-icon">✅</span>
+						<div className="obsidian-rag-success-text">
+							<span className="obsidian-rag-success-title">
+								工作区 RAG 向量索引初始化完成: {ragInitSuccess.workspaceName}
+							</span>
+							<span className="obsidian-rag-success-summary">
+								处理了 {ragInitSuccess.totalFiles} 个文件，生成 {ragInitSuccess.totalChunks} 个向量块
+							</span>
+						</div>
+						<button 
+							className="obsidian-rag-success-close"
+							onClick={() => setRAGInitSuccess({ show: false })}
+						>
+							×
+						</button>
+					</div>
+				</div>
+			)}
+
+			{/* 确认删除对话框 */}
+			{showDeleteConfirm && (
+				<div className="obsidian-confirm-dialog-overlay">
+					<div className="obsidian-confirm-dialog">
+						<div className="obsidian-confirm-dialog-header">
+							<h3>清除工作区索引</h3>
+						</div>
+						<div className="obsidian-confirm-dialog-body">
+							<p>
+								将清除当前工作区的所有向量索引数据。
+							</p>
+							<p className="obsidian-confirm-dialog-warning">
+								此操作无法撤销，清除后需要重新初始化索引才能进行语义搜索。
+							</p>
+							<div className="obsidian-confirm-dialog-scope">
+								<strong>工作区:</strong> {settings.workspace === 'vault' ? '整个 Vault' : settings.workspace}
+							</div>
+						</div>
+						<div className="obsidian-confirm-dialog-footer">
+							<button
+								onClick={cancelDeleteConfirm}
+								className="obsidian-confirm-dialog-cancel-btn"
+							>
+								取消
+							</button>
+							<button
+								onClick={confirmDeleteWorkspaceIndex}
+								className="obsidian-confirm-dialog-confirm-btn"
+							>
+								确认清除
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* 确认初始化对话框 */}
+			{showRAGInitConfirm && (
+				<div className="obsidian-confirm-dialog-overlay">
+					<div className="obsidian-confirm-dialog">
+						<div className="obsidian-confirm-dialog-header">
+							<h3>{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新工作区索引' : '初始化工作区索引'}</h3>
+						</div>
+						<div className="obsidian-confirm-dialog-body">
+							<p>
+								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) 
+									? '将更新当前工作区的向量索引，重新处理所有文件以确保索引最新。'
+									: '将为当前工作区的所有文件建立向量索引，这将提高语义搜索的准确性。'
+								}
+							</p>
+							<div className="obsidian-confirm-dialog-info">
+								<div className="obsidian-confirm-dialog-info-item">
+									<strong>嵌入模型:</strong> 
+									<span className="obsidian-confirm-dialog-model">
+										{settings.embeddingModelProvider} / {settings.embeddingModelId || '默认模型'}
+									</span>
+								</div>
+								<div className="obsidian-confirm-dialog-info-item">
+									<strong>工作区:</strong> 
+									<span className="obsidian-confirm-dialog-workspace">
+										{settings.workspace === 'vault' ? '整个 Vault' : settings.workspace}
+									</span>
+								</div>
+							</div>
+							<p className="obsidian-confirm-dialog-warning">
+								此操作可能需要几分钟时间，具体取决于文件数量和大小。
+							</p>
+						</div>
+						<div className="obsidian-confirm-dialog-footer">
+							<button
+								onClick={cancelRAGInitConfirm}
+								className="obsidian-confirm-dialog-cancel-btn"
+							>
+								取消
+							</button>
+							<button
+								onClick={confirmInitWorkspaceRAG}
+								className="obsidian-confirm-dialog-confirm-btn"
+							>
+								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '开始更新' : '开始初始化'}
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 
@@ -552,8 +907,161 @@ const SearchView = () => {
 					font-family: var(--font-interface);
 				}
 
-				.obsidian-search-header {
+				.obsidian-search-header-wrapper {
 					padding: 12px;
+					border-bottom: 1px solid var(--background-modifier-border);
+				}
+
+				.obsidian-search-title {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					margin-bottom: 12px;
+				}
+
+				.obsidian-search-title h3 {
+					margin: 0;
+					color: var(--text-normal);
+					font-size: var(--font-ui-large);
+					font-weight: 600;
+				}
+
+				.obsidian-search-actions {
+					display: flex;
+					gap: 8px;
+				}
+
+				.obsidian-search-init-btn {
+					padding: 6px 12px;
+					background-color: var(--interactive-accent);
+					border: none;
+					border-radius: var(--radius-s);
+					color: var(--text-on-accent);
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: background-color 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-search-init-btn:hover:not(:disabled) {
+					background-color: var(--interactive-accent-hover);
+				}
+
+				.obsidian-search-init-btn:disabled {
+					opacity: 0.6;
+					cursor: not-allowed;
+				}
+
+				.obsidian-search-delete-btn {
+					padding: 6px 12px;
+					background-color: #dc3545;
+					border: none;
+					border-radius: var(--radius-s);
+					color: white;
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: background-color 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-search-delete-btn:hover:not(:disabled) {
+					background-color: #c82333;
+				}
+
+				.obsidian-search-delete-btn:disabled {
+					opacity: 0.6;
+					cursor: not-allowed;
+				}
+
+				.obsidian-search-stats {
+					background-color: var(--background-secondary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-m);
+					padding: 12px;
+					margin-bottom: 12px;
+				}
+
+				.obsidian-search-stats-overview {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					margin-bottom: 8px;
+				}
+
+				.obsidian-search-stats-main {
+					display: flex;
+					align-items: baseline;
+					gap: 6px;
+				}
+
+				.obsidian-search-stats-number {
+					font-size: var(--font-ui-large);
+					font-weight: 700;
+					color: var(--text-accent);
+					font-family: var(--font-monospace);
+				}
+
+				.obsidian-search-stats-label {
+					font-size: var(--font-ui-medium);
+					color: var(--text-normal);
+					font-weight: 500;
+				}
+
+				.obsidian-search-stats-breakdown {
+					flex: 1;
+					display: flex;
+					justify-content: flex-end;
+				}
+
+				.obsidian-search-stats-item {
+					display: flex;
+					align-items: center;
+					gap: 4px;
+					padding: 4px 8px;
+					background-color: var(--background-modifier-border);
+					border-radius: var(--radius-s);
+				}
+
+				.obsidian-search-stats-item-icon {
+					font-size: 12px;
+					line-height: 1;
+				}
+
+				.obsidian-search-stats-item-value {
+					font-size: var(--font-ui-small);
+					font-weight: 600;
+					color: var(--text-normal);
+					font-family: var(--font-monospace);
+				}
+
+				.obsidian-search-stats-item-label {
+					font-size: var(--font-ui-smaller);
+					color: var(--text-muted);
+				}
+
+				.obsidian-search-scope {
+					display: flex;
+					align-items: center;
+					gap: 6px;
+					padding: 6px 8px;
+					background-color: var(--background-modifier-border-hover);
+					border-radius: var(--radius-s);
+				}
+
+				.obsidian-search-scope-label {
+					font-size: var(--font-ui-smaller);
+					color: var(--text-muted);
+					font-weight: 500;
+				}
+
+				.obsidian-search-scope-value {
+					font-size: var(--font-ui-smaller);
+					color: var(--text-accent);
+					font-weight: 600;
+				}
+
+				.obsidian-search-input-section {
+					/* padding 由父元素控制 */
 				}
 
 				.obsidian-search-mode-toggle {
@@ -587,6 +1095,8 @@ const SearchView = () => {
 					color: var(--text-on-accent);
 					font-weight: 500;
 				}
+
+
 
 				.obsidian-search-stats {
 					padding: 8px 12px;
@@ -883,6 +1393,308 @@ const SearchView = () => {
 					white-space: pre-wrap;
 					user-select: text;
 					cursor: text;
+				}
+
+				/* RAG 初始化进度样式 */
+				.obsidian-rag-initializing {
+					padding: 20px;
+					background-color: var(--background-secondary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-m);
+					margin: 12px;
+				}
+
+				.obsidian-rag-init-header {
+					text-align: center;
+					margin-bottom: 16px;
+				}
+
+				.obsidian-rag-init-header h4 {
+					margin: 0 0 8px 0;
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					font-weight: 600;
+				}
+
+				.obsidian-rag-init-header p {
+					margin: 0;
+					color: var(--text-muted);
+					font-size: var(--font-ui-small);
+				}
+
+				.obsidian-rag-progress {
+					background-color: var(--background-primary);
+					padding: 12px;
+					border-radius: var(--radius-s);
+					border: 1px solid var(--background-modifier-border);
+				}
+
+				.obsidian-rag-progress-info {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+					margin-bottom: 8px;
+				}
+
+				.obsidian-rag-progress-stage {
+					color: var(--text-normal);
+					font-size: var(--font-ui-small);
+					font-weight: 500;
+				}
+
+				.obsidian-rag-progress-counter {
+					color: var(--text-muted);
+					font-size: var(--font-ui-small);
+					font-family: var(--font-monospace);
+				}
+
+				.obsidian-rag-progress-bar {
+					width: 100%;
+					height: 6px;
+					background-color: var(--background-modifier-border);
+					border-radius: 3px;
+					overflow: hidden;
+					margin-bottom: 8px;
+				}
+
+				.obsidian-rag-progress-fill {
+					height: 100%;
+					background-color: var(--interactive-accent);
+					border-radius: 3px;
+					transition: width 0.3s ease;
+				}
+
+				.obsidian-rag-progress-details {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+				}
+
+				.obsidian-rag-progress-files {
+					color: var(--text-normal);
+					font-size: var(--font-ui-small);
+					font-weight: 500;
+				}
+
+				.obsidian-rag-progress-percentage {
+					color: var(--text-accent);
+					font-size: var(--font-ui-small);
+					font-weight: 600;
+					font-family: var(--font-monospace);
+				}
+
+				/* RAG 初始化成功样式 */
+				.obsidian-rag-success {
+					background-color: var(--background-secondary);
+					border: 1px solid var(--color-green, #28a745);
+					border-radius: var(--radius-m);
+					margin: 12px;
+					animation: slideInFromTop 0.3s ease-out;
+				}
+
+				.obsidian-rag-success-content {
+					display: flex;
+					align-items: center;
+					gap: 12px;
+					padding: 12px 16px;
+				}
+
+				.obsidian-rag-success-icon {
+					font-size: 16px;
+					line-height: 1;
+					color: var(--color-green, #28a745);
+					flex-shrink: 0;
+				}
+
+				.obsidian-rag-success-text {
+					display: flex;
+					flex-direction: column;
+					gap: 2px;
+					flex: 1;
+					min-width: 0;
+				}
+
+				.obsidian-rag-success-title {
+					font-size: var(--font-ui-medium);
+					font-weight: 600;
+					color: var(--text-normal);
+					line-height: 1.3;
+				}
+
+				.obsidian-rag-success-summary {
+					font-size: var(--font-ui-small);
+					color: var(--text-muted);
+					line-height: 1.3;
+				}
+
+				.obsidian-rag-success-close {
+					background: none;
+					border: none;
+					color: var(--text-muted);
+					font-size: 16px;
+					font-weight: bold;
+					cursor: pointer;
+					padding: 4px;
+					border-radius: var(--radius-s);
+					transition: all 0.2s ease;
+					flex-shrink: 0;
+					width: 24px;
+					height: 24px;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+				}
+
+				.obsidian-rag-success-close:hover {
+					background-color: var(--background-modifier-hover);
+					color: var(--text-normal);
+				}
+
+				/* 确认对话框样式 */
+				.obsidian-confirm-dialog-overlay {
+					position: fixed;
+					top: 0;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					background-color: rgba(0, 0, 0, 0.5);
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					z-index: 1000;
+				}
+
+				.obsidian-confirm-dialog {
+					background-color: var(--background-primary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-l);
+					box-shadow: var(--shadow-l);
+					max-width: 400px;
+					width: 90%;
+					max-height: 80vh;
+					overflow: hidden;
+				}
+
+				.obsidian-confirm-dialog-header {
+					padding: 16px 20px;
+					border-bottom: 1px solid var(--background-modifier-border);
+					background-color: var(--background-secondary);
+				}
+
+				.obsidian-confirm-dialog-header h3 {
+					margin: 0;
+					color: var(--text-normal);
+					font-size: var(--font-ui-large);
+					font-weight: 600;
+				}
+
+				.obsidian-confirm-dialog-body {
+					padding: 20px;
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					line-height: 1.5;
+				}
+
+				.obsidian-confirm-dialog-body p {
+					margin: 0 0 12px 0;
+				}
+
+				.obsidian-confirm-dialog-warning {
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 12px;
+					margin: 12px 0;
+					color: var(--text-error);
+					font-size: var(--font-ui-small);
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-scope {
+					background-color: var(--background-secondary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 8px 12px;
+					margin: 12px 0 0 0;
+					font-size: var(--font-ui-small);
+					color: var(--text-muted);
+				}
+
+				.obsidian-confirm-dialog-info {
+					background-color: var(--background-secondary);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 12px;
+					margin: 12px 0;
+				}
+
+				.obsidian-confirm-dialog-info-item {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+					margin-bottom: 8px;
+					font-size: var(--font-ui-small);
+				}
+
+				.obsidian-confirm-dialog-info-item:last-child {
+					margin-bottom: 0;
+				}
+
+				.obsidian-confirm-dialog-info-item strong {
+					color: var(--text-normal);
+					margin-right: 12px;
+					flex-shrink: 0;
+				}
+
+				.obsidian-confirm-dialog-model,
+				.obsidian-confirm-dialog-workspace {
+					color: var(--text-accent);
+					font-weight: 600;
+					font-family: var(--font-monospace);
+					text-align: right;
+					flex: 1;
+					word-break: break-all;
+				}
+
+				.obsidian-confirm-dialog-footer {
+					padding: 16px 20px;
+					border-top: 1px solid var(--background-modifier-border);
+					background-color: var(--background-secondary);
+					display: flex;
+					justify-content: flex-end;
+					gap: 12px;
+				}
+
+				.obsidian-confirm-dialog-cancel-btn {
+					padding: 8px 16px;
+					background-color: var(--interactive-normal);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					color: var(--text-normal);
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-cancel-btn:hover {
+					background-color: var(--interactive-hover);
+				}
+
+				.obsidian-confirm-dialog-confirm-btn {
+					padding: 8px 16px;
+					background-color: #dc3545;
+					border: 1px solid #dc3545;
+					border-radius: var(--radius-s);
+					color: white;
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.2s ease;
+					font-weight: 500;
+				}
+
+				.obsidian-confirm-dialog-confirm-btn:hover {
+					background-color: #c82333;
+					border-color: #c82333;
 				}
 				`}
 			</style>

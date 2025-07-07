@@ -289,6 +289,10 @@ export const InfioSettingsSchema = z.object({
 	chatModelProvider: z.nativeEnum(ApiProvider).catch(ApiProvider.Infio),
 	chatModelId: z.string().catch(''),
 
+	// Insight Model
+	insightModelProvider: z.nativeEnum(ApiProvider).catch(ApiProvider.Infio),
+	insightModelId: z.string().catch(''),
+
 	// Apply Model
 	applyModelProvider: z.nativeEnum(ApiProvider).catch(ApiProvider.Infio),
 	applyModelId: z.string().catch(''),
