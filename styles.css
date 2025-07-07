@@ -828,6 +828,24 @@ input[type='text'].infio-chat-list-dropdown-item-title-input {
   word-break: break-all;
 }
 
+.infio-search-lexical-content-editable-root {
+  min-height: 36px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.infio-search-lexical-content-editable-root .mention {
+  background-color: var(--tag-background);
+  color: var(--tag-color);
+  padding: var(--size-2-1) calc(var(--size-2-1));
+  border-radius: var(--radius-s);
+  background-color: var(--tag-background);
+  color: var(--tag-color);
+  padding: 0 calc(var(--size-2-1));
+  border-radius: var(--radius-s);
+  word-break: break-all;
+}
+
 .infio-chat-lexical-content-editable-paragraph {
   margin: 0;
   line-height: 1.6;

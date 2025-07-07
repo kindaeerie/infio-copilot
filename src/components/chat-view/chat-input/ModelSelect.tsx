@@ -6,17 +6,17 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSettings } from '../../../contexts/SettingsContext'
 import { t } from '../../../lang/helpers'
 import { ApiProvider } from '../../../types/llm/model'
-import { GetAllProviders, GetProviderModelIds } from "../../../utils/api"
+import { GetAllProviders, GetEmbeddingProviders, GetEmbeddingProviderModelIds, GetProviderModelsWithSettings } from "../../../utils/api"
 
 // 优化模型名称显示的函数
 const getOptimizedModelName = (modelId: string): string => {
 	if (!modelId) return modelId;
-	
+
 	// 限制长度，如果太长则截断并添加省略号
 	if (modelId.length > 25) {
 		return modelId.substring(0, 22) + '...';
 	}
-	
+
 	return modelId;
 };
 
@@ -146,25 +146,69 @@ const HighlightedText: React.FC<{ segments: TextSegment[] }> = ({ segments }) =>
 	);
 };
 
-export function ModelSelect() {
+type ModelType = 'chat' | 'insight' | 'apply' | 'embedding'
+
+interface ModelSelectProps {
+	modelType?: ModelType
+}
+
+export function ModelSelect({ modelType = 'chat' }: ModelSelectProps) {
 	const { settings, setSettings } = useSettings()
 	const [isOpen, setIsOpen] = useState(false)
-	const [modelProvider, setModelProvider] = useState(settings.chatModelProvider)
-	const [chatModelId, setChatModelId] = useState(settings.chatModelId)
+
+	// 根据模型类型获取相应的设置
+	const currentModelProvider = useMemo(() => {
+		switch (modelType) {
+			case 'insight':
+				return settings.insightModelProvider
+			case 'apply':
+				return settings.applyModelProvider
+			case 'embedding':
+				return settings.embeddingModelProvider
+			default:
+				return settings.chatModelProvider
+		}
+	}, [modelType, settings.insightModelProvider, settings.applyModelProvider, settings.embeddingModelProvider, settings.chatModelProvider])
+
+	const currentModelId = useMemo(() => {
+		switch (modelType) {
+			case 'insight':
+				return settings.insightModelId
+			case 'apply':
+				return settings.applyModelId
+			case 'embedding':
+				return settings.embeddingModelId
+			default:
+				return settings.chatModelId
+		}
+	}, [modelType, settings.insightModelId, settings.applyModelId, settings.embeddingModelId, settings.chatModelId])
+
+	const [modelProvider, setModelProvider] = useState(currentModelProvider)
+	const [chatModelId, setChatModelId] = useState(currentModelId)
 	const [modelIds, setModelIds] = useState<string[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [searchTerm, setSearchTerm] = useState("")
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const inputRef = useRef<HTMLInputElement>(null)
 
-	const providers = GetAllProviders()
+	const providers = useMemo(() => {
+		if (modelType === 'embedding') {
+			return GetEmbeddingProviders()
+		}
+		return GetAllProviders()
+	}, [modelType])
 
 	useEffect(() => {
 		const fetchModels = async () => {
 			setIsLoading(true)
 			try {
-				const models = await GetProviderModelIds(modelProvider, settings)
-				setModelIds(models)
+				if (modelType === 'embedding') {
+					const models = GetEmbeddingProviderModelIds(modelProvider)
+					setModelIds(models)
+				} else {
+					const models = await GetProviderModelsWithSettings(modelProvider, settings)
+					setModelIds(Object.keys(models))
+				}
 			} catch (error) {
 				console.error('Failed to fetch provider models:', error)
 				setModelIds([])
@@ -176,16 +220,30 @@ export function ModelSelect() {
 		fetchModels()
 	}, [modelProvider, settings])
 
-	// Sync chat model id & chat model provider
+	// Sync model id & model provider based on modelType
 	useEffect(() => {
-		setModelProvider(settings.chatModelProvider)
-		setChatModelId(settings.chatModelId)
-	}, [settings.chatModelProvider, settings.chatModelId])
+		setModelProvider(currentModelProvider)
+		setChatModelId(currentModelId)
+	}, [currentModelProvider, currentModelId])
 
 	const searchableItems = useMemo(() => {
+		// 根据模型类型获取相应的收藏列表
+		const getCollectedModels = () => {
+			switch (modelType) {
+				case 'insight':
+					return settings.collectedInsightModels || []
+				case 'apply':
+					return settings.collectedApplyModels || []
+				case 'embedding':
+					return settings.collectedEmbeddingModels || []
+				default:
+					return settings.collectedChatModels || []
+			}
+		}
+
 		// 检查是否在收藏列表中
 		const isInCollected = (id: string) => {
-			return settings.collectedChatModels?.some(item => item.provider === modelProvider && item.modelId === id) || false;
+			return getCollectedModels().some(item => item.provider === modelProvider && item.modelId === id) || false;
 		};
 
 		return modelIds.map((id) => ({
@@ -194,7 +252,7 @@ export function ModelSelect() {
 			provider: modelProvider,
 			isCollected: isInCollected(id),
 		}))
-	}, [modelIds, modelProvider, settings.collectedChatModels])
+	}, [modelIds, modelProvider, modelType, settings.collectedChatModels, settings.collectedInsightModels, settings.collectedApplyModels, settings.collectedEmbeddingModels])
 
 	const fuse = useMemo(() => {
 		return new Fuse<SearchableItem>(searchableItems, {
@@ -229,11 +287,26 @@ export function ModelSelect() {
 		e.stopPropagation();
 		e.preventDefault();
 
-		const isCurrentlyCollected = settings.collectedChatModels?.some(
+		// 根据模型类型获取相应的收藏列表
+		const getCollectedModels = () => {
+			switch (modelType) {
+				case 'insight':
+					return settings.collectedInsightModels || []
+				case 'apply':
+					return settings.collectedApplyModels || []
+				case 'embedding':
+					return settings.collectedEmbeddingModels || []
+				default:
+					return settings.collectedChatModels || []
+			}
+		}
+
+		const currentCollectedModels = getCollectedModels();
+		const isCurrentlyCollected = currentCollectedModels.some(
 			item => item.provider === modelProvider && item.modelId === id
 		);
 
-		let newCollectedModels = settings.collectedChatModels || [];
+		let newCollectedModels = [...currentCollectedModels];
 
 		if (isCurrentlyCollected) {
 			// remove
@@ -245,10 +318,33 @@ export function ModelSelect() {
 			newCollectedModels = [...newCollectedModels, { provider: modelProvider, modelId: id }];
 		}
 
-		setSettings({
-			...settings,
-			collectedChatModels: newCollectedModels,
-		});
+		// 根据模型类型更新相应的设置
+		switch (modelType) {
+			case 'insight':
+				setSettings({
+					...settings,
+					collectedInsightModels: newCollectedModels,
+				});
+				break;
+			case 'apply':
+				setSettings({
+					...settings,
+					collectedApplyModels: newCollectedModels,
+				});
+				break;
+			case 'embedding':
+				setSettings({
+					...settings,
+					collectedEmbeddingModels: newCollectedModels,
+				});
+				break;
+			default:
+				setSettings({
+					...settings,
+					collectedChatModels: newCollectedModels,
+				});
+				break;
+		}
 	};
 
 	return (
@@ -258,7 +354,7 @@ export function ModelSelect() {
 					{/* <div className="infio-chat-input-model-select__mode-icon">
 						<Brain size={16} />
 					</div> */}
-					<div 
+					<div
 						className="infio-chat-input-model-select__model-name"
 						title={chatModelId}
 					>
@@ -272,62 +368,128 @@ export function ModelSelect() {
 				<DropdownMenu.Portal>
 					<DropdownMenu.Content className="infio-popover infio-llm-setting-combobox-dropdown">
 						{/* collected models */}
-						{settings.collectedChatModels?.length > 0 && (
-							<div className="infio-model-section">
-								<div className="infio-model-section-title">
-									<Star size={12} className="infio-star-active" /> {t('chat.input.collectedModels')}
-								</div>
-								<ul className="infio-collected-models-list">
-									{settings.collectedChatModels.map((collectedModel, index) => (
-										<DropdownMenu.Item
-											key={`${collectedModel.provider}-${collectedModel.modelId}`}
-											onSelect={() => {
-												setSettings({
-													...settings,
-													chatModelProvider: collectedModel.provider,
-													chatModelId: collectedModel.modelId,
-												})
-												setChatModelId(collectedModel.modelId)
-												setSearchTerm("")
-												setIsOpen(false)
-											}}
-											className={`infio-llm-setting-combobox-option ${index === selectedIndex ? 'is-selected' : ''}`}
-											onMouseEnter={() => setSelectedIndex(index)}
-											asChild
-										>
-											<li
-												className="infio-llm-setting-model-item infio-collected-model-item"
-												title={`${collectedModel.provider}/${collectedModel.modelId}`}
-											>
-												<div className="infio-model-item-text-wrapper">
-													<span className="infio-provider-badge">{collectedModel.provider}</span>
-													<span title={collectedModel.modelId}>{collectedModel.modelId}</span>
-												</div>
-												<div
-													className="infio-model-item-star"
-													title="remove from collected models"
-												>
-													<Star size={16} className="infio-star-active" onClick={(e) => {
-														e.stopPropagation();
-														e.preventDefault();
-														// delete 
-														const newCollectedModels = settings.collectedChatModels.filter(
-															item => !(item.provider === collectedModel.provider && item.modelId === collectedModel.modelId)
-														);
+						{(() => {
+							const getCollectedModels = () => {
+								switch (modelType) {
+									case 'insight':
+										return settings.collectedInsightModels || []
+									case 'apply':
+										return settings.collectedApplyModels || []
+									case 'embedding':
+										return settings.collectedEmbeddingModels || []
+									default:
+										return settings.collectedChatModels || []
+								}
+							}
 
-														setSettings({
-															...settings,
-															collectedChatModels: newCollectedModels,
-														});
-													}} />
-												</div>
-											</li>
-										</DropdownMenu.Item>
-									))}
-								</ul>
-								<div className="infio-model-separator"></div>
-							</div>
-						)}
+							const collectedModels = getCollectedModels()
+
+							return collectedModels.length > 0 ? (
+								<div className="infio-model-section">
+									<div className="infio-model-section-title">
+										<Star size={12} className="infio-star-active" /> {t('chat.input.collectedModels')}
+									</div>
+									<ul className="infio-collected-models-list">
+										{collectedModels.map((collectedModel, index) => (
+											<DropdownMenu.Item
+												key={`${collectedModel.provider}-${collectedModel.modelId}`}
+												onSelect={() => {
+													// 根据模型类型更新相应的设置
+													switch (modelType) {
+														case 'insight':
+															setSettings({
+																...settings,
+																insightModelProvider: collectedModel.provider,
+																insightModelId: collectedModel.modelId,
+															})
+															break;
+														case 'apply':
+															setSettings({
+																...settings,
+																applyModelProvider: collectedModel.provider,
+																applyModelId: collectedModel.modelId,
+															})
+															break;
+														case 'embedding':
+															setSettings({
+																...settings,
+																embeddingModelProvider: collectedModel.provider,
+																embeddingModelId: collectedModel.modelId,
+															})
+															break;
+														default:
+															setSettings({
+																...settings,
+																chatModelProvider: collectedModel.provider,
+																chatModelId: collectedModel.modelId,
+															})
+															break;
+													}
+													setChatModelId(collectedModel.modelId)
+													setSearchTerm("")
+													setIsOpen(false)
+												}}
+												className={`infio-llm-setting-combobox-option ${index === selectedIndex ? 'is-selected' : ''}`}
+												onMouseEnter={() => setSelectedIndex(index)}
+												asChild
+											>
+												<li
+													className="infio-llm-setting-model-item infio-collected-model-item"
+													title={`${collectedModel.provider}/${collectedModel.modelId}`}
+												>
+													<div className="infio-model-item-text-wrapper">
+														<span className="infio-provider-badge">{collectedModel.provider}</span>
+														<span title={collectedModel.modelId}>{collectedModel.modelId}</span>
+													</div>
+													<div
+														className="infio-model-item-star"
+														title="remove from collected models"
+													>
+														<Star size={16} className="infio-star-active" onClick={(e) => {
+															e.stopPropagation();
+															e.preventDefault();
+															// delete 
+															const newCollectedModels = collectedModels.filter(
+																item => !(item.provider === collectedModel.provider && item.modelId === collectedModel.modelId)
+															);
+
+															// 根据模型类型更新相应的设置
+															switch (modelType) {
+																case 'insight':
+																	setSettings({
+																		...settings,
+																		collectedInsightModels: newCollectedModels,
+																	});
+																	break;
+																case 'apply':
+																	setSettings({
+																		...settings,
+																		collectedApplyModels: newCollectedModels,
+																	});
+																	break;
+																case 'embedding':
+																	setSettings({
+																		...settings,
+																		collectedEmbeddingModels: newCollectedModels,
+																	});
+																	break;
+																default:
+																	setSettings({
+																		...settings,
+																		collectedChatModels: newCollectedModels,
+																	});
+																	break;
+															}
+														}} />
+													</div>
+												</li>
+											</DropdownMenu.Item>
+										))}
+									</ul>
+									<div className="infio-model-separator"></div>
+								</div>
+							) : null
+						})()}
 
 						<div className="infio-llm-setting-search-container">
 							<div className="infio-llm-setting-provider-container">
@@ -384,11 +546,37 @@ export function ModelSelect() {
 													e.preventDefault()
 													const selectedOption = filteredOptions[selectedIndex]
 													if (selectedOption) {
-														setSettings({
-															...settings,
-															chatModelProvider: modelProvider,
-															chatModelId: selectedOption.id,
-														})
+														// 根据模型类型更新相应的设置
+														switch (modelType) {
+															case 'insight':
+																setSettings({
+																	...settings,
+																	insightModelProvider: modelProvider,
+																	insightModelId: selectedOption.id,
+																})
+																break;
+															case 'apply':
+																setSettings({
+																	...settings,
+																	applyModelProvider: modelProvider,
+																	applyModelId: selectedOption.id,
+																})
+																break;
+															case 'embedding':
+																setSettings({
+																	...settings,
+																	embeddingModelProvider: modelProvider,
+																	embeddingModelId: selectedOption.id,
+																})
+																break;
+															default:
+																setSettings({
+																	...settings,
+																	chatModelProvider: modelProvider,
+																	chatModelId: selectedOption.id,
+																})
+																break;
+														}
 														setChatModelId(selectedOption.id)
 														setSearchTerm("")
 														setIsOpen(false)
@@ -421,11 +609,37 @@ export function ModelSelect() {
 									onKeyDown={(e) => {
 										if (e.key === "Enter") {
 											e.preventDefault()
-											setSettings({
-												...settings,
-												chatModelProvider: modelProvider,
-												chatModelId: searchTerm,
-											})
+											// 根据模型类型更新相应的设置
+											switch (modelType) {
+												case 'insight':
+													setSettings({
+														...settings,
+														insightModelProvider: modelProvider,
+														insightModelId: searchTerm,
+													})
+													break;
+												case 'apply':
+													setSettings({
+														...settings,
+														applyModelProvider: modelProvider,
+														applyModelId: searchTerm,
+													})
+													break;
+												case 'embedding':
+													setSettings({
+														...settings,
+														embeddingModelProvider: modelProvider,
+														embeddingModelId: searchTerm,
+													})
+													break;
+												default:
+													setSettings({
+														...settings,
+														chatModelProvider: modelProvider,
+														chatModelId: searchTerm,
+													})
+													break;
+											}
 											setChatModelId(searchTerm)
 											setIsOpen(false)
 										}
@@ -448,11 +662,37 @@ export function ModelSelect() {
 											<DropdownMenu.Item
 												key={option.id}
 												onSelect={() => {
-													setSettings({
-														...settings,
-														chatModelProvider: modelProvider,
-														chatModelId: option.id,
-													})
+													// 根据模型类型更新相应的设置
+													switch (modelType) {
+														case 'insight':
+															setSettings({
+																...settings,
+																insightModelProvider: modelProvider,
+																insightModelId: option.id,
+															})
+															break;
+														case 'apply':
+															setSettings({
+																...settings,
+																applyModelProvider: modelProvider,
+																applyModelId: option.id,
+															})
+															break;
+														case 'embedding':
+															setSettings({
+																...settings,
+																embeddingModelProvider: modelProvider,
+																embeddingModelId: option.id,
+															})
+															break;
+														default:
+															setSettings({
+																...settings,
+																chatModelProvider: modelProvider,
+																chatModelId: option.id,
+															})
+															break;
+													}
 													setChatModelId(option.id)
 													setSearchTerm("")
 													setIsOpen(false)
@@ -460,9 +700,21 @@ export function ModelSelect() {
 												className={`infio-llm-setting-combobox-option ${isSelected ? 'is-selected' : ''}`}
 												onMouseEnter={() => {
 													// 计算正确的鼠标悬停索引
+													const getCollectedModels = () => {
+														switch (modelType) {
+															case 'insight':
+																return settings.collectedInsightModels || []
+															case 'apply':
+																return settings.collectedApplyModels || []
+															case 'embedding':
+																return settings.collectedEmbeddingModels || []
+															default:
+																return settings.collectedChatModels || []
+														}
+													}
 													const hoverIndex = searchTerm
 														? index
-														: index + settings.collectedChatModels?.length;
+														: index + getCollectedModels().length;
 													setSelectedIndex(hoverIndex);
 												}}
 												asChild
@@ -475,7 +727,7 @@ export function ModelSelect() {
 														{searchTerm ? (
 															<HighlightedText segments={option.html} />
 														) : (
-																<span title={option.id}>{option.id}</span>
+															<span title={option.id}>{option.id}</span>
 														)}
 													</div>
 													<div
@@ -617,9 +869,8 @@ export function ModelSelect() {
 						text-align: left;
 						appearance: none;
 						-webkit-appearance: none;
-						background-color: var(--background-primary);
 						border: 1px solid var(--background-modifier-border);
-						border-radius: 6px;
+						border-radius: 4px;
 						font-weight: 500;
 						font-size: 0.9em;
 						transition: all 0.2s ease;
@@ -634,7 +885,6 @@ export function ModelSelect() {
 					
 					.infio-llm-setting-provider-switch:hover {
 						border-color: var(--interactive-accent);
-						background-color: var(--background-primary-alt);
 					}
 					
 					.infio-llm-setting-provider-switch:focus {
@@ -728,12 +978,9 @@ export function ModelSelect() {
 					.infio-provider-badge {
 						font-size: 10px;
 						padding: 2px 6px;
-						background-color: var(--background-modifier-hover);
 						border-radius: 4px;
 						margin-right: 6px;
-						color: var(--text-muted);
 						font-weight: 500;
-						box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 					}
 				`}
 			</style>

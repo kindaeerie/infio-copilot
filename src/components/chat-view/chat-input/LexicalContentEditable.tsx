@@ -31,6 +31,7 @@ import OnMutationPlugin, {
 } from './plugins/on-mutation/OnMutationPlugin'
 
 export type LexicalContentEditableProps = {
+	rootTheme?: string
 	editorRef: RefObject<LexicalEditor>
 	contentEditableRef: RefObject<HTMLDivElement>
 	onChange?: (content: SerializedEditorState) => void
@@ -52,6 +53,7 @@ export type LexicalContentEditableProps = {
 }
 
 export default function LexicalContentEditable({
+	rootTheme,
 	editorRef,
 	contentEditableRef,
 	onChange,
@@ -68,7 +70,7 @@ export default function LexicalContentEditable({
 	const initialConfig: InitialConfigType = {
 		namespace: 'LexicalContentEditable',
 		theme: {
-			root: 'infio-chat-lexical-content-editable-root',
+			root: rootTheme || 'infio-chat-lexical-content-editable-root',
 			paragraph: 'infio-chat-lexical-content-editable-paragraph',
 		},
 		nodes: [MentionNode],

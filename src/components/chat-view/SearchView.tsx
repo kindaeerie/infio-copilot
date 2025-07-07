@@ -14,6 +14,7 @@ import { Mentionable } from '../../types/mentionable'
 import { getFilesWithTag } from '../../utils/glob-utils'
 import { openMarkdownFile } from '../../utils/obsidian'
 
+import { ModelSelect } from './chat-input/ModelSelect'
 import SearchInputWithActions, { SearchInputRef } from './chat-input/SearchInputWithActions'
 import { editorStateToPlainText } from './chat-input/utils/editor-state-to-plain-text'
 
@@ -31,7 +32,22 @@ interface InsightFileGroup {
 	fileName: string
 	maxSimilarity: number
 	insights: Array<{
-		id: string
+		id: number
+		insight: string
+		insight_type: string
+		similarity: number
+		source_path: string
+	}>
+}
+
+// 聚合文件分组结果接口
+interface AllFileGroup {
+	path: string
+	fileName: string
+	maxSimilarity: number
+	blocks: (Omit<SelectVector, 'embedding'> & { similarity: number })[]
+	insights: Array<{
+		id: number
 		insight: string
 		insight_type: string
 		similarity: number
@@ -45,14 +61,14 @@ const SearchView = () => {
 	const app = useApp()
 	const { settings } = useSettings()
 	const searchInputRef = useRef<SearchInputRef>(null)
-	
+
 	// 工作区管理器
 	const workspaceManager = useMemo(() => {
 		return new WorkspaceManager(app)
 	}, [app])
 	const [searchResults, setSearchResults] = useState<(Omit<SelectVector, 'embedding'> & { similarity: number })[]>([])
 	const [insightResults, setInsightResults] = useState<Array<{
-		id: string
+		id: number
 		insight: string
 		insight_type: string
 		similarity: number
@@ -60,14 +76,12 @@ const SearchView = () => {
 	}>>([])
 	const [isSearching, setIsSearching] = useState(false)
 	const [hasSearched, setHasSearched] = useState(false)
-	const [searchMode, setSearchMode] = useState<'notes' | 'insights'>('notes') // 搜索模式：笔记或洞察
+	const [searchMode, setSearchMode] = useState<'notes' | 'insights' | 'all'>('all') // 搜索模式：笔记、洞察或全部
 	// 展开状态管理 - 默认全部展开
 	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set())
 	// 新增：mentionables 状态管理
 	const [mentionables, setMentionables] = useState<Mentionable[]>([])
 	const [searchEditorState, setSearchEditorState] = useState<SerializedEditorState | null>(null)
-	// 当前搜索范围信息
-	const [currentSearchScope, setCurrentSearchScope] = useState<string>('')
 
 	// 统计信息状态
 	const [statisticsInfo, setStatisticsInfo] = useState<{
@@ -79,12 +93,15 @@ const SearchView = () => {
 	// 工作区 RAG 向量初始化状态
 	const [isInitializingRAG, setIsInitializingRAG] = useState(false)
 	const [ragInitProgress, setRAGInitProgress] = useState<{
-		type: 'indexing' | 'querying' | 'querying-done'
+		type: 'indexing' | 'querying' | 'querying-done' | 'reading-mentionables' | 'reading-files'
 		indexProgress?: {
 			completedChunks: number
 			totalChunks: number
 			totalFiles: number
 		}
+		currentFile?: string
+		totalFiles?: number
+		completedFiles?: number
 	} | null>(null)
 	const [ragInitSuccess, setRAGInitSuccess] = useState<{
 		show: boolean
@@ -92,7 +109,7 @@ const SearchView = () => {
 		totalChunks?: number
 		workspaceName?: string
 	}>({ show: false })
-	
+
 	// 删除和确认对话框状态
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [showRAGInitConfirm, setShowRAGInitConfirm] = useState(false)
@@ -100,38 +117,37 @@ const SearchView = () => {
 
 	const handleSearch = useCallback(async (editorState?: SerializedEditorState) => {
 		let searchTerm = ''
-		
+
 		if (editorState) {
 			// 使用成熟的函数从 Lexical 编辑器状态中提取文本内容
 			searchTerm = editorStateToPlainText(editorState).trim()
 		}
-		
+
 		if (!searchTerm.trim()) {
 			setSearchResults([])
 			setInsightResults([])
 			setHasSearched(false)
-			setCurrentSearchScope('')
 			return
 		}
-		
+
 		setIsSearching(true)
 		setHasSearched(true)
-		
+
 		try {
 			// 获取当前工作区
 			let currentWorkspace: Workspace | null = null
 			if (settings.workspace && settings.workspace !== 'vault') {
 				currentWorkspace = await workspaceManager.findByName(String(settings.workspace))
 			}
-			
-			// 设置搜索范围信息
+
+			// 设置搜索范围信息（用于调试）
 			let scopeDescription = ''
 			if (currentWorkspace) {
 				scopeDescription = `工作区: ${currentWorkspace.name}`
 			} else {
 				scopeDescription = '整个 Vault'
 			}
-			setCurrentSearchScope(scopeDescription)
+			console.debug('搜索范围:', scopeDescription)
 
 			// 构建搜索范围
 			let scope: { files: string[], folders: string[] } | undefined
@@ -164,10 +180,10 @@ const SearchView = () => {
 					scope: scope,
 					limit: 50,
 				})
-				
+
 				setSearchResults(results)
 				setInsightResults([])
-			} else {
+			} else if (searchMode === 'insights') {
 				// 搜索洞察
 				const transEngine = await getTransEngine()
 				const results = await transEngine.processQuery({
@@ -176,9 +192,31 @@ const SearchView = () => {
 					limit: 50,
 					minSimilarity: 0.3,
 				})
-				
-				setInsightResults(results as any)
+
+				setInsightResults(results)
 				setSearchResults([])
+			} else {
+				// 搜索全部：同时搜索原始笔记和洞察
+				const ragEngine = await getRAGEngine()
+				const transEngine = await getTransEngine()
+
+				// 并行执行两个搜索
+				const [notesResults, insightsResults] = await Promise.all([
+					ragEngine.processQuery({
+						query: searchTerm,
+						scope: scope,
+						limit: 25, // 每个类型限制25个结果
+					}),
+					transEngine.processQuery({
+						query: searchTerm,
+						scope: scope,
+						limit: 25, // 每个类型限制25个结果
+						minSimilarity: 0.3,
+					})
+				])
+
+				setSearchResults(notesResults)
+				setInsightResults(insightsResults)
 			}
 		} catch (error) {
 			console.error('搜索失败:', error)
@@ -203,7 +241,7 @@ const SearchView = () => {
 	// 加载统计信息
 	const loadStatistics = useCallback(async () => {
 		setIsLoadingStats(true)
-		
+
 		try {
 			// 获取当前工作区
 			let currentWorkspace: Workspace | null = null
@@ -241,7 +279,7 @@ const SearchView = () => {
 			}
 
 			const ragEngine = await getRAGEngine()
-			
+
 			// 使用新的 updateWorkspaceIndex 方法
 			await ragEngine.updateWorkspaceIndex(
 				currentWorkspace,
@@ -256,7 +294,7 @@ const SearchView = () => {
 
 			// 显示成功消息
 			console.log(`✅ 工作区 RAG 向量初始化完成: ${currentWorkspace.name}`)
-			
+
 			// 显示成功状态
 			setRAGInitSuccess({
 				show: true,
@@ -264,7 +302,7 @@ const SearchView = () => {
 				totalChunks: ragInitProgress?.indexProgress?.totalChunks || 0,
 				workspaceName: currentWorkspace.name
 			})
-			
+
 			// 3秒后自动隐藏成功消息
 			setTimeout(() => {
 				setRAGInitSuccess({ show: false })
@@ -315,10 +353,7 @@ const SearchView = () => {
 		setShowRAGInitConfirm(true)
 	}, [])
 
-	// 确认删除工作区索引
-	const handleDeleteWorkspaceIndex = useCallback(() => {
-		setShowDeleteConfirm(true)
-	}, [])
+
 
 	// 确认初始化 RAG 向量
 	const confirmInitWorkspaceRAG = useCallback(async () => {
@@ -426,7 +461,7 @@ const SearchView = () => {
 					// 移除图片显示，避免布局问题
 					img: () => <span className="obsidian-image-placeholder">[图片]</span>,
 					// 代码块样式
-					code: ({ children, inline }: { children: React.ReactNode; inline?: boolean; [key: string]: unknown }) => {
+					code: ({ children, inline }: { children: React.ReactNode; inline?: boolean;[key: string]: unknown }) => {
 						if (inline) {
 							return <code className="obsidian-inline-code">{children}</code>
 						}
@@ -449,11 +484,11 @@ const SearchView = () => {
 
 		// 按文件路径分组
 		const fileGroups = new Map<string, FileGroup>()
-		
+
 		searchResults.forEach(result => {
 			const filePath = result.path
 			const fileName = filePath.split('/').pop() || filePath
-			
+
 			if (!fileGroups.has(filePath)) {
 				fileGroups.set(filePath, {
 					path: filePath,
@@ -462,7 +497,7 @@ const SearchView = () => {
 					blocks: []
 				})
 			}
-			
+
 			const group = fileGroups.get(filePath)
 			if (group) {
 				group.blocks.push(result)
@@ -488,11 +523,11 @@ const SearchView = () => {
 
 		// 按文件路径分组
 		const fileGroups = new Map<string, InsightFileGroup>()
-		
+
 		insightResults.forEach(result => {
 			const filePath = result.source_path
 			const fileName = filePath.split('/').pop() || filePath
-			
+
 			if (!fileGroups.has(filePath)) {
 				fileGroups.set(filePath, {
 					path: filePath,
@@ -501,7 +536,7 @@ const SearchView = () => {
 					insights: []
 				})
 			}
-			
+
 			const group = fileGroups.get(filePath)
 			if (group) {
 				group.insights.push(result)
@@ -521,8 +556,63 @@ const SearchView = () => {
 		return Array.from(fileGroups.values()).sort((a, b) => b.maxSimilarity - a.maxSimilarity)
 	}, [insightResults])
 
+	// 按文件分组并排序 - 全部聚合
+	const allGroupedResults = useMemo(() => {
+		if (!searchResults.length && !insightResults.length) return []
+
+		// 合并所有文件路径
+		const allFilePaths = new Set<string>()
+
+		// 从笔记结果中收集文件路径
+		searchResults.forEach(result => {
+			allFilePaths.add(result.path)
+		})
+
+		// 从洞察结果中收集文件路径
+		insightResults.forEach(result => {
+			allFilePaths.add(result.source_path)
+		})
+
+		// 按文件路径分组
+		const fileGroups = new Map<string, AllFileGroup>()
+
+		// 处理每个文件
+		Array.from(allFilePaths).forEach(filePath => {
+			const fileName = filePath.split('/').pop() || filePath
+
+			// 获取该文件的笔记块
+			const fileBlocks = searchResults.filter(result => result.path === filePath)
+
+			// 获取该文件的洞察
+			const fileInsights = insightResults.filter(result => result.source_path === filePath)
+
+			// 计算该文件的最高相似度
+			const blockMaxSimilarity = fileBlocks.length > 0 ? Math.max(...fileBlocks.map(b => b.similarity)) : 0
+			const insightMaxSimilarity = fileInsights.length > 0 ? Math.max(...fileInsights.map(i => i.similarity)) : 0
+			const maxSimilarity = Math.max(blockMaxSimilarity, insightMaxSimilarity)
+
+			if (fileBlocks.length > 0 || fileInsights.length > 0) {
+				// 对块和洞察分别按相似度排序
+				fileBlocks.sort((a, b) => b.similarity - a.similarity)
+				fileInsights.sort((a, b) => b.similarity - a.similarity)
+
+				fileGroups.set(filePath, {
+					path: filePath,
+					fileName,
+					maxSimilarity,
+					blocks: fileBlocks,
+					insights: fileInsights
+				})
+			}
+		})
+
+		// 将文件按最高相似度排序
+		return Array.from(fileGroups.values()).sort((a, b) => b.maxSimilarity - a.maxSimilarity)
+	}, [searchResults, insightResults])
+
 	const totalBlocks = searchResults.length
 	const totalFiles = groupedResults.length
+	const totalAllFiles = allGroupedResults.length
 
 	return (
 		<div className="obsidian-search-container">
@@ -530,29 +620,11 @@ const SearchView = () => {
 			<div className="obsidian-search-header-wrapper">
 				<div className="obsidian-search-title">
 					<h3>语义索引</h3>
-					<div className="obsidian-search-actions">
-						<button
-							onClick={handleInitWorkspaceRAG}
-							disabled={isInitializingRAG || isDeleting || isSearching}
-							className="obsidian-search-init-btn"
-							title={statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引'}
-						>
-							{isInitializingRAG ? '🔄 正在初始化...' : (statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '🔄 更新索引' : '🚀 初始化索引')}
-						</button>
-						<button
-							onClick={handleDeleteWorkspaceIndex}
-							disabled={isDeleting || isInitializingRAG || isSearching}
-							className="obsidian-search-delete-btn"
-							title="清除索引"
-						>
-							{isDeleting ? '🗑️ 正在清除...' : '🗑️ 清除索引'}
-						</button>
-					</div>
 				</div>
 
 				{/* 统计信息 */}
-				{!isLoadingStats && statisticsInfo && (
-					<div className="obsidian-search-stats">
+				<div className="obsidian-search-stats">
+					{!isLoadingStats && statisticsInfo && (
 						<div className="obsidian-search-stats-overview">
 							<div className="obsidian-search-stats-main">
 								<span className="obsidian-search-stats-number">{statisticsInfo.totalChunks}</span>
@@ -565,6 +637,79 @@ const SearchView = () => {
 									<span className="obsidian-search-stats-item-label">文件</span>
 								</div>
 							</div>
+						</div>
+					)}
+					<div className="infio-search-model-info">
+						<div className="infio-search-model-row">
+							<span className="infio-search-model-label">嵌入模型:</span>
+							<ModelSelect modelType="embedding" />
+						</div>
+						<div className="obsidian-search-actions">
+							<button
+								onClick={handleInitWorkspaceRAG}
+								disabled={isInitializingRAG || isDeleting || isSearching}
+								className="obsidian-search-init-btn"
+								title={statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引'}
+							>
+								{isInitializingRAG ? '正在初始化...' : (statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引')}
+							</button>
+
+						</div>
+					</div>
+				</div>
+
+				{/* 索引进度 */}
+				{isInitializingRAG && (
+					<div className="obsidian-rag-initializing">
+						<div className="obsidian-rag-init-header">
+							<h4>正在初始化工作区 RAG 向量索引</h4>
+							<p>为当前工作区的文件建立向量索引，提高搜索精度</p>
+						</div>
+						{ragInitProgress && ragInitProgress.type === 'indexing' && ragInitProgress.indexProgress && (
+							<div className="obsidian-rag-progress">
+								<div className="obsidian-rag-progress-info">
+									<span className="obsidian-rag-progress-stage">建立向量索引</span>
+									<span className="obsidian-rag-progress-counter">
+										{ragInitProgress.indexProgress.completedChunks} / {ragInitProgress.indexProgress.totalChunks} 块
+									</span>
+								</div>
+								<div className="obsidian-rag-progress-bar">
+									<div
+										className="obsidian-rag-progress-fill"
+										style={{
+											width: `${(ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100}%`
+										}}
+									></div>
+								</div>
+								<div className="obsidian-rag-progress-details">
+									<div className="obsidian-rag-progress-files">
+										共 {ragInitProgress.indexProgress.totalFiles} 个文件
+									</div>
+									<div className="obsidian-rag-progress-percentage">
+										{Math.round((ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100)}%
+									</div>
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* RAG 初始化成功消息 */}
+				{ragInitSuccess.show && (
+					<div className="obsidian-rag-success">
+						<div className="obsidian-rag-success-content">
+							<span className="obsidian-rag-success-icon">✅</span>
+							<div className="obsidian-rag-success-text">
+								<span className="obsidian-rag-success-title">
+									工作区 RAG 向量索引初始化完成: {ragInitSuccess.workspaceName}
+								</span>
+							</div>
+							<button
+								className="obsidian-rag-success-close"
+								onClick={() => setRAGInitSuccess({ show: false })}
+							>
+								×
+							</button>
 						</div>
 					</div>
 				)}
@@ -581,107 +726,26 @@ const SearchView = () => {
 						placeholder="语义搜索（按回车键搜索）..."
 						autoFocus={true}
 						disabled={isSearching}
+						searchMode={searchMode}
+						onSearchModeChange={setSearchMode}
 					/>
-					
-					{/* 搜索模式切换 */}
-					<div className="obsidian-search-mode-toggle">
-						<button
-							className={`obsidian-search-mode-btn ${searchMode === 'notes' ? 'active' : ''}`}
-							onClick={() => setSearchMode('notes')}
-							title="搜索原始笔记内容"
-						>
-							📝 原始笔记
-						</button>
-						<button
-							className={`obsidian-search-mode-btn ${searchMode === 'insights' ? 'active' : ''}`}
-							onClick={() => setSearchMode('insights')}
-							title="搜索 AI 洞察内容"
-						>
-							🧠 AI 洞察
-						</button>
-					</div>
 				</div>
 			</div>
 
-			{/* 结果统计 */}
+			{/* 索引统计 */}
 			{hasSearched && !isSearching && (
 				<div className="obsidian-search-stats">
 					<div className="obsidian-search-stats-line">
 						{searchMode === 'notes' ? (
 							`${totalFiles} 个文件，${totalBlocks} 个块`
-						) : (
+						) : searchMode === 'insights' ? (
 							`${insightGroupedResults.length} 个文件，${insightResults.length} 个洞察`
+						) : (
+							`${totalAllFiles} 个文件，${totalBlocks} 个块，${insightResults.length} 个洞察`
 						)}
 					</div>
 				</div>
 			)}
-
-			{/* 搜索进度 */}
-			{isSearching && (
-				<div className="obsidian-search-loading">
-					正在搜索...
-				</div>
-			)}
-
-			{/* RAG 初始化进度 */}
-			{isInitializingRAG && (
-				<div className="obsidian-rag-initializing">
-					<div className="obsidian-rag-init-header">
-						<h4>正在初始化工作区 RAG 向量索引</h4>
-						<p>为当前工作区的文件建立向量索引，提高搜索精度</p>
-					</div>
-					{ragInitProgress && ragInitProgress.type === 'indexing' && ragInitProgress.indexProgress && (
-						<div className="obsidian-rag-progress">
-							<div className="obsidian-rag-progress-info">
-								<span className="obsidian-rag-progress-stage">建立向量索引</span>
-								<span className="obsidian-rag-progress-counter">
-									{ragInitProgress.indexProgress.completedChunks} / {ragInitProgress.indexProgress.totalChunks} 块
-								</span>
-							</div>
-							<div className="obsidian-rag-progress-bar">
-								<div 
-									className="obsidian-rag-progress-fill"
-									style={{ 
-										width: `${(ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100}%` 
-									}}
-								></div>
-							</div>
-							<div className="obsidian-rag-progress-details">
-								<div className="obsidian-rag-progress-files">
-									共 {ragInitProgress.indexProgress.totalFiles} 个文件
-								</div>
-								<div className="obsidian-rag-progress-percentage">
-									{Math.round((ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100)}%
-								</div>
-							</div>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* RAG 初始化成功消息 */}
-			{ragInitSuccess.show && (
-				<div className="obsidian-rag-success">
-					<div className="obsidian-rag-success-content">
-						<span className="obsidian-rag-success-icon">✅</span>
-						<div className="obsidian-rag-success-text">
-							<span className="obsidian-rag-success-title">
-								工作区 RAG 向量索引初始化完成: {ragInitSuccess.workspaceName}
-							</span>
-							<span className="obsidian-rag-success-summary">
-								处理了 {ragInitSuccess.totalFiles} 个文件，生成 {ragInitSuccess.totalChunks} 个向量块
-							</span>
-						</div>
-						<button 
-							className="obsidian-rag-success-close"
-							onClick={() => setRAGInitSuccess({ show: false })}
-						>
-							×
-						</button>
-					</div>
-				</div>
-			)}
-
 			{/* 确认删除对话框 */}
 			{showDeleteConfirm && (
 				<div className="obsidian-confirm-dialog-overlay">
@@ -727,20 +791,20 @@ const SearchView = () => {
 						</div>
 						<div className="obsidian-confirm-dialog-body">
 							<p>
-								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) 
+								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0)
 									? '将更新当前工作区的向量索引，重新处理所有文件以确保索引最新。'
 									: '将为当前工作区的所有文件建立向量索引，这将提高语义搜索的准确性。'
 								}
 							</p>
 							<div className="obsidian-confirm-dialog-info">
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>嵌入模型:</strong> 
+									<strong>嵌入模型:</strong>
 									<span className="obsidian-confirm-dialog-model">
-										{settings.embeddingModelProvider} / {settings.embeddingModelId || '默认模型'}
+										{settings.embeddingModelId}
 									</span>
 								</div>
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>工作区:</strong> 
+									<strong>工作区:</strong>
 									<span className="obsidian-confirm-dialog-workspace">
 										{settings.workspace === 'vault' ? '整个 Vault' : settings.workspace}
 									</span>
@@ -768,6 +832,13 @@ const SearchView = () => {
 				</div>
 			)}
 
+			{/* 搜索进度 */}
+			{isSearching && (
+				<div className="obsidian-search-loading">
+					正在搜索...
+				</div>
+			)}
+
 			{/* 搜索结果 */}
 			<div className="obsidian-search-results">
 				{searchMode === 'notes' ? (
@@ -777,7 +848,7 @@ const SearchView = () => {
 							{groupedResults.map((fileGroup) => (
 								<div key={fileGroup.path} className="obsidian-file-group">
 									{/* 文件头部 */}
-									<div 
+									<div
 										className="obsidian-file-header"
 										onClick={() => toggleFileExpansion(fileGroup.path)}
 									>
@@ -827,14 +898,14 @@ const SearchView = () => {
 							))}
 						</div>
 					)
-				) : (
+				) : searchMode === 'insights' ? (
 					// AI 洞察搜索结果
 					!isSearching && insightGroupedResults.length > 0 && (
 						<div className="obsidian-results-list">
 							{insightGroupedResults.map((fileGroup) => (
 								<div key={fileGroup.path} className="obsidian-file-group">
 									{/* 文件头部 */}
-									<div 
+									<div
 										className="obsidian-file-header"
 										onClick={() => toggleFileExpansion(fileGroup.path)}
 									>
@@ -885,21 +956,131 @@ const SearchView = () => {
 							))}
 						</div>
 					)
+				) : (
+					// 全部搜索结果：按文件聚合显示原始笔记和洞察
+					!isSearching && allGroupedResults.length > 0 && (
+						<div className="obsidian-results-list">
+							{allGroupedResults.map((fileGroup) => (
+								<div key={fileGroup.path} className="obsidian-file-group">
+									{/* 文件头部 */}
+									<div
+										className="obsidian-file-header"
+										onClick={() => toggleFileExpansion(fileGroup.path)}
+									>
+										<div className="obsidian-file-header-content">
+											<div className="obsidian-file-header-top">
+												<div className="obsidian-file-header-left">
+													{expandedFiles.has(fileGroup.path) ? (
+														<ChevronDown size={16} className="obsidian-expand-icon" />
+													) : (
+														<ChevronRight size={16} className="obsidian-expand-icon" />
+													)}
+													<span className="obsidian-file-name">{fileGroup.fileName}</span>
+												</div>
+											</div>
+											<div className="obsidian-file-path-row">
+												<span className="obsidian-file-path">{fileGroup.path}</span>
+											</div>
+										</div>
+									</div>
+
+									{/* 文件内容：混合显示笔记块和洞察 */}
+									{expandedFiles.has(fileGroup.path) && (
+										<div className="obsidian-file-blocks">
+											{/* AI 洞察 */}
+											{fileGroup.insights.map((insight, insightIndex) => (
+												<div
+													key={`insight-${insight.id}`}
+													className="obsidian-result-item obsidian-result-insight"
+												>
+													<div className="obsidian-result-header">
+														<span className="obsidian-result-index">{insightIndex + 1}</span>
+														<span className="obsidian-result-insight-type">
+															{insight.insight_type.toUpperCase()}
+														</span>
+														<span className="obsidian-result-similarity">
+															{insight.similarity.toFixed(3)}
+														</span>
+													</div>
+													<div className="obsidian-result-content">
+														<div className="obsidian-insight-content">
+															{insight.insight}
+														</div>
+													</div>
+												</div>
+											))}
+											{/* 原始笔记块 */}
+											{fileGroup.blocks.map((result, blockIndex) => (
+												<div
+													key={`block-${result.id}`}
+													className="obsidian-result-item obsidian-result-block"
+													onClick={() => handleResultClick(result)}
+												>
+													<div className="obsidian-result-header">
+														<span className="obsidian-result-index">{blockIndex + 1}</span>
+														<span className="obsidian-result-location">
+															L{result.metadata.startLine}-{result.metadata.endLine}
+														</span>
+														<span className="obsidian-result-similarity">
+															{result.similarity.toFixed(3)}
+														</span>
+													</div>
+													<div className="obsidian-result-content">
+														{renderMarkdownContent(result.content)}
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					)
 				)}
-				
+
 				{!isSearching && hasSearched && (
-					(searchMode === 'notes' && groupedResults.length === 0) || 
-					(searchMode === 'insights' && insightGroupedResults.length === 0)
+					(searchMode === 'notes' && groupedResults.length === 0) ||
+					(searchMode === 'insights' && insightGroupedResults.length === 0) ||
+					(searchMode === 'all' && allGroupedResults.length === 0)
 				) && (
-					<div className="obsidian-no-results">
-						<p>未找到相关结果</p>
-					</div>
-				)}
+						<div className="obsidian-no-results">
+							<p>未找到相关结果</p>
+						</div>
+					)}
 			</div>
 
 			{/* 样式 */}
 			<style>
 				{`
+				.infio-search-model-info {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					gap: var(--size-4-3);
+				}
+
+				.infio-search-model-row {
+					display: flex;
+					align-items: center;
+					gap: var(--size-2-2);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: 4px;
+					padding: var(--size-2-2);
+				}
+
+				.infio-search-model-label {
+					font-size: var(--font-ui-small);
+					color: var(--text-muted);
+					font-weight: var(--font-medium);
+				}
+
+				.infio-search-model-value {
+					font-size: var(--font-ui-small);
+					color: var(--text-accent);
+					font-weight: 600;
+					font-family: var(--font-monospace);
+				}
+
 				.obsidian-search-container {
 					display: flex;
 					flex-direction: column;
@@ -1062,38 +1243,6 @@ const SearchView = () => {
 
 				.obsidian-search-input-section {
 					/* padding 由父元素控制 */
-				}
-
-				.obsidian-search-mode-toggle {
-					display: flex;
-					gap: 8px;
-					margin-top: 8px;
-					padding: 4px;
-					background-color: var(--background-modifier-border);
-					border-radius: var(--radius-m);
-				}
-
-				.obsidian-search-mode-btn {
-					flex: 1;
-					padding: 6px 12px;
-					background-color: transparent;
-					border: none;
-					border-radius: var(--radius-s);
-					color: var(--text-muted);
-					font-size: var(--font-ui-small);
-					cursor: pointer;
-					transition: all 0.2s ease;
-				}
-
-				.obsidian-search-mode-btn:hover {
-					background-color: var(--background-modifier-hover);
-					color: var(--text-normal);
-				}
-
-				.obsidian-search-mode-btn.active {
-					background-color: var(--interactive-accent);
-					color: var(--text-on-accent);
-					font-weight: 500;
 				}
 
 
@@ -1395,13 +1544,70 @@ const SearchView = () => {
 					cursor: text;
 				}
 
+				/* 全部搜索结果分组样式 */
+				.obsidian-result-section {
+					margin-bottom: 20px;
+				}
+
+				.obsidian-result-section-header {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+					padding: 12px 16px;
+					background-color: var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					margin-bottom: 8px;
+				}
+
+				.obsidian-result-section-title {
+					color: var(--text-normal);
+					font-size: var(--font-ui-medium);
+					font-weight: 600;
+				}
+
+				.obsidian-result-section-count {
+					color: var(--text-muted);
+					font-size: var(--font-ui-small);
+					font-family: var(--font-monospace);
+				}
+
+				/* 全部模式下的类型徽章样式 */
+				.obsidian-result-type-badge {
+					padding: 2px 6px;
+					border-radius: var(--radius-s);
+					font-size: var(--font-ui-smaller);
+					font-weight: 600;
+					font-family: var(--font-monospace);
+					margin-right: 8px;
+					flex-shrink: 0;
+				}
+
+				.obsidian-result-type-note {
+					background-color: var(--color-blue-light, #e3f2fd);
+					color: var(--color-blue-dark, #1976d2);
+				}
+
+				.obsidian-result-type-insight {
+					background-color: var(--color-amber-light, #fff3e0);
+					color: var(--color-amber-dark, #f57c00);
+				}
+
+				/* 全部模式下的结果项样式 */
+				.obsidian-result-block {
+					border-left: 3px solid var(--color-blue, #2196f3);
+				}
+
+				.obsidian-result-insight {
+					border-left: 3px solid var(--color-amber, #ff9800);
+				}
+
 				/* RAG 初始化进度样式 */
 				.obsidian-rag-initializing {
-					padding: 20px;
+					padding: 12px;
 					background-color: var(--background-secondary);
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-m);
-					margin: 12px;
+					margin-bottom: 12px;
 				}
 
 				.obsidian-rag-init-header {
@@ -1488,7 +1694,7 @@ const SearchView = () => {
 					background-color: var(--background-secondary);
 					border: 1px solid var(--color-green, #28a745);
 					border-radius: var(--radius-m);
-					margin: 12px;
+					margin-bottom: 12px;
 					animation: slideInFromTop 0.3s ease-out;
 				}
 
@@ -1702,5 +1908,5 @@ const SearchView = () => {
 	)
 }
 
-export default SearchView 
+export default SearchView
 

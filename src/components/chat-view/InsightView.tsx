@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useApp } from '../../contexts/AppContext'
@@ -11,6 +11,8 @@ import { SelectSourceInsight } from '../../database/schema'
 import { t } from '../../lang/helpers'
 import { getFilesWithTag } from '../../utils/glob-utils'
 import { openMarkdownFile } from '../../utils/obsidian'
+
+import { ModelSelect } from './chat-input/ModelSelect'
 
 // 洞察源分组结果接口
 interface InsightFileGroup {
@@ -52,7 +54,7 @@ const InsightView = () => {
 		result?: InitWorkspaceInsightResult
 		workspaceName?: string
 	}>({ show: false })
-	
+
 	// 删除洞察状态
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [deletingInsightId, setDeletingInsightId] = useState<number | null>(null)
@@ -95,25 +97,25 @@ const InsightView = () => {
 				for (const item of currentWorkspace.content) {
 					if (item.type === 'folder') {
 						const folderPath = item.content
-						
+
 						// 添加文件夹路径本身
 						workspacePaths.add(folderPath)
-						
+
 						// 获取文件夹下的所有文件
-						const files = app.vault.getMarkdownFiles().filter(file => 
+						const files = app.vault.getMarkdownFiles().filter(file =>
 							file.path.startsWith(folderPath === '/' ? '' : folderPath + '/')
 						)
-						
+
 						// 添加所有文件路径
 						files.forEach(file => {
 							workspacePaths.add(file.path)
-							
+
 							// 添加中间文件夹路径
 							const dirPath = file.path.substring(0, file.path.lastIndexOf('/'))
 							if (dirPath && dirPath !== folderPath) {
 								let currentPath = folderPath === '/' ? '' : folderPath
 								const pathParts = dirPath.substring(currentPath.length).split('/').filter(Boolean)
-								
+
 								for (let i = 0; i < pathParts.length; i++) {
 									currentPath += (currentPath ? '/' : '') + pathParts[i]
 									workspacePaths.add(currentPath)
@@ -124,16 +126,16 @@ const InsightView = () => {
 					} else if (item.type === 'tag') {
 						// 获取标签对应的所有文件
 						const tagFiles = getFilesWithTag(item.content, app)
-						
+
 						tagFiles.forEach(filePath => {
 							workspacePaths.add(filePath)
-							
+
 							// 添加文件所在的文件夹路径
 							const dirPath = filePath.substring(0, filePath.lastIndexOf('/'))
 							if (dirPath) {
 								const pathParts = dirPath.split('/').filter(Boolean)
 								let currentPath = ''
-								
+
 								for (let i = 0; i < pathParts.length; i++) {
 									currentPath += (currentPath ? '/' : '') + pathParts[i]
 									workspacePaths.add(currentPath)
@@ -147,7 +149,7 @@ const InsightView = () => {
 			// 过滤洞察
 			let filteredInsights = allInsights
 			if (workspacePaths) {
-				filteredInsights = allInsights.filter(insight => 
+				filteredInsights = allInsights.filter(insight =>
 					workspacePaths.has(insight.source_path)
 				)
 			}
@@ -196,13 +198,13 @@ const InsightView = () => {
 			}
 
 			const transEngine = await getTransEngine()
-			
+
 			// 使用新的 initWorkspaceInsight 方法
 			const result = await transEngine.initWorkspaceInsight({
 				workspace: currentWorkspace,
 				model: {
-					provider: settings.applyModelProvider,
-					modelId: settings.applyModelId,
+					provider: settings.insightModelProvider || settings.chatModelProvider,
+					modelId: settings.insightModelId || settings.chatModelId,
 				},
 				onProgress: (progress) => {
 					setInitProgress({
@@ -215,10 +217,10 @@ const InsightView = () => {
 				}
 			})
 
-			if (result.success) {				
+			if (result.success) {
 				// 刷新洞察列表
 				await loadInsights()
-				
+
 				// 显示成功消息和统计信息
 				console.log(t('insights.success.workspaceInitialized', { name: currentWorkspace.name }))
 				console.log(`✅ 深度处理完成统计:`)
@@ -232,19 +234,19 @@ const InsightView = () => {
 					console.log(`🔍 洞察ID: ${result.insightId}`)
 				}
 				console.log(`💡 工作区摘要仅使用顶层配置项目，避免内容重叠`)
-				
+
 				// 显示成功状态
 				setInitSuccess({
 					show: true,
 					result: result,
 					workspaceName: currentWorkspace.name
 				})
-				
+
 				// 3秒后自动隐藏成功消息
 				setTimeout(() => {
 					setInitSuccess({ show: false })
 				}, 5000)
-				
+
 			} else {
 				console.error(t('insights.error.initializationFailed'), result.error)
 				throw new Error(String(result.error || t('insights.error.initializationFailed')))
@@ -260,10 +262,7 @@ const InsightView = () => {
 		}
 	}, [getTransEngine, settings, workspaceManager, loadInsights])
 
-	// 确认删除工作区洞察
-	const handleDeleteWorkspaceInsights = useCallback(() => {
-		setShowDeleteConfirm(true)
-	}, [])
+
 
 	// 确认初始化/更新洞察
 	const handleInitWorkspaceInsights = useCallback(() => {
@@ -282,17 +281,17 @@ const InsightView = () => {
 			}
 
 			const transEngine = await getTransEngine()
-			
+
 			// 删除工作区的所有转换
 			const result = await transEngine.deleteWorkspaceTransformations(currentWorkspace)
 
 			if (result.success) {
 				const workspaceName = currentWorkspace?.name || 'vault'
 				console.log(t('insights.success.workspaceDeleted', { name: workspaceName, count: result.deletedCount }))
-				
+
 				// 刷新洞察列表
 				await loadInsights()
-				
+
 				// 可以在这里添加用户通知，比如显示删除成功的消息
 			} else {
 				console.error(t('insights.error.deletionFailed'), result.error)
@@ -335,13 +334,13 @@ const InsightView = () => {
 
 		try {
 			const transEngine = await getTransEngine()
-			
+
 			// 删除单个洞察
 			const result = await transEngine.deleteSingleInsight(insightId)
 
 			if (result.success) {
 				console.log(t('insights.success.insightDeleted', { id: insightId }))
-				
+
 				// 刷新洞察列表
 				await loadInsights()
 			} else {
@@ -388,7 +387,7 @@ const InsightView = () => {
 		} else if (insight.source_type === 'folder') {
 			// 文件夹洞察 - 在文件管理器中显示文件夹
 			console.debug('📁 [InsightView] 点击文件夹洞察:', insight.source_path)
-			
+
 			// 尝试在 Obsidian 文件管理器中显示文件夹
 			const folder = app.vault.getAbstractFileByPath(insight.source_path)
 			if (folder) {
@@ -496,7 +495,7 @@ const InsightView = () => {
 			const typeOrder = { workspace: 0, folder: 1, file: 2 }
 			const typeComparison = typeOrder[a.groupType || 'file'] - typeOrder[b.groupType || 'file']
 			if (typeComparison !== 0) return typeComparison
-			
+
 			// 同类型按时间排序
 			return b.maxCreatedAt - a.maxCreatedAt
 		})
@@ -522,76 +521,85 @@ const InsightView = () => {
 				<div className="obsidian-insight-title">
 					<h3>{t('insights.title')}</h3>
 					<div className="obsidian-insight-actions">
-											<button
-						onClick={handleInitWorkspaceInsights}
-						disabled={isInitializing || isLoading || isDeleting}
-						className="obsidian-insight-init-btn"
-						title={hasLoaded && insightResults.length > 0 ? t('insights.tooltips.update') : t('insights.tooltips.initialize')}
-					>
-						{isInitializing ? t('insights.initializing') : (hasLoaded && insightResults.length > 0 ? t('insights.updateInsights') : t('insights.initializeInsights'))}
-					</button>
-						<button
+						{/* <button
 							onClick={handleDeleteWorkspaceInsights}
 							disabled={isDeleting || isLoading || isInitializing}
 							className="obsidian-insight-delete-btn"
 							title={t('insights.tooltips.clear')}
 						>
 							{isDeleting ? t('insights.deleting') : t('insights.clearInsights')}
-						</button>
+						</button> */}
 						<button
 							onClick={loadInsights}
 							disabled={isLoading || isInitializing || isDeleting}
 							className="obsidian-insight-refresh-btn"
+							title={isLoading ? t('insights.loading') : t('insights.refresh')}
 						>
-							{isLoading ? t('insights.loading') : t('insights.refresh')}
+							<RotateCcw size={16} className={isLoading ? 'spinning' : ''} />
 						</button>
 					</div>
 				</div>
 
-				{/* 结果统计 */}
-				{hasLoaded && !isLoading && (
-					<div className="obsidian-insight-stats">
-						<div className="obsidian-insight-stats-overview">
-							<div className="obsidian-insight-stats-main">
-								<span className="obsidian-insight-stats-number">{insightResults.length}</span>
-								<span className="obsidian-insight-stats-label">个洞察</span>
+				{/* 结果统计 & 洞察操作 */}
+				<div className="infio-insight-stats">
+					{hasLoaded && !isLoading && (
+						<div className="infio-insight-stats-overview">
+							<div className="infio-insight-stats-main">
+								<span className="infio-insight-stats-number">{insightResults.length}</span>
+								<span className="infio-insight-stats-label">个洞察</span>
 							</div>
-							<div className="obsidian-insight-stats-breakdown">
+							<div className="infio-insight-stats-breakdown">
 								{insightGroupedResults.length > 0 && (
-									<div className="obsidian-insight-stats-items">
+									<div className="infio-insight-stats-items">
 										{insightGroupedResults.filter(g => g.groupType === 'workspace').length > 0 && (
-											<div className="obsidian-insight-stats-item">
-												<span className="obsidian-insight-stats-item-icon">🌐</span>
-												<span className="obsidian-insight-stats-item-value">
+											<div className="infio-insight-stats-item">
+												<span className="infio-insight-stats-item-icon">🌐</span>
+												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'workspace').length}
 												</span>
-												<span className="obsidian-insight-stats-item-label">工作区</span>
+												<span className="infio-insight-stats-item-label">工作区</span>
 											</div>
 										)}
 										{insightGroupedResults.filter(g => g.groupType === 'folder').length > 0 && (
-											<div className="obsidian-insight-stats-item">
-												<span className="obsidian-insight-stats-item-icon">📂</span>
-												<span className="obsidian-insight-stats-item-value">
+											<div className="infio-insight-stats-item">
+												<span className="infio-insight-stats-item-icon">📂</span>
+												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'folder').length}
 												</span>
-												<span className="obsidian-insight-stats-item-label">文件夹</span>
+												<span className="infio-insight-stats-item-label">文件夹</span>
 											</div>
 										)}
 										{insightGroupedResults.filter(g => g.groupType === 'file').length > 0 && (
-											<div className="obsidian-insight-stats-item">
-												<span className="obsidian-insight-stats-item-icon">📄</span>
-												<span className="obsidian-insight-stats-item-value">
+											<div className="infio-insight-stats-item">
+												<span className="infio-insight-stats-item-icon">📄</span>
+												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'file').length}
 												</span>
-												<span className="obsidian-insight-stats-item-label">文件</span>
+												<span className="infio-insight-stats-item-label">文件</span>
 											</div>
 										)}
 									</div>
 								)}
 							</div>
 						</div>
+					)}
+					<div className="infio-insight-model-info">
+						<div className="infio-insight-model-row">
+							<span className="infio-insight-model-label">洞察模型:</span>
+							<ModelSelect modelType="insight" />
+						</div>
+						<div className="infio-insight-actions">
+							<button
+								onClick={handleInitWorkspaceInsights}
+								disabled={isInitializing || isLoading || isDeleting}
+								className="infio-insight-primary-btn"
+								title={hasLoaded && insightResults.length > 0 ? t('insights.tooltips.update') : t('insights.tooltips.initialize')}
+							>
+								{isInitializing ? t('insights.initializing') : (hasLoaded && insightResults.length > 0 ? t('insights.updateInsights') : t('insights.initializeInsights'))}
+							</button>
+						</div>
 					</div>
-				)}
+				</div>
 			</div>
 
 			{/* 加载进度 */}
@@ -617,10 +625,10 @@ const InsightView = () => {
 								</span>
 							</div>
 							<div className="obsidian-insight-progress-bar">
-								<div 
+								<div
 									className="obsidian-insight-progress-fill"
-									style={{ 
-										width: `${initProgress.percentage !== undefined ? initProgress.percentage : (initProgress.current / Math.max(initProgress.total, 1)) * 100}%` 
+									style={{
+										width: `${initProgress.percentage !== undefined ? initProgress.percentage : (initProgress.current / Math.max(initProgress.total, 1)) * 100}%`
 									}}
 								></div>
 							</div>
@@ -662,7 +670,7 @@ const InsightView = () => {
 								{t('insights.success.workspaceInitialized', { name: initSuccess.workspaceName })}
 							</span>
 						</div>
-						<button 
+						<button
 							className="obsidian-insight-success-close"
 							onClick={() => setInitSuccess({ show: false })}
 						>
@@ -721,13 +729,13 @@ const InsightView = () => {
 							</p>
 							<div className="obsidian-confirm-dialog-info">
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>{t('insights.initConfirm.modelLabel')}</strong> 
+									<strong>{t('insights.initConfirm.modelLabel')}</strong>
 									<span className="obsidian-confirm-dialog-model">
-										{settings.chatModelProvider}/{settings.chatModelId || t('insights.initConfirm.defaultModel')}
+										{settings.insightModelId}
 									</span>
 								</div>
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>{t('insights.initConfirm.workspaceLabel')}</strong> 
+									<strong>{t('insights.initConfirm.workspaceLabel')}</strong>
 									<span className="obsidian-confirm-dialog-workspace">
 										{settings.workspace === 'vault' ? t('workspace.entireVault') : settings.workspace}
 									</span>
@@ -865,7 +873,7 @@ const InsightView = () => {
 				}
 
 				.obsidian-insight-header {
-					padding: 12px;
+					padding: var(--size-4-3);
 					border-bottom: 1px solid var(--background-modifier-border);
 				}
 
@@ -873,7 +881,7 @@ const InsightView = () => {
 					display: flex;
 					align-items: center;
 					justify-content: space-between;
-					margin-bottom: 8px;
+					margin-bottom: var(--size-4-2);
 				}
 
 				.obsidian-insight-title h3 {
@@ -885,60 +893,25 @@ const InsightView = () => {
 
 				.obsidian-insight-actions {
 					display: flex;
-					gap: 8px;
-				}
-
-				.obsidian-insight-init-btn {
-					padding: 6px 12px;
-					background-color: var(--interactive-accent);
-					border: none;
-					border-radius: var(--radius-s);
-					color: var(--text-on-accent);
-					font-size: var(--font-ui-small);
-					cursor: pointer;
-					transition: background-color 0.2s ease;
-					font-weight: 500;
-				}
-
-				.obsidian-insight-init-btn:hover:not(:disabled) {
-					background-color: var(--interactive-accent-hover);
-				}
-
-				.obsidian-insight-init-btn:disabled {
-					opacity: 0.6;
-					cursor: not-allowed;
-				}
-
-				.obsidian-insight-delete-btn {
-					padding: 6px 12px;
-					background-color: #dc3545;
-					border: none;
-					border-radius: var(--radius-s);
-					color: white;
-					font-size: var(--font-ui-small);
-					cursor: pointer;
-					transition: background-color 0.2s ease;
-					font-weight: 500;
-				}
-
-				.obsidian-insight-delete-btn:hover:not(:disabled) {
-					background-color: #c82333;
-				}
-
-				.obsidian-insight-delete-btn:disabled {
-					opacity: 0.6;
-					cursor: not-allowed;
+					gap: var(--size-4-2);
 				}
 
 				.obsidian-insight-refresh-btn {
-					padding: 6px 12px;
-					background-color: var(--interactive-normal);
-					border: none;
-					border-radius: var(--radius-s);
-					color: var(--text-normal);
-					font-size: var(--font-ui-small);
-					cursor: pointer;
-					transition: background-color 0.2s ease;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					background-color: transparent !important;
+					border: none !important;
+					box-shadow: none !important;
+					color: var(--text-muted);
+					padding: 0 !important;
+					margin: 0 !important;
+					width: 24px !important;
+					height: 24px !important;
+
+					&:hover {
+						background-color: var(--background-modifier-hover) !important;
+					}
 				}
 
 				.obsidian-insight-refresh-btn:hover:not(:disabled) {
@@ -950,118 +923,155 @@ const InsightView = () => {
 					cursor: not-allowed;
 				}
 
-				.obsidian-insight-stats {
+				.infio-insight-stats {
 					background-color: var(--background-secondary);
 					border: 1px solid var(--background-modifier-border);
-					border-radius: var(--radius-m);
-					padding: 12px;
+					border-radius: var(--radius-s);
+					padding: var(--size-4-2);
+					display: flex;
+					flex-direction: column;
+					gap: var(--size-4-4);
 				}
 
-				.obsidian-insight-stats-overview {
+				.infio-insight-stats-overview {
 					display: flex;
 					align-items: center;
 					justify-content: space-between;
 				}
 
-				.obsidian-insight-stats-main {
+				.infio-insight-stats-main {
 					display: flex;
 					align-items: baseline;
-					gap: 6px;
+					gap: var(--size-2-2);
 				}
 
-				.obsidian-insight-stats-number {
+				.infio-insight-stats-number {
 					font-size: var(--font-ui-large);
 					font-weight: 700;
 					color: var(--text-accent);
 					font-family: var(--font-monospace);
 				}
 
-				.obsidian-insight-stats-label {
+				.infio-insight-stats-label {
 					font-size: var(--font-ui-medium);
 					color: var(--text-normal);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
-				.obsidian-insight-stats-breakdown {
+				.infio-insight-stats-breakdown {
 					flex: 1;
 					display: flex;
 					justify-content: flex-end;
 				}
 
-				.obsidian-insight-stats-items {
+				.infio-insight-stats-items {
 					display: flex;
-					gap: 12px;
+					gap: var(--size-2-3);
 				}
 
-				.obsidian-insight-stats-item {
+				.infio-insight-stats-item {
 					display: flex;
 					align-items: center;
-					gap: 4px;
-					padding: 4px 8px;
+					gap: var(--size-2-1);
+					padding: var(--size-2-1) var(--size-2-2);
 					background-color: var(--background-modifier-border);
 					border-radius: var(--radius-s);
 				}
 
-				.obsidian-insight-stats-item-icon {
-					font-size: 12px;
+				.infio-insight-stats-item-icon {
+					font-size: var(--font-ui-smaller);
 					line-height: 1;
 				}
 
-				.obsidian-insight-stats-item-value {
+				.infio-insight-stats-item-value {
 					font-size: var(--font-ui-small);
 					font-weight: 600;
 					color: var(--text-normal);
 					font-family: var(--font-monospace);
 				}
 
-				.obsidian-insight-stats-item-label {
+				.infio-insight-stats-item-label {
 					font-size: var(--font-ui-smaller);
 					color: var(--text-muted);
 				}
 
-				.obsidian-insight-scope {
+				.infio-insight-model-info {
 					display: flex;
 					align-items: center;
-					gap: 6px;
-					padding: 6px 8px;
-					background-color: var(--background-modifier-border-hover);
-					border-radius: var(--radius-s);
+					justify-content: space-between;
+					gap: var(--size-4-3);
 				}
 
-				.obsidian-insight-scope-label {
-					font-size: var(--font-ui-smaller);
+				.infio-insight-model-row {
+					display: flex;
+					align-items: center;
+					gap: var(--size-2-2);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: 4px;
+					padding: var(--size-2-2);
+				}
+
+				.infio-insight-model-label {
+					font-size: var(--font-ui-small);
 					color: var(--text-muted);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
-				.obsidian-insight-scope-value {
-					font-size: var(--font-ui-smaller);
+				.infio-insight-model-value {
+					font-size: var(--font-ui-small);
 					color: var(--text-accent);
 					font-weight: 600;
+					font-family: var(--font-monospace);
+				}
+
+				.infio-insight-actions {
+					display: flex;
+					gap: var(--size-2-2);
+				}
+
+				.infio-insight-primary-btn {
+					padding: var(--size-2-2) var(--size-4-3);
+					background-color: var(--interactive-accent-hover);
+					border: none;
+					border-radius: var(--radius-s);
+					color: var(--text-muted);
+					font-size: var(--font-ui-small);
+					cursor: pointer;
+					transition: all 0.15s ease-in-out;
+					font-weight: var(--font-medium);
+				}
+
+				.infio-insight-primary-btn:hover:not(:disabled) {
+					background-color: var(--interactive-accent-hover);
+				}
+
+				.infio-insight-primary-btn:disabled {
+					opacity: 0.6;
+					cursor: not-allowed;
 				}
 
 				.obsidian-insight-loading {
-					padding: 20px;
+					padding: var(--size-4-8);
 					text-align: center;
 					color: var(--text-muted);
 					font-size: var(--font-ui-medium);
 				}
 
 				.obsidian-insight-initializing {
-					padding: 20px;
+					padding: var(--size-4-8);
 					background-color: var(--background-secondary);
 					border: 1px solid var(--background-modifier-border);
-					border-radius: var(--radius-m);
-					margin: 12px;
+					border-radius: var(--radius-s);
+					margin: var(--size-4-3);
 				}
 
 				.obsidian-insight-init-header {
 					text-align: center;
-					margin-bottom: 16px;
+					margin-bottom: var(--size-4-4);
 				}
 
 				.obsidian-insight-init-header h4 {
-					margin: 0 0 8px 0;
+					margin: 0 0 var(--size-2-2) 0;
 					color: var(--text-normal);
 					font-size: var(--font-ui-medium);
 					font-weight: 600;
@@ -1075,7 +1085,7 @@ const InsightView = () => {
 
 				.obsidian-insight-progress {
 					background-color: var(--background-primary);
-					padding: 12px;
+					padding: var(--size-4-3);
 					border-radius: var(--radius-s);
 					border: 1px solid var(--background-modifier-border);
 				}
@@ -1084,13 +1094,13 @@ const InsightView = () => {
 					display: flex;
 					justify-content: space-between;
 					align-items: center;
-					margin-bottom: 8px;
+					margin-bottom: var(--size-2-2);
 				}
 
 				.obsidian-insight-progress-stage {
 					color: var(--text-normal);
 					font-size: var(--font-ui-small);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-insight-progress-counter {
@@ -1105,7 +1115,7 @@ const InsightView = () => {
 					background-color: var(--background-modifier-border);
 					border-radius: 3px;
 					overflow: hidden;
-					margin-bottom: 8px;
+					margin-bottom: var(--size-2-2);
 				}
 
 				.obsidian-insight-progress-fill {
@@ -1119,15 +1129,15 @@ const InsightView = () => {
 					display: flex;
 					justify-content: space-between;
 					align-items: center;
-					margin-bottom: 8px;
+					margin-bottom: var(--size-2-2);
 				}
 
 				.obsidian-insight-progress-item {
 					color: var(--text-normal);
 					font-size: var(--font-ui-small);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 					flex: 1;
-					margin-right: 12px;
+					margin-right: var(--size-4-3);
 				}
 
 				.obsidian-insight-progress-percentage {
@@ -1139,8 +1149,8 @@ const InsightView = () => {
 				}
 
 				.obsidian-insight-progress-log {
-					margin-top: 8px;
-					padding: 8px;
+					margin-top: var(--size-2-2);
+					padding: var(--size-2-2);
 					background-color: var(--background-modifier-border-hover);
 					border-radius: var(--radius-s);
 					font-size: var(--font-ui-smaller);
@@ -1149,7 +1159,7 @@ const InsightView = () => {
 				.obsidian-insight-progress-log-item {
 					display: flex;
 					justify-content: space-between;
-					margin-bottom: 4px;
+					margin-bottom: var(--size-2-1);
 				}
 
 				.obsidian-insight-progress-log-item:last-child {
@@ -1158,9 +1168,9 @@ const InsightView = () => {
 
 				.obsidian-insight-progress-log-label {
 					color: var(--text-muted);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 					flex-shrink: 0;
-					margin-right: 8px;
+					margin-right: var(--size-2-2);
 				}
 
 				.obsidian-insight-progress-log-value {
@@ -1173,30 +1183,30 @@ const InsightView = () => {
 
 				.obsidian-insight-success {
 					background-color: var(--background-secondary);
-					border: 1px solid var(--color-green, #28a745);
-					border-radius: var(--radius-m);
-					margin: 12px;
+					border: 1px solid var(--color-green, #10b981);
+					border-radius: var(--radius-s);
+					margin: var(--size-4-3);
 					animation: slideInFromTop 0.3s ease-out;
 				}
 
 				.obsidian-insight-success-content {
 					display: flex;
 					align-items: center;
-					gap: 12px;
-					padding: 12px 16px;
+					gap: var(--size-4-3);
+					padding: var(--size-4-3) var(--size-4-4);
 				}
 
 				.obsidian-insight-success-icon {
 					font-size: 16px;
 					line-height: 1;
-					color: var(--color-green, #28a745);
+					color: var(--color-green, #10b981);
 					flex-shrink: 0;
 				}
 
 				.obsidian-insight-success-text {
 					display: flex;
 					flex-direction: column;
-					gap: 2px;
+					gap: var(--size-2-1);
 					flex: 1;
 					min-width: 0;
 				}
@@ -1208,12 +1218,6 @@ const InsightView = () => {
 					line-height: 1.3;
 				}
 
-				.obsidian-insight-success-summary {
-					font-size: var(--font-ui-small);
-					color: var(--text-muted);
-					line-height: 1.3;
-				}
-
 				.obsidian-insight-success-close {
 					background: none;
 					border: none;
@@ -1221,9 +1225,9 @@ const InsightView = () => {
 					font-size: 16px;
 					font-weight: bold;
 					cursor: pointer;
-					padding: 4px;
+					padding: var(--size-2-1);
 					border-radius: var(--radius-s);
-					transition: all 0.2s ease;
+					transition: all 0.15s ease-in-out;
 					flex-shrink: 0;
 					width: 24px;
 					height: 24px;
@@ -1263,10 +1267,10 @@ const InsightView = () => {
 				}
 
 				.obsidian-file-header {
-					padding: 12px;
+					padding: var(--size-4-3);
 					background-color: var(--background-secondary);
 					cursor: pointer;
-					transition: background-color 0.1s ease;
+					transition: background-color 0.15s ease-in-out;
 					border-bottom: 1px solid var(--background-modifier-border);
 				}
 
@@ -1277,7 +1281,7 @@ const InsightView = () => {
 				.obsidian-file-header-content {
 					display: flex;
 					flex-direction: column;
-					gap: 4px;
+					gap: var(--size-2-1);
 				}
 
 				.obsidian-file-header-top {
@@ -1289,7 +1293,7 @@ const InsightView = () => {
 				.obsidian-file-header-left {
 					display: flex;
 					align-items: center;
-					gap: 8px;
+					gap: var(--size-2-2);
 					flex: 1;
 					min-width: 0;
 				}
@@ -1297,7 +1301,7 @@ const InsightView = () => {
 				.obsidian-file-header-right {
 					display: flex;
 					align-items: center;
-					gap: 8px;
+					gap: var(--size-2-2);
 					flex-shrink: 0;
 				}
 
@@ -1305,32 +1309,32 @@ const InsightView = () => {
 					color: var(--text-muted);
 					font-size: var(--font-ui-smaller);
 					background-color: var(--background-modifier-border);
-					padding: 2px 6px;
+					padding: var(--size-2-1) var(--size-2-2);
 					border-radius: var(--radius-s);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-file-path-row {
 					margin-left: 24px;
 					display: flex;
 					flex-direction: column;
-					gap: 4px;
+					gap: var(--size-2-1);
 				}
 
 				.obsidian-insight-types {
 					display: flex;
 					flex-wrap: wrap;
-					gap: 4px;
-					margin-top: 4px;
+					gap: var(--size-2-1);
+					margin-top: var(--size-2-1);
 				}
 
 				.obsidian-insight-type-tag {
 					color: var(--text-muted);
 					font-size: var(--font-ui-smaller);
 					background-color: var(--background-modifier-border-hover);
-					padding: 1px 4px;
+					padding: 1px var(--size-2-1);
 					border-radius: var(--radius-s);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-expand-icon {
@@ -1341,7 +1345,7 @@ const InsightView = () => {
 				.obsidian-file-name {
 					color: var(--text-normal);
 					font-size: var(--font-ui-medium);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 					flex-shrink: 0;
 					user-select: text;
 					cursor: text;
@@ -1361,10 +1365,10 @@ const InsightView = () => {
 				}
 
 				.obsidian-result-item {
-					padding: 12px 12px 12px 32px;
+					padding: var(--size-4-3) var(--size-4-3) var(--size-4-3) var(--size-4-8);
 					border-bottom: 1px solid var(--background-modifier-border-focus);
 					cursor: pointer;
-					transition: background-color 0.1s ease;
+					transition: background-color 0.15s ease-in-out;
 				}
 
 				.obsidian-result-item:hover {
@@ -1379,14 +1383,14 @@ const InsightView = () => {
 					display: flex;
 					align-items: center;
 					justify-content: space-between;
-					margin-bottom: 6px;
-					gap: 8px;
+					margin-bottom: var(--size-2-2);
+					gap: var(--size-2-2);
 				}
 
 				.obsidian-result-header-left {
 					display: flex;
 					align-items: center;
-					gap: 8px;
+					gap: var(--size-2-2);
 					flex: 1;
 					min-width: 0;
 				}
@@ -1398,14 +1402,14 @@ const InsightView = () => {
 				}
 
 				.obsidian-delete-insight-btn {
-					padding: 2px 6px;
+					padding: var(--size-2-1) var(--size-2-2);
 					background-color: transparent;
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-s);
 					color: var(--text-muted);
 					font-size: var(--font-ui-smaller);
 					cursor: pointer;
-					transition: all 0.2s ease;
+					transition: all 0.15s ease-in-out;
 					display: flex;
 					align-items: center;
 					justify-content: center;
@@ -1414,21 +1418,20 @@ const InsightView = () => {
 				}
 
 				.obsidian-delete-insight-btn:hover:not(:disabled) {
-					background-color: #dc3545;
-					border-color: #dc3545;
-					color: white;
+					background-color: var(--text-error);
+					border-color: var(--text-error);
+					color: var(--text-on-accent);
 				}
 
 				.obsidian-delete-insight-btn:disabled {
 					opacity: 0.6;
 					cursor: not-allowed;
-					font-size: 10px;
 				}
 
 				.obsidian-result-index {
 					color: var(--text-muted);
 					font-size: var(--font-ui-small);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 					min-width: 16px;
 					flex-shrink: 0;
 				}
@@ -1438,7 +1441,7 @@ const InsightView = () => {
 					font-size: var(--font-ui-smaller);
 					font-weight: 600;
 					background-color: var(--background-modifier-border);
-					padding: 2px 6px;
+					padding: var(--size-2-1) var(--size-2-2);
 					border-radius: var(--radius-s);
 					flex-grow: 1;
 				}
@@ -1469,13 +1472,13 @@ const InsightView = () => {
 				}
 
 				.obsidian-no-results {
-					padding: 40px 20px;
+					padding: var(--size-4-16) var(--size-4-8);
 					text-align: center;
 					color: var(--text-muted);
 				}
 
 				.obsidian-no-results p {
-					margin: 8px 0;
+					margin: var(--size-2-2) 0;
 					font-size: var(--font-ui-medium);
 				}
 
@@ -1511,7 +1514,7 @@ const InsightView = () => {
 				}
 
 				.obsidian-confirm-dialog-header {
-					padding: 16px 20px;
+					padding: var(--size-4-4) var(--size-4-8);
 					border-bottom: 1px solid var(--background-modifier-border);
 					background-color: var(--background-secondary);
 				}
@@ -1524,32 +1527,32 @@ const InsightView = () => {
 				}
 
 				.obsidian-confirm-dialog-body {
-					padding: 20px;
+					padding: var(--size-4-8);
 					color: var(--text-normal);
 					font-size: var(--font-ui-medium);
 					line-height: 1.5;
 				}
 
 				.obsidian-confirm-dialog-body p {
-					margin: 0 0 12px 0;
+					margin: 0 0 var(--size-4-3) 0;
 				}
 
 				.obsidian-confirm-dialog-warning {
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-s);
-					padding: 12px;
-					margin: 12px 0;
+					padding: var(--size-4-3);
+					margin: var(--size-4-3) 0;
 					color: var(--text-error);
 					font-size: var(--font-ui-small);
-					font-weight: 500;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-confirm-dialog-scope {
 					background-color: var(--background-secondary);
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-s);
-					padding: 8px 12px;
-					margin: 12px 0 0 0;
+					padding: var(--size-2-2) var(--size-4-3);
+					margin: var(--size-4-3) 0 0 0;
 					font-size: var(--font-ui-small);
 					color: var(--text-muted);
 				}
@@ -1558,15 +1561,15 @@ const InsightView = () => {
 					background-color: var(--background-secondary);
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-s);
-					padding: 12px;
-					margin: 12px 0;
+					padding: var(--size-4-3);
+					margin: var(--size-4-3) 0;
 				}
 
 				.obsidian-confirm-dialog-info-item {
 					display: flex;
 					justify-content: space-between;
 					align-items: center;
-					margin-bottom: 8px;
+					margin-bottom: var(--size-2-2);
 					font-size: var(--font-ui-small);
 				}
 
@@ -1576,7 +1579,7 @@ const InsightView = () => {
 
 				.obsidian-confirm-dialog-info-item strong {
 					color: var(--text-normal);
-					margin-right: 12px;
+					margin-right: var(--size-4-3);
 					flex-shrink: 0;
 				}
 
@@ -1591,24 +1594,24 @@ const InsightView = () => {
 				}
 
 				.obsidian-confirm-dialog-footer {
-					padding: 16px 20px;
+					padding: var(--size-4-4) var(--size-4-8);
 					border-top: 1px solid var(--background-modifier-border);
 					background-color: var(--background-secondary);
 					display: flex;
 					justify-content: flex-end;
-					gap: 12px;
+					gap: var(--size-4-3);
 				}
 
 				.obsidian-confirm-dialog-cancel-btn {
-					padding: 8px 16px;
+					padding: var(--size-2-2) var(--size-4-4);
 					background-color: var(--interactive-normal);
 					border: 1px solid var(--background-modifier-border);
 					border-radius: var(--radius-s);
 					color: var(--text-normal);
 					font-size: var(--font-ui-small);
 					cursor: pointer;
-					transition: all 0.2s ease;
-					font-weight: 500;
+					transition: all 0.15s ease-in-out;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-confirm-dialog-cancel-btn:hover {
@@ -1616,20 +1619,20 @@ const InsightView = () => {
 				}
 
 				.obsidian-confirm-dialog-confirm-btn {
-					padding: 8px 16px;
-					background-color: #dc3545;
-					border: 1px solid #dc3545;
+					padding: var(--size-2-2) var(--size-4-4);
+					background-color: var(--text-error);
+					border: 1px solid var(--text-error);
 					border-radius: var(--radius-s);
-					color: white;
+					color: var(--text-on-accent);
 					font-size: var(--font-ui-small);
 					cursor: pointer;
-					transition: all 0.2s ease;
-					font-weight: 500;
+					transition: all 0.15s ease-in-out;
+					font-weight: var(--font-medium);
 				}
 
 				.obsidian-confirm-dialog-confirm-btn:hover {
-					background-color: #c82333;
-					border-color: #c82333;
+					background-color: var(--text-error);
+					opacity: 0.8;
 				}
 				`}
 			</style>

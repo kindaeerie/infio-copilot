@@ -282,6 +282,24 @@ export const InfioSettingsSchema = z.object({
 		modelId: z.string(),
 	})).catch([]),
 
+	// Insight Model start list
+	collectedInsightModels: z.array(z.object({
+		provider: z.nativeEnum(ApiProvider),
+		modelId: z.string(),
+	})).catch([]),
+
+	// Apply Model start list
+	collectedApplyModels: z.array(z.object({
+		provider: z.nativeEnum(ApiProvider),
+		modelId: z.string(),
+	})).catch([]),
+
+	// Embedding Model start list
+	collectedEmbeddingModels: z.array(z.object({
+		provider: z.nativeEnum(ApiProvider),
+		modelId: z.string(),
+	})).catch([]),
+
 	// Active Provider Tab (for UI state)
 	activeProviderTab: z.nativeEnum(ApiProvider).catch(ApiProvider.Infio),
 

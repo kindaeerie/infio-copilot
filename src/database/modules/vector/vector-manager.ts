@@ -254,7 +254,7 @@ export class VectorManager {
 
 					await backOff(
 						async () => {
-							// 在嵌入之前处理 markdown，只处理一次
+							// 在嵌入之前处理 markdown
 							const cleanedBatchData = batchChunks.map(chunk => {
 								const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
 								return { chunk, cleanContent }

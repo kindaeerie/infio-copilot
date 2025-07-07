@@ -6,10 +6,12 @@ import {
 	useState
 } from 'react'
 
+
 import { Mentionable } from '../../../types/mentionable'
 
 import LexicalContentEditable from './LexicalContentEditable'
 import { SearchButton } from './SearchButton'
+import { SearchModeSelect } from './SearchModeSelect'
 
 export type SearchInputRef = {
 	focus: () => void
@@ -25,26 +27,28 @@ export type SearchInputProps = {
 	placeholder?: string
 	autoFocus?: boolean
 	disabled?: boolean
+	searchMode?: 'notes' | 'insights' | 'all'
+	onSearchModeChange?: (mode: 'notes' | 'insights' | 'all') => void
 }
 
-// 检查编辑器状态是否为空的辅助函数
+// 检查编辑器状态是否为空
 const isEditorStateEmpty = (editorState: SerializedEditorState): boolean => {
-	if (!editorState || !editorState.root || !editorState.root.children) {
+	try {
+		const root = editorState.root
+		if (!root || !root.children) return true
+		
+		// 检查是否有实际内容
+		const hasContent = root.children.some((child: any) => {
+			if (child.type === 'paragraph') {
+				return child.children && child.children.length > 0
+			}
+			return true
+		})
+		
+		return !hasContent
+	} catch (error) {
 		return true
 	}
-	
-	const children = editorState.root.children
-	if (children.length === 0) {
-		return true
-	}
-	
-	// 检查是否只有空的段落
-	if (children.length === 1 && children[0].type === 'paragraph') {
-		const paragraph = children[0] as any
-		return !paragraph.children || paragraph.children.length === 0
-	}
-	
-	return false
 }
 
 const SearchInputWithActions = forwardRef<SearchInputRef, SearchInputProps>(
@@ -56,6 +60,8 @@ const SearchInputWithActions = forwardRef<SearchInputRef, SearchInputProps>(
 			placeholder = '',
 			autoFocus = false,
 			disabled = false,
+			searchMode = 'all',
+			onSearchModeChange,
 		},
 		ref
 	) => {
@@ -112,6 +118,7 @@ const SearchInputWithActions = forwardRef<SearchInputRef, SearchInputProps>(
 					</div>
 				)}
 				<LexicalContentEditable
+					rootTheme="infio-search-lexical-content-editable-root"
 					initialEditorState={(editor) => {
 						if (initialSerializedEditorState) {
 							editor.setEditorState(
@@ -139,7 +146,13 @@ const SearchInputWithActions = forwardRef<SearchInputRef, SearchInputProps>(
 
 				<div className="infio-chat-user-input-controls">
 					<div className="infio-chat-user-input-controls__model-select-container">
-						{/* TODO: add model select */}
+						{onSearchModeChange && (
+							<SearchModeSelect 
+								searchMode={searchMode}
+								onSearchModeChange={onSearchModeChange}
+							/>
+						)}
+
 					</div>
 					<div className="infio-chat-user-input-controls__buttons">
 						<SearchButton onClick={() => handleSubmit()} />
