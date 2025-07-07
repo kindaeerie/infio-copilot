@@ -546,7 +546,7 @@ const InsightView = () => {
 						<div className="infio-insight-stats-overview">
 							<div className="infio-insight-stats-main">
 								<span className="infio-insight-stats-number">{insightResults.length}</span>
-								<span className="infio-insight-stats-label">个洞察</span>
+								<span className="infio-insight-stats-label">{t('insights.stats.insightCount')}</span>
 							</div>
 							<div className="infio-insight-stats-breakdown">
 								{insightGroupedResults.length > 0 && (
@@ -557,7 +557,7 @@ const InsightView = () => {
 												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'workspace').length}
 												</span>
-												<span className="infio-insight-stats-item-label">工作区</span>
+												<span className="infio-insight-stats-item-label">{t('insights.stats.workspaceCount')}</span>
 											</div>
 										)}
 										{insightGroupedResults.filter(g => g.groupType === 'folder').length > 0 && (
@@ -566,7 +566,7 @@ const InsightView = () => {
 												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'folder').length}
 												</span>
-												<span className="infio-insight-stats-item-label">文件夹</span>
+												<span className="infio-insight-stats-item-label">{t('insights.stats.folderCount')}</span>
 											</div>
 										)}
 										{insightGroupedResults.filter(g => g.groupType === 'file').length > 0 && (
@@ -575,7 +575,7 @@ const InsightView = () => {
 												<span className="infio-insight-stats-item-value">
 													{insightGroupedResults.filter(g => g.groupType === 'file').length}
 												</span>
-												<span className="infio-insight-stats-item-label">文件</span>
+												<span className="infio-insight-stats-item-label">{t('insights.stats.fileCount')}</span>
 											</div>
 										)}
 									</div>
@@ -585,7 +585,7 @@ const InsightView = () => {
 					)}
 					<div className="infio-insight-model-info">
 						<div className="infio-insight-model-row">
-							<span className="infio-insight-model-label">洞察模型:</span>
+							<span className="infio-insight-model-label">{t('insights.stats.insightModelLabel')}</span>
 							<ModelSelect modelType="insight" />
 						</div>
 						<div className="infio-insight-actions">
@@ -643,15 +643,15 @@ const InsightView = () => {
 							{/* 进度日志 */}
 							<div className="obsidian-insight-progress-log">
 								<div className="obsidian-insight-progress-log-item">
-									<span className="obsidian-insight-progress-log-label">阶段:</span>
+									<span className="obsidian-insight-progress-log-label">{t('insights.progress.stage')}</span>
 									<span className="obsidian-insight-progress-log-value">{initProgress.stage}</span>
 								</div>
 								<div className="obsidian-insight-progress-log-item">
-									<span className="obsidian-insight-progress-log-label">进度:</span>
+									<span className="obsidian-insight-progress-log-label">{t('insights.progress.progressLabel')}</span>
 									<span className="obsidian-insight-progress-log-value">{initProgress.current} / {initProgress.total}</span>
 								</div>
 								<div className="obsidian-insight-progress-log-item">
-									<span className="obsidian-insight-progress-log-label">当前:</span>
+									<span className="obsidian-insight-progress-log-label">{t('insights.progress.currentLabel')}</span>
 									<span className="obsidian-insight-progress-log-value">{initProgress.currentItem}</span>
 								</div>
 							</div>
@@ -785,9 +785,9 @@ const InsightView = () => {
 												<span className="obsidian-file-name">{fileGroup.fileName}</span>
 											</div>
 											<div className="obsidian-file-header-right">
-												<span className="obsidian-insight-count">
-													{fileGroup.insights.length} 个洞察
-												</span>
+																							<span className="obsidian-insight-count">
+												{fileGroup.insights.length} {t('insights.progress.insightCountLabel')}
+											</span>
 											</div>
 										</div>
 										<div className="obsidian-file-path-row">

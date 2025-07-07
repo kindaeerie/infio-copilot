@@ -6,6 +6,12 @@ export default {
 			subtitle: "Explore different modes to enhance your productivity"
 		},
 		navigation: {
+			history: "Chat History",
+			historyDesc: "View and manage your conversation history",
+			insights: "AI Insights",
+			insightsDesc: "View AI-generated insights and analysis",
+			search: "Semantic Search",
+			searchDesc: "Use RAG for semantic search within your note vault",
 			commands: "Commands",
 			commandsDesc: "Create and manage custom commands for quick actions",
 			customMode: "Custom Mode",
@@ -47,7 +53,29 @@ export default {
 			save: "Save",
 			cancel: "Cancel",
 			yesterday: "Yesterday",
-			daysAgo: "days ago"
+			daysAgo: "days ago",
+			// New keys for ChatHistoryView
+			cleanup: "Cleanup",
+			cleanupTitle: "Cleanup History Versions",
+			cleanupConfirm: "This operation will permanently delete all historical versions of conversations, keeping only the latest version. This helps clean up data, but the operation is irreversible. Are you sure you want to continue?",
+			cleanupSuccess: "Successfully cleaned up {count} outdated conversation files.",
+			cleanupNone: "No conversation files need to be cleaned up.",
+			cleanupFailed: "Cleanup failed, please check the developer console for more information.",
+			multiSelect: "Multi-select",
+			exitSelection: "Exit selection mode",
+			enterSelection: "Enter selection mode",
+			selectionMode: "Selection mode - {count} conversations selected",
+			selectAll: "Select all",
+			unselectAll: "Unselect all",
+			batchDelete: "Batch delete",
+			batchDeleteConfirm: "Are you sure you want to delete the selected {count} conversations? This operation is irreversible.",
+			batchDeleteSuccess: "Successfully deleted {count} conversations",
+			batchDeleteFailed: "{count} conversations failed to delete",
+			selectFirst: "Please select conversations to delete first",
+			currentWorkspace: "Current workspace",
+			showAllChats: "Show all conversations",
+			showWorkspaceChats: "Show only current workspace conversations",
+			workspaceLabel: "Workspace: {workspace}"
 		},
 		shortcutInfo: {
 			editInline: "Edit inline",
@@ -120,6 +148,7 @@ export default {
 			viewDetails: "View details"
 		},
 		input: {
+			search: "Search",
 			submit: "Submit",
 			collectedModels: "Collected Models",
 			loading: "Loading...",
@@ -597,7 +626,12 @@ export default {
 			workspace: "{count} workspace",
 			folder: "{count} folder",
 			file: "{count} file",
-			scopeLabel: "Scope:"
+			scopeLabel: "Scope:",
+			insightCount: "insights",
+			workspaceCount: "workspaces",
+			folderCount: "folders",
+			fileCount: "files",
+			insightModelLabel: "Insight Model:"
 		},
 		types: {
 			denseSummary: "📋 Dense Summary",
@@ -633,7 +667,11 @@ export default {
 			folderNotFound: "Folder does not exist:"
 		},
 		progress: {
-			current: "Processing: {item}"
+			current: "Processing: {item}",
+			stage: "Stage:",
+			progressLabel: "Progress:",
+			currentLabel: "Current:",
+			insightCountLabel: "insights"
 		}
 	},
 	workspace: {

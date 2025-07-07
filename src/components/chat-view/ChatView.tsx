@@ -2,7 +2,7 @@ import * as path from 'path'
 
 import { BaseSerializedNode } from '@lexical/clipboard/clipboard'
 import { useMutation } from '@tanstack/react-query'
-import { Box, Brain, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
+import { Box, Lightbulb, CircleStop, History, NotebookPen, Plus, Search, Server, SquareSlash, Undo } from 'lucide-react'
 import { App, Notice, TFile, TFolder, WorkspaceLeaf } from 'obsidian'
 import {
 	forwardRef,
@@ -193,7 +193,7 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 		}
 	}
 
-	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'workspace' | 'insights'>('search')
+	const [tab, setTab] = useState<'chat' | 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'workspace' | 'insights'>('chat')
 
 	const [selectedSerializedNodes, setSelectedSerializedNodes] = useState<BaseSerializedNode[]>([])
 
@@ -1312,18 +1312,6 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 					</button>
 					<button
 						onClick={() => {
-							if (tab === 'insights') {
-								setTab('chat')
-							} else {
-								setTab('insights')
-							}
-						}}
-						className="infio-chat-list-dropdown"
-					>
-						<Brain size={18} color={tab === 'insights' ? 'var(--text-accent)' : 'var(--text-color)'} />
-					</button>
-					<button
-						onClick={() => {
 							if (tab === 'search') {
 								setTab('chat')
 							} else {
@@ -1333,6 +1321,18 @@ const Chat = forwardRef<ChatRef, ChatProps>((props, ref) => {
 						className="infio-chat-list-dropdown"
 					>
 						<Search size={18} color={tab === 'search' ? 'var(--text-accent)' : 'var(--text-color)'} />
+					</button>
+					<button
+						onClick={() => {
+							if (tab === 'insights') {
+								setTab('chat')
+							} else {
+								setTab('insights')
+							}
+						}}
+						className="infio-chat-list-dropdown"
+					>
+						<Lightbulb size={18} color={tab === 'insights' ? 'var(--text-accent)' : 'var(--text-color)'} />
 					</button>
 					<button
 						onClick={() => {

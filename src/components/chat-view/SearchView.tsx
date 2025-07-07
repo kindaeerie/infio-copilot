@@ -286,7 +286,7 @@ const SearchView = () => {
 				currentWorkspace,
 				{ reindexAll: true },
 				(progress) => {
-					setRAGInitProgress(progress)
+					setRAGInitProgress(progress as any)
 				}
 			)
 

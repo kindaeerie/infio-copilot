@@ -174,7 +174,7 @@ async function loadTransformers(): Promise<void> {
 		globalTransformers.transformers = {
 			pipelineFactory,
 			AutoTokenizer,
-			env
+			env: env as unknown as TransformersEnv
 		};
 
 		transformersLoaded = true;

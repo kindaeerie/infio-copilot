@@ -7,6 +7,12 @@ export default {
 			subtitle: "探索不同模式来提升您的生产力"
 		},
 		navigation: {
+			history: "聊天记录",
+			historyDesc: "查看和管理您的对话历史记录",
+			insights: "AI 洞察",
+			insightsDesc: "查看 AI 生成的洞察和分析",
+			search: "语义搜索",
+			searchDesc: "使用 RAG 在笔记库中进行语义搜索",
 			commands: "命令",
 			commandsDesc: "创建和管理用于快速操作的自定义命令",
 			customMode: "自定义模式",
@@ -48,7 +54,29 @@ export default {
 			save: "保存",
 			cancel: "取消",
 			yesterday: "昨天",
-			daysAgo: "天前"
+			daysAgo: "天前",
+			// New keys for ChatHistoryView
+			cleanup: "清理",
+			cleanupTitle: "清理历史版本",
+			cleanupConfirm: "此操作将永久删除所有对话的历史版本，只保留最新版。这有助于清理数据，但操作不可撤销。确定要继续吗？",
+			cleanupSuccess: "成功清理了 {count} 个过时的对话文件。",
+			cleanupNone: "没有需要清理的对话文件。",
+			cleanupFailed: "清理失败，请检查开发者控制台获取更多信息。",
+			multiSelect: "多选",
+			exitSelection: "退出选择模式",
+			enterSelection: "进入选择模式",
+			selectionMode: "选择模式 - 已选择 {count} 个对话",
+			selectAll: "全选",
+			unselectAll: "取消全选",
+			batchDelete: "批量删除",
+			batchDeleteConfirm: "确定要删除选中的 {count} 个对话吗？此操作不可撤销。",
+			batchDeleteSuccess: "成功删除 {count} 个对话",
+			batchDeleteFailed: "{count} 个对话删除失败",
+			selectFirst: "请先选择要删除的对话",
+			currentWorkspace: "当前工作区",
+			showAllChats: "显示所有对话",
+			showWorkspaceChats: "只显示当前工作区对话",
+			workspaceLabel: "工作区: {workspace}"
 		},
 		shortcutInfo: {
 			editInline: "行内编辑",
@@ -599,7 +627,12 @@ export default {
 			workspace: "{count}工作区",
 			folder: "{count}文件夹",
 			file: "{count}文件",
-			scopeLabel: "范围:"
+			scopeLabel: "范围:",
+			insightCount: "个洞察",
+			workspaceCount: "个工作区",
+			folderCount: "个文件夹",
+			fileCount: "个文件",
+			insightModelLabel: "洞察模型:"
 		},
 		types: {
 			denseSummary: "📋 密集摘要",
@@ -635,7 +668,11 @@ export default {
 			folderNotFound: "文件夹不存在:"
 		},
 		progress: {
-			current: "正在处理: {item}"
+			current: "正在处理: {item}",
+			stage: "阶段:",
+			progressLabel: "进度:",
+			currentLabel: "当前:",
+			insightCountLabel: "个洞察"
 		}
 	},
 	workspace: {

@@ -1,38 +1,50 @@
-import { NotebookPen, Search, Server, SquareSlash } from 'lucide-react';
+import { History, Lightbulb, NotebookPen, Search, Server, SquareSlash } from 'lucide-react';
 import React from 'react';
 
 import { t } from '../../lang/helpers';
 
 interface HelloInfoProps {
-	onNavigate: (tab: 'commands' | 'custom-mode' | 'mcp' | 'search') => void;
+	onNavigate: (tab: 'commands' | 'custom-mode' | 'mcp' | 'search' | 'history' | 'insights') => void;
 }
 
 const HelloInfo: React.FC<HelloInfoProps> = ({ onNavigate }) => {
 	const navigationItems = [
 		{
-			label: '语义搜索',
-			description: '使用 RAG 在笔记库中进行语义搜索',
+			label: t('chat.navigation.history'),
+			description: t('chat.navigation.historyDesc'),
+			icon: <History size={20} />,
+			action: () => onNavigate('history'),
+		},
+		{
+			label: t('chat.navigation.search'),
+			description: t('chat.navigation.searchDesc'),
 			icon: <Search size={20} />,
 			action: () => onNavigate('search'),
 		},
 		{
-			label: t('chat.navigation.commands'),
-			description: t('chat.navigation.commandsDesc'),
-			icon: <SquareSlash size={20} />,
-			action: () => onNavigate('commands'),
+			label: t('chat.navigation.insights'),
+			description: t('chat.navigation.insightsDesc'),
+			icon: <Lightbulb size={20} />,
+			action: () => onNavigate('insights'),
 		},
-		{
-			label: t('chat.navigation.customMode'),
-			description: t('chat.navigation.customModeDesc'),
-			icon: <NotebookPen size={20} />,
-			action: () => onNavigate('custom-mode'),
-		},
-		{
-			label: t('chat.navigation.mcp'),
-			description: t('chat.navigation.mcpDesc'),
-			icon: <Server size={20} />,
-			action: () => onNavigate('mcp'),
-		}
+		// {
+		// 	label: t('chat.navigation.commands'),
+		// 	description: t('chat.navigation.commandsDesc'),
+		// 	icon: <SquareSlash size={20} />,
+		// 	action: () => onNavigate('commands'),
+		// },
+		// {
+		// 	label: t('chat.navigation.customMode'),
+		// 	description: t('chat.navigation.customModeDesc'),
+		// 	icon: <NotebookPen size={20} />,
+		// 	action: () => onNavigate('custom-mode'),
+		// },
+		// {
+		// 	label: t('chat.navigation.mcp'),
+		// 	description: t('chat.navigation.mcpDesc'),
+		// 	icon: <Server size={20} />,
+		// 	action: () => onNavigate('mcp'),
+		// }
 	];
 
 	return (

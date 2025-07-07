@@ -49,7 +49,7 @@ const ChatHistoryView = ({
 	const titleInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
 
 	const handleCleanup = async () => {
-		const confirmed = confirm('此操作将永久删除所有对话的历史版本，只保留最新版。这有助于清理数据，但操作不可撤销。确定要继续吗？')
+		const confirmed = confirm(String(t('chat.history.cleanupConfirm')))
 		if (!confirmed) {
 			return
 		}
@@ -57,12 +57,12 @@ const ChatHistoryView = ({
 		try {
 			const count = await cleanupOutdatedChats()
 			if (count > 0) {
-				new Notice(`成功清理了 ${count} 个过时的对话文件。`)
+				new Notice(String(t('chat.history.cleanupSuccess', { count })))
 			} else {
-				new Notice('没有需要清理的对话文件。')
+				new Notice(String(t('chat.history.cleanupNone')))
 			}
 		} catch (error) {
-			new Notice('清理失败，请检查开发者控制台获取更多信息。')
+			new Notice(String(t('chat.history.cleanupFailed')))
 			console.error('Failed to cleanup outdated chats', error)
 		}
 	}
@@ -145,12 +145,12 @@ const ChatHistoryView = ({
 	// batch delete selected conversations
 	const handleBatchDelete = async () => {
 		if (selectedConversations.size === 0) {
-			new Notice('请先选择要删除的对话')
+			new Notice(String(t('chat.history.selectFirst')))
 			return
 		}
 
 		// show confirmation
-		const confirmed = confirm(`确定要删除选中的 ${selectedConversations.size} 个对话吗？此操作不可撤销。`)
+		const confirmed = confirm(String(t('chat.history.batchDeleteConfirm', { count: selectedConversations.size })))
 		if (!confirmed) {
 			return
 		}
@@ -172,10 +172,10 @@ const ChatHistoryView = ({
 
 		// show results
 		if (deletedIds.length > 0) {
-			new Notice(`成功删除 ${deletedIds.length} 个对话`)
+			new Notice(String(t('chat.history.batchDeleteSuccess', { count: deletedIds.length })))
 		}
 		if (errors.length > 0) {
-			new Notice(`${errors.length} 个对话删除失败`)
+			new Notice(String(t('chat.history.batchDeleteFailed', { count: errors.length })))
 		}
 
 		// clear selections
@@ -241,18 +241,18 @@ const ChatHistoryView = ({
 					<button
 						onClick={handleCleanup}
 						className="infio-chat-history-cleanup-btn"
-						title={'清理历史版本'}
+						title={String(t('chat.history.cleanupTitle'))}
 					>
 						<Sparkles size={16} />
-						清理
+						{t('chat.history.cleanup')}
 					</button>
 					<button
 						onClick={toggleSelectionMode}
 						className={`infio-chat-history-selection-btn ${selectionMode ? 'active' : ''}`}
-						title={selectionMode ? '退出选择模式' : '进入选择模式'}
+						title={selectionMode ? String(t('chat.history.exitSelection')) : String(t('chat.history.enterSelection'))}
 					>
 						<CopyPlus size={16} />
-						{selectionMode ? '取消' : '多选'}
+						{selectionMode ? t('chat.history.cancel') : t('chat.history.multiSelect')}
 					</button>
 				</div>
 			</div>
@@ -260,7 +260,7 @@ const ChatHistoryView = ({
 			{/* description */}
 			<div className="infio-chat-history-tip">
 				{selectionMode 
-					? `选择模式 - 已选择 ${selectedConversations.size} 个对话`
+					? String(t('chat.history.selectionMode', { count: selectedConversations.size }))
 					: String(t('chat.history.description'))
 				}
 			</div>
@@ -276,12 +276,12 @@ const ChatHistoryView = ({
 							{isAllSelected ? (
 								<>
 									<CheckSquare size={16} />
-									取消全选
+									{t('chat.history.unselectAll')}
 								</>
 							) : (
 								<>
 									<Square size={16} />
-									全选
+									{t('chat.history.selectAll')}
 								</>
 							)}
 						</button>
@@ -293,7 +293,7 @@ const ChatHistoryView = ({
 							className="infio-chat-history-batch-delete-btn"
 						>
 							<Trash2 size={16} />
-							批量删除 ({selectedConversations.size})
+							{t('chat.history.batchDelete')} ({selectedConversations.size})
 						</button>
 					</div>
 				</div>
@@ -316,10 +316,10 @@ const ChatHistoryView = ({
 				<button
 					onClick={toggleWorkspaceFilter}
 					className={`infio-chat-history-workspace-filter-btn ${filterByWorkspace ? 'active' : ''}`}
-					title={filterByWorkspace ? '显示所有对话' : '只显示当前工作区对话'}
+					title={filterByWorkspace ? String(t('chat.history.showAllChats')) : String(t('chat.history.showWorkspaceChats'))}
 				>
 					<Globe size={14} />
-					当前工作区
+					{t('chat.history.currentWorkspace')}
 				</button>
 			</div>
 
@@ -393,7 +393,7 @@ const ChatHistoryView = ({
 										<div className="infio-chat-history-conversation-title">{conversation.title}</div>
 										{conversation.workspace && (
 											<div className="infio-chat-history-workspace">
-												工作区: {conversation.workspace}
+												{t('chat.history.workspaceLabel', { workspace: conversation.workspace })}
 											</div>
 										)}
 									</div>
