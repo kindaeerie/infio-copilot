@@ -120,11 +120,13 @@
 		"rehype-raw": "^7.0.0",
 		"remark-gfm": "^4.0.0",
 		"remove-markdown": "^0.6.2",
+		"sanitize-basename": "^2.0.2",
 		"shell-env": "^4.0.1",
 		"simple-git": "^3.27.0",
 		"smart-embed-model": "^1.0.7",
 		"string-similarity": "^4.0.4",
 		"styled-components": "^6.1.19",
+		"unsanitize-basename": "^2.0.1",
 		"uuid": "^10.0.0",
 		"zod": "3.24.2"
 	},

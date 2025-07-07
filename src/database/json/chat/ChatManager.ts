@@ -1,5 +1,7 @@
 import { App } from 'obsidian'
 import { v4 as uuidv4 } from 'uuid'
+import sanitize from 'sanitize-basename'
+import unsanitize from 'unsanitize-basename'
 
 import { ChatConversationMeta } from '../../../types/chat'
 import { AbstractJsonRepository } from '../base'
@@ -11,7 +13,6 @@ import {
 	CHAT_SCHEMA_VERSION,
 	ChatConversation
 } from './types'
-
 
 export class ChatManager extends AbstractJsonRepository<
 	ChatConversation,
@@ -25,35 +26,89 @@ export class ChatManager extends AbstractJsonRepository<
 	}
 
 	protected generateFileName(chat: ChatConversation): string {
-		// 新格式: v{schemaVersion}_{title}_{updatedAt}_{id}_{workspaceId}.json
+		// 新格式 v2: v{schemaVersion}_{sanitizedTitle}_{updatedAt}_{id}_{workspaceId}.json
+		const sanitizedTitle = sanitize(chat.title, { maxLength: 100 })
 		// 如果没有工作区，使用 'vault' 作为默认值
-		const encodedTitle = encodeURIComponent(chat.title)
 		const workspaceId = chat.workspace || 'vault'
-		return `v${chat.schemaVersion}_${encodedTitle}_${chat.updatedAt}_${chat.id}_${workspaceId}.json`
+		return `v${chat.schemaVersion}_${sanitizedTitle}_${chat.updatedAt}_${chat.id}_${workspaceId}.json`
 	}
 
 	protected parseFileName(fileName: string): ChatConversationMeta | null {
-		// 使用一个正则表达式，工作区部分为可选: v{schemaVersion}_{title}_{updatedAt}_{id}_{workspaceId}?.json
+		// 通过头两个字符判断版本
+		if (fileName.startsWith('v2_')) {
+			return this.parseFileNameV2(fileName)
+		} else if (fileName.startsWith('v1_')) {
+			return this.parseFileNameV1(fileName)
+		}
+		
+		return null
+	}
+
+	/**
+	 * 解析新版本 (v2) 文件名
+	 * 格式: v2_{sanitizedTitle}_{updatedAt}_{id}_{workspaceId}.json
+	 */
+	private parseFileNameV2(fileName: string): ChatConversationMeta | null {
 		const regex = new RegExp(
-			`^v${CHAT_SCHEMA_VERSION}_(.+)_(\\d+)_([0-9a-f-]+)(?:_([^_]+))?\\.json$`,
+			`^v2_(.+)_(\\d+)_([0-9a-f-]+)(?:_([^_]+))?\\.json$`,
 		)
 		const match = fileName.match(regex)
 
 		if (!match) return null
 
-		const title = decodeURIComponent(match[1])
-		const updatedAt = parseInt(match[2], 10)
-		const id = match[3]
-		const workspaceId = match[4] // 可能为undefined（老格式）
+		try {
+			// 使用 unsanitize-basename 还原原始标题
+			const title = unsanitize(match[1])
+			const updatedAt = parseInt(match[2], 10)
+			const id = match[3]
+			const workspaceId = match[4] // 可能为undefined（老格式）
 
-		return {
-			id,
-			schemaVersion: CHAT_SCHEMA_VERSION,
-			title,
-			updatedAt,
-			createdAt: 0,
-			// 如果没有工作区信息（老格式），则认为是vault（全局消息）
-			workspace: workspaceId === 'vault' ? undefined : workspaceId,
+			return {
+				id,
+				schemaVersion: 2,
+				title,
+				updatedAt,
+				createdAt: 0,
+				// 如果没有工作区信息（老格式），则认为是vault（全局消息）
+				workspace: workspaceId === 'vault' ? undefined : workspaceId,
+			}
+		} catch (error) {
+			console.warn('Failed to unsanitize filename:', fileName, error)
+			return null
+		}
+	}
+
+	/**
+	 * 解析旧版本 (v1) 文件名
+	 * 格式: v1_{encodedTitle}_{updatedAt}_{id}_{workspaceId}.json
+	 */
+	private parseFileNameV1(fileName: string): ChatConversationMeta | null {
+		const regex = new RegExp(
+			`^v1_(.+)_(\\d+)_([0-9a-f-]+)(?:_([^_]+))?\\.json$`,
+		)
+		const match = fileName.match(regex)
+
+		if (!match) return null
+
+		try {
+			// 旧版本使用 decodeURIComponent
+			const title = decodeURIComponent(match[1])
+			const updatedAt = parseInt(match[2], 10)
+			const id = match[3]
+			const workspaceId = match[4] // 可能为undefined（老格式）
+
+			return {
+				id,
+				schemaVersion: 1,
+				title,
+				updatedAt,
+				createdAt: 0,
+				// 如果没有工作区信息（老格式），则认为是vault（全局消息）
+				workspace: workspaceId === 'vault' ? undefined : workspaceId,
+			}
+		} catch (error) {
+			console.warn('Failed to decode v1 filename:', fileName, error)
+			return null
 		}
 	}
 

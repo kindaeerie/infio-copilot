@@ -10,17 +10,20 @@ Infio Copilot 是一款可高度个人定制化的 Obsidian AI 插件，旨在�
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/felixduan)
 
-## 最新版本
-[0.5.0](https://github.com/infiolab/infio-copilot/releases/tag/0.5.0) 增强性能和稳定性改进, 增加了 MC P支持
+# 🚀 新版本发布：引入工作区、洞察与本地模型！
 
-## 最近更新
-[0.2.4](https://github.com/infiolab/infio-copilot/releases/tag/0.2.4) 增加了多语言支持
+我们很高兴地宣布一个重要更新，它将彻底改变您的知识管理体验。此版本引入了强大的新功能，如工作区、洞察、以及开箱即用的本地嵌入模型，让您更深入地与笔记互动。
 
-[0.2.3](https://github.com/infiolab/infio-copilot/releases/tag/0.2.3) 增加了自定义模式配置，现在无法创建自己的 agent
+---
+*   **🧠 内置本地嵌入模型**：现在默认包含 `LocalProdver(bge-micro-v2)` 模型。无需任何额外配置，即可享受强大的本地语义搜索和分析功能。
 
-[0.1.7](https://github.com/infiolab/infio-copilot/releases/tag/0.1.7) 增加了图片选择器模态框，允许用户在 Obsidian vault 或本地文件浏览器中搜索、选择和上传图片
+*   **🗂️ 工作区 (Workspaces)**：引入全新的工作区功能，帮助您更好地组织和隔离不同的项目和知识领域，让您的工作流更加清晰。
 
-[0.1.6](https://github.com/infiolab/infio-copilot/releases/tag/0.1.6) 更新了应用视图 (apply view)，现在可以在应用视图中编辑内容
+*   **💡 洞察 (Insights)**：我们增加了强大的“洞察”功能。您可以从笔记中提取关键摘要、进行反思或生成内容大纲，从您的知识库中发现深层联系。
+
+*   **🔍 多维度查询与对话**：像与人交谈一样与您的笔记互动。现在您可以根据时间、任务状态等多种维度进行查询，轻松找到所需信息。
+
+*   **✍️ 全新 `write` 模式**：一个专为写作而生的新模式，提供更专注、更流畅的创作体验，帮助您将想法转化为结构清晰的文档。
 
 ## 功能特点
 
@@ -30,10 +33,14 @@ Infio Copilot 是一款可高度个人定制化的 Obsidian AI 插件，旨在�
 | 📝 智能补全 | 在输入时获取上下文感知的写作建议 |
 | ✏️ 内联编辑 | 直接在当前文件中编辑笔记 |
 | 🔍 全库对话 | 使用 AI 与整个 Obsidian vault 交互 |
-| 🖼️ 图片分析 | 上传并分析来自 vault 或本地系统的图片 |
+| 语义搜索 |   |
 | ⌨️ 快捷命令 | 创建和管理自定义快捷命令，实现快速操作 |
 | 🎯 自定义Mode | 定义具有特定行为的个性化 AI 模式 |
 | 🔌 MCP | 管理模型上下文协议集成 |
+| 🗂️ 工作空间 | 组织项目、研究和个人笔记，无缝切换上下文 |
+| 💡 深度洞察 | 综合信息、发现连接、获得更深层次的理解 |
+| 🔍 多维查询 | 基于时间、任务和元数据执行复杂查询 |
+| ✍️ 新写作模式 | 重构的写作体验，提供直观、强大且无干扰的界面 |
 
 ### 🖋️ 内联编辑
 
@@ -95,8 +102,6 @@ Infio Copilot 是一款可高度个人定制化的 Obsidian AI 插件，旨在�
      * Infio Copilot: Infio add selection to chat -> cmd + shift + L
      * Infio Copilot: Infio Inline Edit -> cmd + shift + K
 ![autocomplte](asserts/doc-set-hotkey.png)
-7. 如果需要 跟文档聊天 , 需要配置 embedding 模型
-	 - 目前之后 SiliconFlow Alibaba Google OpenAI 平台支持嵌入模型
 
 ## 反馈与支持
 我们重视您的意见，并希望确保您能轻松分享想法和报告问题：

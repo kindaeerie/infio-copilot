@@ -4,17 +4,26 @@
 
 <a href="README.md" target="_blank"><b>English</b></a>  |  <a href="README_zh-CN.md" target="_blank"><b>中文</b></a>
 
-## Latest Version
-[0.5.0](https://github.com/infiolab/infio-copilot/releases/tag/0.5.0) Enhanced performance and stability improvements, added MCP support
+## ✨ What's New
+[0.7.2](https://github.com/infiolab/infio-copilot/releases/tag/0.7.2) 
+We're excited to announce a major update packed with new features to streamline your workflow and supercharge your knowledge management within Obsidian.
+---
 
-## Recent Updates
-[0.2.4](https://github.com/infiolab/infio-copilot/releases/tag/0.2.4) Added multilingual support
+* **🚀 Out-of-the-Box Embedding Model**
+To help you get started faster, we now include a default local embedding model (`bge-micro-v2`). No more manual setup is required to use powerful semantic features!
 
-[0.2.3](https://github.com/infiolab/infio-copilot/releases/tag/0.2.3) Add custom mode config, you can create you own agent now
+* **🗂️ Workspaces**
+Organize your projects, research, and personal notes with the new **Workspaces** feature. Keep your context clean and switch between different setups seamlessly.
 
-[0.1.7](https://github.com/infiolab/infio-copilot/releases/tag/0.1.7) Added image selector modal, allowing users to search, select, and upload images in obsidian vault or local file browser
+* **💡 Insights**
+Go beyond simple notes with our new **Insights** feature. Synthesize information, discover connections, and gain a deeper understanding of your knowledge base.
 
-[0.1.6](https://github.com/infiolab/infio-copilot/releases/tag/0.1.6) update apply view, you can edit content in apply view
+* **🔍 Advanced Multi-Dimensional Queries**
+Converse with your notes! You can now perform complex queries based on various dimensions like time, tasks, and other metadata. Finding the exact piece of information has never been easier.
+
+* **✍️ New "Write" Mode**
+We've rebuilt our **Write** mode from the ground up to provide a more intuitive, powerful, and distraction-free writing experience.
+
 
 ## Features
 
@@ -24,10 +33,15 @@
 | 📝 Autocomplete | Receive context-aware writing suggestions as you type |
 | ✏️ Inline Editing | Edit your notes directly within the current file |
 | 🔍 Vault Chat | Interact with your entire Obsidian vault using AI |
-| 🖼️ Image Analysis | Upload and analyze images from your vault or local system |
+| 🔍 Vault Search | Use semantic search to explore your entire vault |
 | ⌨️ Commands | Create and manage custom commands for quick actions |
 | 🎯 Custom Mode | Define personalized AI modes with specific behaviors |
 | 🔌 MCP | Manage Model Context Protocol integrations |
+| 🗂️ Workspaces | Organize projects, research, and personal notes with seamless context switching |
+| 💡 Insights | Synthesize information, discover connections, and gain deeper understanding |
+| 🔍 dataview query | Perform complex queries based on time, tasks, and metadata |
+| ✍️ New Write Mode | Rebuilt writing experience with intuitive, powerful, and distraction-free interface |
+
 
 ### Chat & Edit Flow
 
@@ -83,8 +97,8 @@ Leverage the power of AI to interact with your entire Obsidian vault, gaining in
      * Infio Copilot: Infio add selection to chat -> cmd + shift + L
      * Infio Copilot: Infio Inline Edit -> cmd + shift + K
 ![autocomplte](asserts/doc-set-hotkey.png)
-7. If you need to chat with documents, you must configure an embedding model.
-   - Currently, only SiliconFlow, Alibaba, Google, and OpenAI platforms support embedding models.
+7. **NEW: Out-of-the-Box Embedding Model** - The plugin now includes a default local embedding model (`bge-micro-v2`), so you can start using semantic features immediately! For enhanced performance, you can still configure additional embedding models:
+   - Currently, SiliconFlow, Alibaba, Google, and OpenAI platforms support embedding models.
 
 ## Feedback and Support
 We value your input and want to ensure you can easily share your thoughts and report any issues:
