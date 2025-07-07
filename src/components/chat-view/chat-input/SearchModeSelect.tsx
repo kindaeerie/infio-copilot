@@ -2,6 +2,8 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, ChevronUp, FileText, Lightbulb, Globe } from 'lucide-react'
 import { useState } from 'react'
 
+import { t } from '../../../lang/helpers'
+
 interface SearchModeSelectProps {
 	searchMode: 'notes' | 'insights' | 'all'
 	onSearchModeChange: (mode: 'notes' | 'insights' | 'all') => void
@@ -13,21 +15,21 @@ export function SearchModeSelect({ searchMode, onSearchModeChange }: SearchModeS
 	const searchModes = [
 		{
 			value: 'all' as const,
-			name: '全部',
+			name: t('semanticSearch.searchMode.all'),
 			icon: <Globe size={14} />,
-			description: '聚合搜索原始笔记和 AI 洞察'
+			description: t('semanticSearch.searchMode.allDescription')
 		},
 		{
 			value: 'notes' as const,
-			name: '原始笔记',
+			name: t('semanticSearch.searchMode.notes'),
 			icon: <FileText size={14} />,
-			description: '搜索原始笔记内容'
+			description: t('semanticSearch.searchMode.notesDescription')
 		},
 		{
 			value: 'insights' as const,
-			name: 'AI 洞察',
+			name: t('semanticSearch.searchMode.insights'),
 			icon: <Lightbulb size={14} />,
-			description: '搜索 AI 洞察内容'
+			description: t('semanticSearch.searchMode.insightsDescription')
 		}
 	]
 

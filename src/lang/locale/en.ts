@@ -497,6 +497,63 @@ export default {
 		toolNoDescription: "No description",
 		useMcpToolFrom: "Use MCP tool from",
 	},
+	semanticSearch: {
+		title: "Semantic Index",
+		embeddingModel: "Embedding model:",
+		vectorBlocks: "vector blocks",
+		files: "files",
+		initializeIndex: "Initialize index",
+		updateIndex: "Update index",
+		initializing: "Initializing...",
+		initializingWorkspace: "Initializing workspace RAG vector index",
+		initializingDescription: "Building vector index for files in the current workspace to improve search accuracy",
+		buildingVectorIndex: "Building vector index",
+		blocks: "blocks",
+		totalFiles: "Total {count} files",
+		initializationComplete: "Workspace RAG vector index initialization complete: {workspaceName}",
+		searchPlaceholder: "Semantic search (press Enter to search)...",
+		searching: "Searching...",
+		noResults: "No relevant results found",
+		imagePlaceholder: "[Image]",
+		// Search mode
+		searchMode: {
+			all: "All",
+			allDescription: "Search both original notes and AI insights",
+			notes: "Original Notes",
+			notesDescription: "Search original note content",
+			insights: "AI Insights",
+			insightsDescription: "Search AI insight content"
+		},
+		// Statistics
+		stats: {
+			filesAndBlocks: "{files} files, {blocks} blocks",
+			filesAndInsights: "{files} files, {insights} insights",
+			filesBlocksAndInsights: "{files} files, {blocks} blocks, {insights} insights"
+		},
+		// Confirmation dialogs
+		deleteConfirm: {
+			title: "Clear workspace index",
+			message: "This will clear all vector index data for the current workspace.",
+			warning: "This action cannot be undone. After clearing, you need to reinitialize the index to perform semantic search.",
+			workspaceLabel: "Workspace:",
+			entireVault: "Entire Vault",
+			cancel: "Cancel",
+			confirm: "Confirm Clear"
+		},
+		initConfirm: {
+			initTitle: "Initialize workspace index",
+			updateTitle: "Update workspace index",
+			initMessage: "This will build vector index for all files in the current workspace, which will improve semantic search accuracy.",
+			updateMessage: "This will update the vector index for the current workspace, reprocessing all files to ensure the index is up-to-date.",
+			embeddingModelLabel: "Embedding model:",
+			workspaceLabel: "Workspace:",
+			entireVault: "Entire Vault",
+			warning: "This operation may take several minutes, depending on the number and size of files.",
+			cancel: "Cancel",
+			startInit: "Start Initialize",
+			startUpdate: "Start Update"
+		}
+	},
 	insights: {
 		title: "AI Insights",
 		initializeInsights: "Initialize Insights",

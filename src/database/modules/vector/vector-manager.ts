@@ -1,9 +1,9 @@
 import { backOff } from 'exponential-backoff';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import removeMarkdown from "markdown-to-text";
 import { minimatch } from 'minimatch';
 import { App, Notice, TFile } from 'obsidian';
 import pLimit from 'p-limit';
+import removeMarkdown from 'remove-markdown';
 
 import { IndexProgress } from '../../../components/chat-view/QueryProgress';
 import {
@@ -14,10 +14,10 @@ import {
 } from '../../../core/llm/exception';
 import { InsertVector, SelectVector } from '../../../database/schema';
 import { EmbeddingModel } from '../../../types/embedding';
-import { openSettingsModalWithError } from '../../../utils/open-settings-modal';
 import { getFilesWithTag } from '../../../utils/glob-utils';
-import { Workspace } from '../../json/workspace/types';
+import { openSettingsModalWithError } from '../../../utils/open-settings-modal';
 import { DBManager } from '../../database-manager';
+import { Workspace } from '../../json/workspace/types';
 
 import { VectorRepository } from './vector-repository';
 
@@ -256,7 +256,7 @@ export class VectorManager {
 						async () => {
 							// 在嵌入之前处理 markdown
 							const cleanedBatchData = batchChunks.map(chunk => {
-								const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
+								const cleanContent = removeMarkdown(chunk.content)
 								return { chunk, cleanContent }
 							}).filter(({ cleanContent }) => cleanContent && cleanContent.trim().length > 0)
 
@@ -539,7 +539,7 @@ export class VectorManager {
 						async () => {
 							// 在嵌入之前处理 markdown，只处理一次
 							const cleanedBatchData = batchChunks.map(chunk => {
-								const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
+								const cleanContent = removeMarkdown(chunk.content)
 								return { chunk, cleanContent }
 							}).filter(({ cleanContent }) => cleanContent && cleanContent.trim().length > 0)
 

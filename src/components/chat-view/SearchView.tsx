@@ -10,6 +10,7 @@ import { useTrans } from '../../contexts/TransContext'
 import { Workspace } from '../../database/json/workspace/types'
 import { WorkspaceManager } from '../../database/json/workspace/WorkspaceManager'
 import { SelectVector } from '../../database/schema'
+import { t } from '../../lang/helpers'
 import { Mentionable } from '../../types/mentionable'
 import { getFilesWithTag } from '../../utils/glob-utils'
 import { openMarkdownFile } from '../../utils/obsidian'
@@ -459,7 +460,7 @@ const SearchView = () => {
 					h5: ({ children }) => <h5>{children}</h5>,
 					h6: ({ children }) => <h5>{children}</h5>,
 					// 移除图片显示，避免布局问题
-					img: () => <span className="obsidian-image-placeholder">[图片]</span>,
+					img: () => <span className="obsidian-image-placeholder">{t('semanticSearch.imagePlaceholder')}</span>,
 					// 代码块样式
 					code: ({ children, inline }: { children: React.ReactNode; inline?: boolean;[key: string]: unknown }) => {
 						if (inline) {
@@ -619,7 +620,7 @@ const SearchView = () => {
 			{/* 头部信息 */}
 			<div className="obsidian-search-header-wrapper">
 				<div className="obsidian-search-title">
-					<h3>语义索引</h3>
+					<h3>{t('semanticSearch.title')}</h3>
 				</div>
 
 				{/* 统计信息 */}
@@ -628,20 +629,20 @@ const SearchView = () => {
 						<div className="obsidian-search-stats-overview">
 							<div className="obsidian-search-stats-main">
 								<span className="obsidian-search-stats-number">{statisticsInfo.totalChunks}</span>
-								<span className="obsidian-search-stats-label">个向量块</span>
+								<span className="obsidian-search-stats-label">{t('semanticSearch.vectorBlocks')}</span>
 							</div>
 							<div className="obsidian-search-stats-breakdown">
 								<div className="obsidian-search-stats-item">
 									<span className="obsidian-search-stats-item-icon">📄</span>
 									<span className="obsidian-search-stats-item-value">{statisticsInfo.totalFiles}</span>
-									<span className="obsidian-search-stats-item-label">文件</span>
+									<span className="obsidian-search-stats-item-label">{t('semanticSearch.files')}</span>
 								</div>
 							</div>
 						</div>
 					)}
 					<div className="infio-search-model-info">
 						<div className="infio-search-model-row">
-							<span className="infio-search-model-label">嵌入模型:</span>
+							<span className="infio-search-model-label">{t('semanticSearch.embeddingModel')}</span>
 							<ModelSelect modelType="embedding" />
 						</div>
 						<div className="obsidian-search-actions">
@@ -649,9 +650,9 @@ const SearchView = () => {
 								onClick={handleInitWorkspaceRAG}
 								disabled={isInitializingRAG || isDeleting || isSearching}
 								className="obsidian-search-init-btn"
-								title={statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引'}
+								title={statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? t('semanticSearch.updateIndex') : t('semanticSearch.initializeIndex')}
 							>
-								{isInitializingRAG ? '正在初始化...' : (statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新索引' : '初始化索引')}
+								{isInitializingRAG ? t('semanticSearch.initializing') : (statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? t('semanticSearch.updateIndex') : t('semanticSearch.initializeIndex'))}
 							</button>
 
 						</div>
@@ -662,15 +663,15 @@ const SearchView = () => {
 				{isInitializingRAG && (
 					<div className="obsidian-rag-initializing">
 						<div className="obsidian-rag-init-header">
-							<h4>正在初始化工作区 RAG 向量索引</h4>
-							<p>为当前工作区的文件建立向量索引，提高搜索精度</p>
+							<h4>{t('semanticSearch.initializingWorkspace')}</h4>
+							<p>{t('semanticSearch.initializingDescription')}</p>
 						</div>
 						{ragInitProgress && ragInitProgress.type === 'indexing' && ragInitProgress.indexProgress && (
 							<div className="obsidian-rag-progress">
 								<div className="obsidian-rag-progress-info">
-									<span className="obsidian-rag-progress-stage">建立向量索引</span>
+									<span className="obsidian-rag-progress-stage">{t('semanticSearch.buildingVectorIndex')}</span>
 									<span className="obsidian-rag-progress-counter">
-										{ragInitProgress.indexProgress.completedChunks} / {ragInitProgress.indexProgress.totalChunks} 块
+										{ragInitProgress.indexProgress.completedChunks} / {ragInitProgress.indexProgress.totalChunks} {t('semanticSearch.blocks')}
 									</span>
 								</div>
 								<div className="obsidian-rag-progress-bar">
@@ -683,7 +684,7 @@ const SearchView = () => {
 								</div>
 								<div className="obsidian-rag-progress-details">
 									<div className="obsidian-rag-progress-files">
-										共 {ragInitProgress.indexProgress.totalFiles} 个文件
+										{t('semanticSearch.totalFiles', { count: ragInitProgress.indexProgress.totalFiles })}
 									</div>
 									<div className="obsidian-rag-progress-percentage">
 										{Math.round((ragInitProgress.indexProgress.completedChunks / Math.max(ragInitProgress.indexProgress.totalChunks, 1)) * 100)}%
@@ -700,9 +701,9 @@ const SearchView = () => {
 						<div className="obsidian-rag-success-content">
 							<span className="obsidian-rag-success-icon">✅</span>
 							<div className="obsidian-rag-success-text">
-								<span className="obsidian-rag-success-title">
-									工作区 RAG 向量索引初始化完成: {ragInitSuccess.workspaceName}
-								</span>
+															<span className="obsidian-rag-success-title">
+								{t('semanticSearch.initializationComplete', { workspaceName: ragInitSuccess.workspaceName })}
+							</span>
 							</div>
 							<button
 								className="obsidian-rag-success-close"
@@ -723,7 +724,7 @@ const SearchView = () => {
 						onSubmit={handleSearch}
 						mentionables={mentionables}
 						setMentionables={setMentionables}
-						placeholder="语义搜索（按回车键搜索）..."
+						placeholder={t('semanticSearch.searchPlaceholder')}
 						autoFocus={true}
 						disabled={isSearching}
 						searchMode={searchMode}
@@ -737,11 +738,11 @@ const SearchView = () => {
 				<div className="obsidian-search-stats">
 					<div className="obsidian-search-stats-line">
 						{searchMode === 'notes' ? (
-							`${totalFiles} 个文件，${totalBlocks} 个块`
+							t('semanticSearch.stats.filesAndBlocks', { files: totalFiles, blocks: totalBlocks })
 						) : searchMode === 'insights' ? (
-							`${insightGroupedResults.length} 个文件，${insightResults.length} 个洞察`
+							t('semanticSearch.stats.filesAndInsights', { files: insightGroupedResults.length, insights: insightResults.length })
 						) : (
-							`${totalAllFiles} 个文件，${totalBlocks} 个块，${insightResults.length} 个洞察`
+							t('semanticSearch.stats.filesBlocksAndInsights', { files: totalAllFiles, blocks: totalBlocks, insights: insightResults.length })
 						)}
 					</div>
 				</div>
@@ -751,17 +752,17 @@ const SearchView = () => {
 				<div className="obsidian-confirm-dialog-overlay">
 					<div className="obsidian-confirm-dialog">
 						<div className="obsidian-confirm-dialog-header">
-							<h3>清除工作区索引</h3>
+							<h3>{t('semanticSearch.deleteConfirm.title')}</h3>
 						</div>
 						<div className="obsidian-confirm-dialog-body">
 							<p>
-								将清除当前工作区的所有向量索引数据。
+								{t('semanticSearch.deleteConfirm.message')}
 							</p>
 							<p className="obsidian-confirm-dialog-warning">
-								此操作无法撤销，清除后需要重新初始化索引才能进行语义搜索。
+								{t('semanticSearch.deleteConfirm.warning')}
 							</p>
 							<div className="obsidian-confirm-dialog-scope">
-								<strong>工作区:</strong> {settings.workspace === 'vault' ? '整个 Vault' : settings.workspace}
+								<strong>{t('semanticSearch.deleteConfirm.workspaceLabel')}</strong> {settings.workspace === 'vault' ? t('semanticSearch.deleteConfirm.entireVault') : settings.workspace}
 							</div>
 						</div>
 						<div className="obsidian-confirm-dialog-footer">
@@ -769,13 +770,13 @@ const SearchView = () => {
 								onClick={cancelDeleteConfirm}
 								className="obsidian-confirm-dialog-cancel-btn"
 							>
-								取消
+								{t('semanticSearch.deleteConfirm.cancel')}
 							</button>
 							<button
 								onClick={confirmDeleteWorkspaceIndex}
 								className="obsidian-confirm-dialog-confirm-btn"
 							>
-								确认清除
+								{t('semanticSearch.deleteConfirm.confirm')}
 							</button>
 						</div>
 					</div>
@@ -787,31 +788,31 @@ const SearchView = () => {
 				<div className="obsidian-confirm-dialog-overlay">
 					<div className="obsidian-confirm-dialog">
 						<div className="obsidian-confirm-dialog-header">
-							<h3>{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '更新工作区索引' : '初始化工作区索引'}</h3>
+							<h3>{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? t('semanticSearch.initConfirm.updateTitle') : t('semanticSearch.initConfirm.initTitle')}</h3>
 						</div>
 						<div className="obsidian-confirm-dialog-body">
 							<p>
 								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0)
-									? '将更新当前工作区的向量索引，重新处理所有文件以确保索引最新。'
-									: '将为当前工作区的所有文件建立向量索引，这将提高语义搜索的准确性。'
+									? t('semanticSearch.initConfirm.updateMessage')
+									: t('semanticSearch.initConfirm.initMessage')
 								}
 							</p>
 							<div className="obsidian-confirm-dialog-info">
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>嵌入模型:</strong>
+									<strong>{t('semanticSearch.initConfirm.embeddingModelLabel')}</strong>
 									<span className="obsidian-confirm-dialog-model">
 										{settings.embeddingModelId}
 									</span>
 								</div>
 								<div className="obsidian-confirm-dialog-info-item">
-									<strong>工作区:</strong>
+									<strong>{t('semanticSearch.initConfirm.workspaceLabel')}</strong>
 									<span className="obsidian-confirm-dialog-workspace">
-										{settings.workspace === 'vault' ? '整个 Vault' : settings.workspace}
+										{settings.workspace === 'vault' ? t('semanticSearch.initConfirm.entireVault') : settings.workspace}
 									</span>
 								</div>
 							</div>
 							<p className="obsidian-confirm-dialog-warning">
-								此操作可能需要几分钟时间，具体取决于文件数量和大小。
+								{t('semanticSearch.initConfirm.warning')}
 							</p>
 						</div>
 						<div className="obsidian-confirm-dialog-footer">
@@ -819,13 +820,13 @@ const SearchView = () => {
 								onClick={cancelRAGInitConfirm}
 								className="obsidian-confirm-dialog-cancel-btn"
 							>
-								取消
+								{t('semanticSearch.initConfirm.cancel')}
 							</button>
 							<button
 								onClick={confirmInitWorkspaceRAG}
 								className="obsidian-confirm-dialog-confirm-btn"
 							>
-								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? '开始更新' : '开始初始化'}
+								{statisticsInfo && (statisticsInfo.totalFiles > 0 || statisticsInfo.totalChunks > 0) ? t('semanticSearch.initConfirm.startUpdate') : t('semanticSearch.initConfirm.startInit')}
 							</button>
 						</div>
 					</div>
@@ -835,7 +836,7 @@ const SearchView = () => {
 			{/* 搜索进度 */}
 			{isSearching && (
 				<div className="obsidian-search-loading">
-					正在搜索...
+					{t('semanticSearch.searching')}
 				</div>
 			)}
 
@@ -1044,7 +1045,7 @@ const SearchView = () => {
 					(searchMode === 'all' && allGroupedResults.length === 0)
 				) && (
 						<div className="obsidian-no-results">
-							<p>未找到相关结果</p>
+							<p>{t('semanticSearch.noResults')}</p>
 						</div>
 					)}
 			</div>

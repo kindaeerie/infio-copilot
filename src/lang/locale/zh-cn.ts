@@ -499,6 +499,63 @@ export default {
 			useMcpToolFrom: "使用来自以下的 MCP 工具：",
 		}
 	},
+	semanticSearch: {
+		title: "语义索引",
+		embeddingModel: "嵌入模型:",
+		vectorBlocks: "个向量块",
+		files: "文件",
+		initializeIndex: "初始化索引",
+		updateIndex: "更新索引",
+		initializing: "正在初始化...",
+		initializingWorkspace: "正在初始化工作区 RAG 向量索引",
+		initializingDescription: "为当前工作区的文件建立向量索引，提高搜索精度",
+		buildingVectorIndex: "建立向量索引",
+		blocks: "块",
+		totalFiles: "共 {count} 个文件",
+		initializationComplete: "工作区 RAG 向量索引初始化完成: {workspaceName}",
+		searchPlaceholder: "语义搜索（按回车键搜索）...",
+		searching: "正在搜索...",
+		noResults: "未找到相关结果",
+		imagePlaceholder: "[图片]",
+		// 搜索模式
+		searchMode: {
+			all: "全部",
+			allDescription: "聚合搜索原始笔记和 AI 洞察",
+			notes: "原始笔记",
+			notesDescription: "搜索原始笔记内容",
+			insights: "AI 洞察",
+			insightsDescription: "搜索 AI 洞察内容"
+		},
+		// 统计信息
+		stats: {
+			filesAndBlocks: "{files} 个文件，{blocks} 个块",
+			filesAndInsights: "{files} 个文件，{insights} 个洞察",
+			filesBlocksAndInsights: "{files} 个文件，{blocks} 个块，{insights} 个洞察"
+		},
+		// 确认对话框
+		deleteConfirm: {
+			title: "清除工作区索引",
+			message: "将清除当前工作区的所有向量索引数据。",
+			warning: "此操作无法撤销，清除后需要重新初始化索引才能进行语义搜索。",
+			workspaceLabel: "工作区:",
+			entireVault: "整个 Vault",
+			cancel: "取消",
+			confirm: "确认清除"
+		},
+		initConfirm: {
+			initTitle: "初始化工作区索引",
+			updateTitle: "更新工作区索引",
+			initMessage: "将为当前工作区的所有文件建立向量索引，这将提高语义搜索的准确性。",
+			updateMessage: "将更新当前工作区的向量索引，重新处理所有文件以确保索引最新。",
+			embeddingModelLabel: "嵌入模型:",
+			workspaceLabel: "工作区:",
+			entireVault: "整个 Vault",
+			warning: "此操作可能需要几分钟时间，具体取决于文件数量和大小。",
+			cancel: "取消",
+			startInit: "开始初始化",
+			startUpdate: "开始更新"
+		}
+	},
 	insights: {
 		title: "AI 洞察",
 		initializeInsights: "初始化洞察",

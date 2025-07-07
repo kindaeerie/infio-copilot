@@ -120,6 +120,7 @@
 		"reconnecting-eventsource": "^1.6.4",
 		"rehype-raw": "^7.0.0",
 		"remark-gfm": "^4.0.0",
+		"remove-markdown": "^0.6.2",
 		"shell-env": "^4.0.1",
 		"simple-git": "^3.27.0",
 		"smart-embed-model": "^1.0.7",
