@@ -42,22 +42,34 @@ const loadPGliteResources = async (): Promise<{
 }
 
 worker({
-	async init(options: PGliteWorkerOptions, ) {
+	async init(options: PGliteWorkerOptions, filesystem: string) {
 		let db: PGlite;
 		try {
 			const { fsBundle, wasmModule, vectorExtensionBundlePath } =
 				await loadPGliteResources()
-
-			db = await PGlite.create('opfs-ahp://infio-db', {
-				relaxedDurability: true,
-				fsBundle: fsBundle,
-				wasmModule: wasmModule,
-				...options,
-				extensions: {
-					...options.extensions,
-					vector: vectorExtensionBundlePath,
-				},
-			})
+			if (filesystem === 'idb') {
+				db = await PGlite.create('idb://infio-db', {
+					relaxedDurability: true,
+					fsBundle: fsBundle,
+					wasmModule: wasmModule,
+					...options,
+					extensions: {
+						...options.extensions,
+						vector: vectorExtensionBundlePath,
+					},
+				})
+			} else {
+				db = await PGlite.create('opfs-ahp://infio-db', {
+					relaxedDurability: true,
+					fsBundle: fsBundle,
+					wasmModule: wasmModule,
+					...options,
+					extensions: {
+						...options.extensions,
+						vector: vectorExtensionBundlePath,
+					},
+				})
+			}
 		} catch (error) {
 			console.error('Error creating PGlite instance:', error)
 			throw error

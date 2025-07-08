@@ -210,6 +210,7 @@ const openAICompatibleModelSchema = z.object({
 })
 
 const ragOptionsSchema = z.object({
+	filesystem: z.enum(['idb', 'opfs']).catch('opfs'),
 	chunkSize: z.number().catch(500),
 	batchSize: z.number().catch(32),
 	thresholdTokens: z.number().catch(8192),
@@ -391,6 +392,7 @@ export const InfioSettingsSchema = z.object({
 
 	// RAG Options
 	ragOptions: ragOptionsSchema.catch({
+		filesystem: 'opfs',
 		batchSize: 32,
 		chunkSize: 500,
 		thresholdTokens: 8192,

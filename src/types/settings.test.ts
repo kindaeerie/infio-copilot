@@ -110,6 +110,7 @@ describe('parseSmartCopilotSettings', () => {
 			},
 			systemPrompt: '',
 			ragOptions: {
+				filesystem: 'opfs',
 				batchSize: 32,
 				chunkSize: 500,
 				thresholdTokens: 8192,
@@ -238,6 +239,7 @@ describe('settings migration', () => {
 			embeddingModel: 'text-embedding-3-small',
 			systemPrompt: 'system prompt',
 			ragOptions: {
+				filesystem: 'opfs',
 				batchSize: 32,
 				chunkSize: 500,
 				thresholdTokens: 8192,
@@ -350,6 +352,7 @@ describe('settings migration', () => {
 			},
 			systemPrompt: 'system prompt',
 			ragOptions: {
+				filesystem: 'opfs',
 				batchSize: 32,
 				chunkSize: 500,
 				thresholdTokens: 8192,

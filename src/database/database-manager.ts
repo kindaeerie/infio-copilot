@@ -21,9 +21,9 @@ export class DBManager {
 		this.app = app
 	}
 
-	static async create(app: App): Promise<DBManager> {
+	static async create(app: App, filesystem: string): Promise<DBManager> {
 		const dbManager = new DBManager(app)
-		dbManager.db = await createAndInitDb()
+		dbManager.db = await createAndInitDb(filesystem)
 
 		dbManager.vectorManager = new VectorManager(app, dbManager)
 		dbManager.CommandManager = new CommandManager(app, dbManager)

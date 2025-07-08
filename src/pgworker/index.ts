@@ -5,7 +5,7 @@ import { PGliteWorker } from '@electric-sql/pglite/worker';
 
 import PGWorker from './pglite.worker';
 
-export const createAndInitDb = async () => {
+export const createAndInitDb = async (filesystem: string) => {
 	const worker = new PGWorker();
 
 	const pg = await PGliteWorker.create(
@@ -15,7 +15,8 @@ export const createAndInitDb = async () => {
 				live,
 			},
 		},
+		filesystem, 
 	)
-	console.log('PGlite DB created in opfs-ahp://infio-db')
+	console.log(`PGlite DB created in ${filesystem}://infio-db`)
 	return pg
 }

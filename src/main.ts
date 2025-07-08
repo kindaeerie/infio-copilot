@@ -436,15 +436,15 @@ export default class InfioPlugin extends Plugin {
 						new Notice('EmbeddingManager 未初始化', 5000);
 						return;
 					}
-					
+
 					// 加载模型
 					await this.embeddingManager.loadModel("Xenova/all-MiniLM-L6-v2", true);
-					
+
 					// 测试嵌入 "hello world"
 					const testText = "hello world";
-					
+
 					const result = await this.embeddingManager.embed(testText);
-					
+
 					// 显示结果
 					const resultMessage = `
 	嵌入测试完成！
@@ -453,15 +453,15 @@ export default class InfioPlugin extends Plugin {
 	向量维度: ${result.vec.length}
 	向量前4个值: [${result.vec.slice(0, 4).map(v => v.toFixed(4)).join(', ')}...]
 					`.trim();
-					
+
 					console.log('本地嵌入测试结果:', result);
-					
+
 					// 创建模态框显示结果
 					const modal = new Modal(this.app);
 					modal.titleEl.setText('本地嵌入测试结果');
 					modal.contentEl.createEl('pre', { text: resultMessage });
 					modal.open();
-					
+
 				} catch (error) {
 					console.error('嵌入测试失败:', error);
 					new Notice(`嵌入测试失败: ${error.message}`, 5000);
@@ -582,7 +582,10 @@ export default class InfioPlugin extends Plugin {
 
 		if (!this.dbManagerInitPromise) {
 			this.dbManagerInitPromise = (async () => {
-				this.dbManager = await DBManager.create(this.app)
+				this.dbManager = await DBManager.create(
+					this.app,
+					this.settings.ragOptions.filesystem,
+				)
 				return this.dbManager
 			})()
 		}
