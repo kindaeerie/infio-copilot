@@ -163,7 +163,7 @@ export class RAGEngine {
 		)
 	}
 
-	async processQuery({
+	async processSimilarityQuery({
 		query,
 		scope,
 		limit,
@@ -208,6 +208,221 @@ export class RAGEngine {
 			type: 'querying-done',
 			queryResult,
 		})
+		return queryResult
+	}
+
+	async processQuery({
+		query,
+		scope,
+		limit,
+		language,
+		onQueryProgressChange,
+	}: {
+		query: string
+		scope?: {
+			files: string[]
+			folders: string[]
+		}
+		limit?: number
+		language?: string
+		onQueryProgressChange?: (queryProgress: QueryProgressState) => void
+	}): Promise<
+		(Omit<SelectVector, 'embedding'> & {
+			similarity: number
+		})[]
+	> {
+		if (!this.embeddingModel) {
+			throw new Error('Embedding model is not set')
+		}
+
+		await this.initializeDimension()
+
+		onQueryProgressChange?.({
+			type: 'querying',
+		})
+
+		// 并行执行相似度搜索和全文搜索
+		const [similarityResults, fulltextResults] = await Promise.all([
+			this.processSimilarityQuery({
+				query,
+				scope,
+				limit,
+				onQueryProgressChange: undefined, // 避免重复触发进度回调
+			}),
+			this.processFulltextQuery({
+				query,
+				scope,
+				limit,
+				language,
+				onQueryProgressChange: undefined, // 避免重复触发进度回调
+			}),
+		])
+
+		// 优化：如果其中一个搜索结果为空，直接返回另一个结果
+		let finalResults: (Omit<SelectVector, 'embedding'> & { similarity: number })[]
+
+		if (fulltextResults.length === 0) {
+			// 全文搜索结果为空，直接返回相似度搜索结果
+			finalResults = similarityResults
+		} else if (similarityResults.length === 0) {
+			// 相似度搜索结果为空，直接返回全文搜索结果（转换格式）
+			finalResults = fulltextResults.map(result => ({
+				...result,
+				similarity: 1 - (result.rank - 1) / fulltextResults.length, // 将rank转换为相似度分数
+			}))
+		} else {
+			// 两个搜索都有结果，使用 RRF 算法合并
+			const rrf_k = 60 // RRF 常数
+			const mergedResults = this.mergeWithRRF(similarityResults, fulltextResults, rrf_k)
+
+			// 转换为与现有接口兼容的格式
+			finalResults = mergedResults.map(result => ({
+				...result,
+				similarity: result.rrfScore, // 使用 RRF 分数作为相似度
+			}))
+		}
+
+		onQueryProgressChange?.({
+			type: 'querying-done',
+			queryResult: finalResults,
+		})
+
+		return finalResults
+	}
+
+	/**
+	 * 使用倒数排名融合（RRF）算法合并相似度搜索和全文搜索结果
+	 * @param similarityResults 相似度搜索结果
+	 * @param fulltextResults 全文搜索结果
+	 * @param k RRF 常数，通常为 60
+	 * @returns 合并后的结果，按 RRF 分数排序
+	 */
+	private mergeWithRRF(
+		similarityResults: (Omit<SelectVector, 'embedding'> & { similarity: number })[],
+		fulltextResults: (Omit<SelectVector, 'embedding'> & { rank: number })[],
+		k: number = 60
+	): (Omit<SelectVector, 'embedding'> & { rrfScore: number })[] {
+		// 创建一个 Map 来存储每个文档的 RRF 分数
+		const rrfScores = new Map<string, {
+			doc: Omit<SelectVector, 'embedding'>,
+			score: number
+		}>()
+
+		// 处理相似度搜索结果
+		similarityResults.forEach((result, index) => {
+			const key = `${result.path}-${result.id}`
+			const rank = index + 1
+			const rrfScore = 1 / (k + rank)
+			
+			if (rrfScores.has(key)) {
+				const existing = rrfScores.get(key)
+				if (existing) {
+					existing.score += rrfScore
+				}
+			} else {
+				rrfScores.set(key, {
+					doc: {
+						id: result.id,
+						path: result.path,
+						mtime: result.mtime,
+						content: result.content,
+						metadata: result.metadata,
+					},
+					score: rrfScore
+				})
+			}
+		})
+
+		// 处理全文搜索结果
+		fulltextResults.forEach((result, index) => {
+			const key = `${result.path}-${result.id}`
+			const rank = index + 1
+			const rrfScore = 1 / (k + rank)
+			
+			if (rrfScores.has(key)) {
+				const existing = rrfScores.get(key)
+				if (existing) {
+					existing.score += rrfScore
+				}
+			} else {
+				rrfScores.set(key, {
+					doc: {
+						id: result.id,
+						path: result.path,
+						mtime: result.mtime,
+						content: result.content,
+						metadata: result.metadata,
+					},
+					score: rrfScore
+				})
+			}
+		})
+
+		// 转换为数组并进行归一化处理
+		const results = Array.from(rrfScores.values())
+		
+		// 找到最大分数用于归一化
+		const maxScore = Math.max(...results.map(r => r.score))
+		
+		// 归一化到 0~1 范围并按分数排序
+		const mergedResults = results
+			.map(({ doc, score }) => ({
+				...doc,
+				rrfScore: maxScore > 0 ? score / maxScore : 0 // 归一化到 0~1
+			}))
+			.sort((a, b) => b.rrfScore - a.rrfScore)
+
+		return mergedResults
+	}
+
+	async processFulltextQuery({
+		query,
+		scope,
+		limit,
+		language,
+		onQueryProgressChange,
+	}: {
+		query: string
+		scope?: {
+			files: string[]
+			folders: string[]
+		}
+		limit?: number
+		language?: string
+		onQueryProgressChange?: (queryProgress: QueryProgressState) => void
+	}): Promise<
+		(Omit<SelectVector, 'embedding'> & {
+			rank: number
+		})[]
+	> {
+		if (!this.embeddingModel) {
+			throw new Error('Embedding model is not set')
+		}
+
+		await this.initializeDimension()
+
+		onQueryProgressChange?.({
+			type: 'querying',
+		})
+
+		const queryResult = await this.vectorManager.performFulltextSearch(
+			query,
+			this.embeddingModel,
+			{
+				limit: limit ?? this.settings.ragOptions.limit,
+				scope,
+				language: language || 'english',
+			},
+		)
+
+		onQueryProgressChange?.({
+			type: 'querying-done',
+			queryResult: queryResult.map(result => ({
+				...result,
+				similarity: result.rank, // 为了兼容 QueryProgressState 类型
+			})),
+		})
+
 		return queryResult
 	}
 

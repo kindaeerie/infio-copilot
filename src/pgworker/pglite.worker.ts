@@ -78,6 +78,7 @@ worker({
 		// Execute SQL migrations
 		for (const [_key, migration] of Object.entries(migrations)) {
 			// Split SQL into individual commands and execute them one by one
+			console.log("migration: ", migration.description)
 			const commands = migration.sql.split('\n\n').filter(cmd => cmd.trim());
 			for (const command of commands) {
 				await db.exec(command);

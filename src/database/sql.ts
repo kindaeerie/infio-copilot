@@ -261,5 +261,108 @@ export const migrations: Record<string, SqlMigration> = {
             ALTER TABLE "source_insight_512" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
             ALTER TABLE "source_insight_384" ADD COLUMN IF NOT EXISTS "source_mtime" bigint NOT NULL DEFAULT 0;
         `
+	},
+	full_text_search: {
+		description: "Adds full-text search capabilities to embedding and source insight tables",
+		sql: `
+            -- Add content_tsv columns to embedding tables
+            ALTER TABLE "embeddings_1536" ADD COLUMN IF NOT EXISTS "content_tsv" TSVECTOR;
+            ALTER TABLE "embeddings_1024" ADD COLUMN IF NOT EXISTS "content_tsv" TSVECTOR;
+            ALTER TABLE "embeddings_768" ADD COLUMN IF NOT EXISTS "content_tsv" TSVECTOR;
+            ALTER TABLE "embeddings_512" ADD COLUMN IF NOT EXISTS "content_tsv" TSVECTOR;
+            ALTER TABLE "embeddings_384" ADD COLUMN IF NOT EXISTS "content_tsv" TSVECTOR;
+
+            -- Add insight_tsv columns to source insight tables
+            ALTER TABLE "source_insight_1536" ADD COLUMN IF NOT EXISTS "insight_tsv" TSVECTOR;
+            ALTER TABLE "source_insight_1024" ADD COLUMN IF NOT EXISTS "insight_tsv" TSVECTOR;
+            ALTER TABLE "source_insight_768" ADD COLUMN IF NOT EXISTS "insight_tsv" TSVECTOR;
+            ALTER TABLE "source_insight_512" ADD COLUMN IF NOT EXISTS "insight_tsv" TSVECTOR;
+            ALTER TABLE "source_insight_384" ADD COLUMN IF NOT EXISTS "insight_tsv" TSVECTOR;
+
+            -- Create trigger function for embeddings tables
+            CREATE OR REPLACE FUNCTION embeddings_tsv_trigger() RETURNS trigger AS $$
+            BEGIN
+                NEW.content_tsv := to_tsvector('english', coalesce(NEW.content, ''));
+                RETURN NEW;
+            END
+            $$ LANGUAGE plpgsql;
+
+            -- Create trigger function for source insight tables
+            CREATE OR REPLACE FUNCTION source_insight_tsv_trigger() RETURNS trigger AS $$
+            BEGIN
+                NEW.insight_tsv := to_tsvector('english', coalesce(NEW.insight, ''));
+                RETURN NEW;
+            END
+            $$ LANGUAGE plpgsql;
+
+            -- Create triggers for embeddings tables (drop if exists first)
+            DROP TRIGGER IF EXISTS tsvector_update_embeddings_1536 ON "embeddings_1536";
+            CREATE TRIGGER tsvector_update_embeddings_1536
+            BEFORE INSERT OR UPDATE ON "embeddings_1536"
+            FOR EACH ROW EXECUTE FUNCTION embeddings_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_embeddings_1024 ON "embeddings_1024";
+            CREATE TRIGGER tsvector_update_embeddings_1024
+            BEFORE INSERT OR UPDATE ON "embeddings_1024"
+            FOR EACH ROW EXECUTE FUNCTION embeddings_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_embeddings_768 ON "embeddings_768";
+            CREATE TRIGGER tsvector_update_embeddings_768
+            BEFORE INSERT OR UPDATE ON "embeddings_768"
+            FOR EACH ROW EXECUTE FUNCTION embeddings_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_embeddings_512 ON "embeddings_512";
+            CREATE TRIGGER tsvector_update_embeddings_512
+            BEFORE INSERT OR UPDATE ON "embeddings_512"
+            FOR EACH ROW EXECUTE FUNCTION embeddings_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_embeddings_384 ON "embeddings_384";
+            CREATE TRIGGER tsvector_update_embeddings_384
+            BEFORE INSERT OR UPDATE ON "embeddings_384"
+            FOR EACH ROW EXECUTE FUNCTION embeddings_tsv_trigger();
+
+            -- Create triggers for source insight tables (drop if exists first)
+            DROP TRIGGER IF EXISTS tsvector_update_source_insight_1536 ON "source_insight_1536";
+            CREATE TRIGGER tsvector_update_source_insight_1536
+            BEFORE INSERT OR UPDATE ON "source_insight_1536"
+            FOR EACH ROW EXECUTE FUNCTION source_insight_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_source_insight_1024 ON "source_insight_1024";
+            CREATE TRIGGER tsvector_update_source_insight_1024
+            BEFORE INSERT OR UPDATE ON "source_insight_1024"
+            FOR EACH ROW EXECUTE FUNCTION source_insight_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_source_insight_768 ON "source_insight_768";
+            CREATE TRIGGER tsvector_update_source_insight_768
+            BEFORE INSERT OR UPDATE ON "source_insight_768"
+            FOR EACH ROW EXECUTE FUNCTION source_insight_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_source_insight_512 ON "source_insight_512";
+            CREATE TRIGGER tsvector_update_source_insight_512
+            BEFORE INSERT OR UPDATE ON "source_insight_512"
+            FOR EACH ROW EXECUTE FUNCTION source_insight_tsv_trigger();
+
+            DROP TRIGGER IF EXISTS tsvector_update_source_insight_384 ON "source_insight_384";
+            CREATE TRIGGER tsvector_update_source_insight_384
+            BEFORE INSERT OR UPDATE ON "source_insight_384"
+            FOR EACH ROW EXECUTE FUNCTION source_insight_tsv_trigger();
+
+            -- Note: 现有数据的 tsvector 字段将保持为 NULL，只有新插入的数据会通过 trigger 自动填充
+            -- 这样可以避免大量 UPDATE 操作导致的文件句柄耗尽问题
+
+            -- Create GIN indexes for full-text search on embeddings tables
+            CREATE INDEX IF NOT EXISTS "embeddings_content_tsv_idx_1536" ON "embeddings_1536" USING GIN(content_tsv);
+            CREATE INDEX IF NOT EXISTS "embeddings_content_tsv_idx_1024" ON "embeddings_1024" USING GIN(content_tsv);
+            CREATE INDEX IF NOT EXISTS "embeddings_content_tsv_idx_768" ON "embeddings_768" USING GIN(content_tsv);
+            CREATE INDEX IF NOT EXISTS "embeddings_content_tsv_idx_512" ON "embeddings_512" USING GIN(content_tsv);
+            CREATE INDEX IF NOT EXISTS "embeddings_content_tsv_idx_384" ON "embeddings_384" USING GIN(content_tsv);
+
+            -- Create GIN indexes for full-text search on source insight tables
+            CREATE INDEX IF NOT EXISTS "source_insight_tsv_idx_1536" ON "source_insight_1536" USING GIN(insight_tsv);
+            CREATE INDEX IF NOT EXISTS "source_insight_tsv_idx_1024" ON "source_insight_1024" USING GIN(insight_tsv);
+            CREATE INDEX IF NOT EXISTS "source_insight_tsv_idx_768" ON "source_insight_768" USING GIN(insight_tsv);
+            CREATE INDEX IF NOT EXISTS "source_insight_tsv_idx_512" ON "source_insight_512" USING GIN(insight_tsv);
+            CREATE INDEX IF NOT EXISTS "source_insight_tsv_idx_384" ON "source_insight_384" USING GIN(insight_tsv);
+        `
 	}
 };

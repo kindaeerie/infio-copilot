@@ -33,6 +33,71 @@ export class VectorManager {
 		this.repository = new VectorRepository(app, dbManager.getPgClient() as any)
 	}
 
+	// 添加合并小chunks的辅助方法（仅在同一文件内合并）
+	private mergeSmallChunks(chunks: { pageContent: string; metadata: any }[], minChunkSize: number): typeof chunks {
+		if (!chunks || chunks.length === 0) {
+			return []
+		}
+
+		const mergedChunks: typeof chunks = []
+		let currentChunkBuffer = ""
+		let currentMetadata: any = null
+
+		for (const chunk of chunks) {
+			const content = chunk.pageContent.trim()
+			if (content.length === 0) continue
+
+			// 将当前块加入缓冲区
+			const combined = currentChunkBuffer ? `${currentChunkBuffer} ${content}` : content
+			
+			// 更新metadata，记录起始和结束位置
+			const combinedMetadata = currentMetadata ? {
+				...currentMetadata,
+				endLine: chunk.metadata?.loc?.lines?.to || chunk.metadata?.endLine || currentMetadata.endLine
+			} : {
+				...chunk.metadata,
+				startLine: chunk.metadata?.loc?.lines?.from || chunk.metadata?.startLine,
+				endLine: chunk.metadata?.loc?.lines?.to || chunk.metadata?.endLine
+			}
+
+			if (combined.length < minChunkSize) {
+				// 如果组合后仍然太小，则更新缓冲区并继续循环
+				currentChunkBuffer = combined
+				currentMetadata = combinedMetadata
+			} else {
+				// 如果组合后达到或超过最小尺寸，将其推入最终数组，并清空缓冲区
+				mergedChunks.push({
+					pageContent: combined,
+					metadata: combinedMetadata
+				})
+				currentChunkBuffer = ""
+				currentMetadata = null
+			}
+		}
+
+		// 处理循环结束后缓冲区里可能剩下的最后一个小块
+		if (currentChunkBuffer) {
+			if (mergedChunks.length > 0) {
+				// 策略1：如果缓冲区有内容，将其合并到最后一个块中
+				const lastChunk = mergedChunks[mergedChunks.length - 1]
+				lastChunk.pageContent += ` ${currentChunkBuffer}`
+				lastChunk.metadata.endLine = currentMetadata?.endLine || lastChunk.metadata.endLine
+			} else {
+				// 策略2：或者如果就没有足够大的块，把它自己作为一个块
+				mergedChunks.push({
+					pageContent: currentChunkBuffer,
+					metadata: currentMetadata
+				})
+			}
+		}
+		console.log("mergedChunks: ", mergedChunks)
+		return mergedChunks
+	}
+
+	private segmentTextForTsvector(text: string): string {
+		return this.repository.segmentTextForTsvector(text)
+	}
+
 	async performSimilaritySearch(
 		queryVector: number[],
 		embeddingModel: EmbeddingModel,
@@ -51,6 +116,29 @@ export class VectorManager {
 	> {
 		return await this.repository.performSimilaritySearch(
 			queryVector,
+			embeddingModel,
+			options,
+		)
+	}
+
+	async performFulltextSearch(
+		searchQuery: string,
+		embeddingModel: EmbeddingModel,
+		options: {
+			limit: number
+			scope?: {
+				files: string[]
+				folders: string[]
+			}
+			language?: string
+		},
+	): Promise<
+		(Omit<SelectVector, 'embedding'> & {
+			rank: number
+		})[]
+	> {
+		return await this.repository.performFulltextSearch(
+			searchQuery,
 			embeddingModel,
 			options,
 		)
@@ -197,7 +285,10 @@ export class VectorManager {
 				"",
 			],
 		});
-		console.log("textSplitter chunkSize: ", options.chunkSize, "overlap: ", overlap)
+		
+		// 设置最小chunk大小，防止产生太小的chunks
+		const minChunkSize = Math.max(100, Math.floor(options.chunkSize * 0.3)); // 最小50字符或chunk_size的50%
+		console.log("textSplitter chunkSize: ", options.chunkSize, "overlap: ", overlap, "minChunkSize: ", minChunkSize)
 
 		const skippedFiles: string[] = []
 		const embeddingProgress = { completed: 0, totalChunks: 0 }
@@ -205,7 +296,7 @@ export class VectorManager {
 		// 分批处理文件，每批最多50个文件（减少以避免文件句柄耗尽）
 		const FILE_BATCH_SIZE = 50
 		// 减少批量大小以降低内存压力
-		const embeddingBatchSize = Math.min(options.batchSize, 10)
+		const embeddingBatchSize = options.batchSize
 		
 		// 首先统计总的分块数量用于进度显示
 		let totalChunks = 0
@@ -216,7 +307,13 @@ export class VectorManager {
 					let fileContent = await this.app.vault.cachedRead(file)
 					fileContent = fileContent.replace(/\0/g, '')
 					const fileDocuments = await textSplitter.createDocuments([fileContent])
-					totalChunks += fileDocuments.length
+					// 统计阶段也需要使用相同的清理和合并逻辑
+					const cleanedChunks = fileDocuments.map(chunk => ({
+						pageContent: removeMarkdown(chunk.pageContent).replace(/\0/g, '').trim(),
+						metadata: chunk.metadata
+					})).filter(chunk => chunk.pageContent.length > 0)
+					const filteredDocuments = this.mergeSmallChunks(cleanedChunks, minChunkSize)
+					totalChunks += filteredDocuments.length
 				} catch (error) {
 					// 统计阶段跳过错误文件
 				}
@@ -246,21 +343,30 @@ export class VectorManager {
 								const fileDocuments = await textSplitter.createDocuments([
 									fileContent,
 								])
-								return fileDocuments
+								
+								// 先清理每个chunk的内容，然后基于清理后的内容进行合并
+								const cleanedChunks = fileDocuments.map(chunk => ({
+									pageContent: removeMarkdown(chunk.pageContent).replace(/\0/g, '').trim(),
+									metadata: chunk.metadata
+								})).filter(chunk => chunk.pageContent.length > 0)
+								
+								const filteredDocuments = this.mergeSmallChunks(cleanedChunks, minChunkSize)
+								return filteredDocuments
 									.map((chunk): InsertVector | null => {
-										// 保存原始内容，不在此处调用 removeMarkdown
-										const rawContent = chunk.pageContent.replace(/\0/g, '')
-										if (!rawContent || rawContent.trim().length === 0) {
+										const cleanContent = chunk.pageContent
+										if (!cleanContent || cleanContent.trim().length === 0) {
 											return null
 										}
+										// Use Intl.Segmenter to add spaces for better TSVECTOR indexing
+										const segmentedContent = this.segmentTextForTsvector(cleanContent)
 										return {
 											path: file.path,
 											mtime: file.stat.mtime,
-											content: rawContent, // 保存原始内容
+											content: segmentedContent, // 使用分词后的内容
 											embedding: [],
 											metadata: {
-												startLine: Number(chunk.metadata.loc.lines.from),
-												endLine: Number(chunk.metadata.loc.lines.to),
+												startLine: Number(chunk.metadata.loc?.lines?.from || chunk.metadata.startLine),
+												endLine: Number(chunk.metadata.loc?.lines?.to || chunk.metadata.endLine),
 											},
 										}
 									})
@@ -280,7 +386,6 @@ export class VectorManager {
 				
 				// 第二步：嵌入处理
 				console.log(`Embedding ${batchChunks.length} chunks for current file batch`)
-				
 				if (embeddingModel.supportsBatch) {
 					// 支持批量处理的提供商
 					for (let j = 0; j < batchChunks.length; j += embeddingBatchSize) {
@@ -289,26 +394,25 @@ export class VectorManager {
 
 						await backOff(
 							async () => {
-								// 在嵌入之前处理 markdown
-								const cleanedBatchData = embeddingBatch.map(chunk => {
-									const cleanContent = removeMarkdown(chunk.content)
-									return { chunk, cleanContent }
-								}).filter(({ cleanContent }) => cleanContent && cleanContent.trim().length > 0)
+								// 内容已经在前面清理和合并过了，直接使用
+								const validBatchData = embeddingBatch.filter(chunk => 
+									chunk.content && chunk.content.trim().length > 0
+								)
 
-								if (cleanedBatchData.length === 0) {
+								if (validBatchData.length === 0) {
 									return
 								}
 
-								const batchTexts = cleanedBatchData.map(({ cleanContent }) => cleanContent)
+								const batchTexts = validBatchData.map(chunk => chunk.content)
 								const batchEmbeddings = await embeddingModel.getBatchEmbeddings(batchTexts)
 
 								// 合并embedding结果到chunk数据
-								for (let k = 0; k < cleanedBatchData.length; k++) {
-									const { chunk, cleanContent } = cleanedBatchData[k]
+								for (let k = 0; k < validBatchData.length; k++) {
+									const chunk = validBatchData[k]
 									const embeddedChunk: InsertVector = {
 										path: chunk.path,
 										mtime: chunk.mtime,
-										content: cleanContent, // 使用已经清理过的内容
+										content: chunk.content, // 使用已经清理和合并后的内容
 										embedding: batchEmbeddings[k],
 										metadata: chunk.metadata,
 									}
@@ -349,18 +453,18 @@ export class VectorManager {
 								try {
 									await backOff(
 										async () => {
-											// 在嵌入之前处理 markdown
-											const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
-											// 跳过清理后为空的内容
-											if (!cleanContent || cleanContent.trim().length === 0) {
+											// 内容已经在前面清理和合并过了，直接使用
+											const content = chunk.content.trim()
+											// 跳过空内容
+											if (!content || content.length === 0) {
 												return
 											}
 
-											const embedding = await embeddingModel.getEmbedding(cleanContent)
+											const embedding = await embeddingModel.getEmbedding(content)
 											const embeddedChunk = {
 												path: chunk.path,
 												mtime: chunk.mtime,
-												content: cleanContent, // 使用清理后的内容
+												content: content, // 使用已经清理和合并后的内容
 												embedding,
 												metadata: chunk.metadata,
 											}
@@ -495,7 +599,10 @@ export class VectorManager {
 				"",
 			],
 		});
-		console.log("textSplitter chunkSize: ", options.chunkSize, "overlap: ", overlap)
+		
+		// 设置最小chunk大小，防止产生太小的chunks
+		const minChunkSize = Math.max(100, Math.floor(options.chunkSize * 0.5)); // 最小50字符或chunk_size的10%
+		console.log("textSplitter chunkSize: ", options.chunkSize, "overlap: ", overlap, "minChunkSize: ", minChunkSize)
 
 		const skippedFiles: string[] = []
 		const embeddingProgress = { completed: 0, totalChunks: 0 }
@@ -503,7 +610,7 @@ export class VectorManager {
 		// 分批处理文件，每批最多50个文件（减少以避免文件句柄耗尽）
 		const FILE_BATCH_SIZE = 50
 		// 减少批量大小以降低内存压力
-		const embeddingBatchSize = Math.min(options.batchSize, 10)
+		const embeddingBatchSize = options.batchSize
 		
 		// 首先统计总的分块数量用于进度显示
 		let totalChunks = 0
@@ -514,7 +621,13 @@ export class VectorManager {
 					let fileContent = await this.app.vault.cachedRead(file)
 					fileContent = fileContent.replace(/\0/g, '')
 					const fileDocuments = await textSplitter.createDocuments([fileContent])
-					totalChunks += fileDocuments.length
+					// 统计阶段也需要使用相同的清理和合并逻辑
+					const cleanedChunks = fileDocuments.map(chunk => ({
+						pageContent: removeMarkdown(chunk.pageContent).replace(/\0/g, '').trim(),
+						metadata: chunk.metadata
+					})).filter(chunk => chunk.pageContent.length > 0)
+					const filteredDocuments = this.mergeSmallChunks(cleanedChunks, minChunkSize)
+					totalChunks += filteredDocuments.length
 				} catch (error) {
 					// 统计阶段跳过错误文件
 				}
@@ -544,21 +657,30 @@ export class VectorManager {
 								const fileDocuments = await textSplitter.createDocuments([
 									fileContent,
 								])
-								return fileDocuments
+								
+								// 先清理每个chunk的内容，然后基于清理后的内容进行合并
+								const cleanedChunks = fileDocuments.map(chunk => ({
+									pageContent: removeMarkdown(chunk.pageContent).replace(/\0/g, '').trim(),
+									metadata: chunk.metadata
+								})).filter(chunk => chunk.pageContent.length > 0)
+								
+								const filteredDocuments = this.mergeSmallChunks(cleanedChunks, minChunkSize)
+								return filteredDocuments
 									.map((chunk): InsertVector | null => {
-										// 保存原始内容，不在此处调用 removeMarkdown
-										const rawContent = chunk.pageContent.replace(/\0/g, '')
-										if (!rawContent || rawContent.trim().length === 0) {
+										const cleanContent = chunk.pageContent
+										if (!cleanContent || cleanContent.trim().length === 0) {
 											return null
 										}
+										// Use Intl.Segmenter to add spaces for better TSVECTOR indexing
+										const segmentedContent = this.segmentTextForTsvector(cleanContent)
 										return {
 											path: file.path,
 											mtime: file.stat.mtime,
-											content: rawContent, // 保存原始内容
+											content: segmentedContent, // 使用分词后的内容
 											embedding: [],
 											metadata: {
-												startLine: Number(chunk.metadata.loc.lines.from),
-												endLine: Number(chunk.metadata.loc.lines.to),
+												startLine: Number(chunk.metadata.loc?.lines?.from || chunk.metadata.startLine),
+												endLine: Number(chunk.metadata.loc?.lines?.to || chunk.metadata.endLine),
 											},
 										}
 									})
@@ -581,32 +703,35 @@ export class VectorManager {
 				
 				if (embeddingModel.supportsBatch) {
 					// 支持批量处理的提供商
+					console.log("batchChunks", batchChunks.map((chunk, index) => ({
+						index,
+						contentLength: chunk.content.length,
+					})))
 					for (let j = 0; j < batchChunks.length; j += embeddingBatchSize) {
 						const embeddingBatch = batchChunks.slice(j, Math.min(j + embeddingBatchSize, batchChunks.length))
 						const embeddedBatch: InsertVector[] = []
 
 						await backOff(
 							async () => {
-								// 在嵌入之前处理 markdown
-								const cleanedBatchData = embeddingBatch.map(chunk => {
-									const cleanContent = removeMarkdown(chunk.content)
-									return { chunk, cleanContent }
-								}).filter(({ cleanContent }) => cleanContent && cleanContent.trim().length > 0)
+								// 内容已经在前面清理和合并过了，直接使用
+								const validBatchData = embeddingBatch.filter(chunk => 
+									chunk.content && chunk.content.trim().length > 0
+								)
 
-								if (cleanedBatchData.length === 0) {
+								if (validBatchData.length === 0) {
 									return
 								}
 
-								const batchTexts = cleanedBatchData.map(({ cleanContent }) => cleanContent)
+								const batchTexts = validBatchData.map(chunk => chunk.content)
 								const batchEmbeddings = await embeddingModel.getBatchEmbeddings(batchTexts)
 
 								// 合并embedding结果到chunk数据
-								for (let k = 0; k < cleanedBatchData.length; k++) {
-									const { chunk, cleanContent } = cleanedBatchData[k]
+								for (let k = 0; k < validBatchData.length; k++) {
+									const chunk = validBatchData[k]
 									const embeddedChunk: InsertVector = {
 										path: chunk.path,
 										mtime: chunk.mtime,
-										content: cleanContent, // 使用已经清理过的内容
+										content: chunk.content, // 使用已经清理和合并后的内容
 										embedding: batchEmbeddings[k],
 										metadata: chunk.metadata,
 									}
@@ -647,18 +772,18 @@ export class VectorManager {
 								try {
 									await backOff(
 										async () => {
-											// 在嵌入之前处理 markdown
-											const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
-											// 跳过清理后为空的内容
-											if (!cleanContent || cleanContent.trim().length === 0) {
+											// 内容已经在前面清理和合并过了，直接使用
+											const content = chunk.content.trim()
+											// 跳过空内容
+											if (!content || content.length === 0) {
 												return
 											}
 
-											const embedding = await embeddingModel.getEmbedding(cleanContent)
+											const embedding = await embeddingModel.getEmbedding(content)
 											const embeddedChunk = {
 												path: chunk.path,
 												mtime: chunk.mtime,
-												content: cleanContent, // 使用清理后的内容
+												content: content, // 使用已经清理和合并后的内容
 												embedding,
 												metadata: chunk.metadata,
 											}
@@ -756,28 +881,41 @@ export class VectorManager {
 					"",
 				],
 			});
+			
+			// 设置最小chunk大小，防止产生太小的chunks
+			const minChunkSize = Math.max(50, Math.floor(chunkSize * 0.1)); // 最小50字符或chunk_size的10%
+			
 			let fileContent = await this.app.vault.cachedRead(file)
 			// 清理null字节，防止PostgreSQL UTF8编码错误
 			fileContent = fileContent.replace(/\0/g, '')
 			const fileDocuments = await textSplitter.createDocuments([
 				fileContent,
 			])
+			
+			// 先清理每个chunk的内容，然后基于清理后的内容进行合并
+			const cleanedChunks = fileDocuments.map(chunk => ({
+				pageContent: removeMarkdown(chunk.pageContent).replace(/\0/g, '').trim(),
+				metadata: chunk.metadata
+			})).filter(chunk => chunk.pageContent.length > 0)
+			
+			const filteredDocuments = this.mergeSmallChunks(cleanedChunks, minChunkSize)
 
-			const contentChunks: InsertVector[] = fileDocuments
+			const contentChunks: InsertVector[] = filteredDocuments
 				.map((chunk): InsertVector | null => {
-					// 保存原始内容，不在此处调用 removeMarkdown
-					const rawContent = String(chunk.pageContent || '').replace(/\0/g, '')
-					if (!rawContent || rawContent.trim().length === 0) {
+					const cleanContent = chunk.pageContent
+					if (!cleanContent || cleanContent.trim().length === 0) {
 						return null
 					}
+					// Use Intl.Segmenter to add spaces for better TSVECTOR indexing
+					const segmentedContent = this.segmentTextForTsvector(cleanContent)
 					return {
 						path: file.path,
 						mtime: file.stat.mtime,
-						content: rawContent, // 保存原始内容
+						content: segmentedContent, // 使用分词后的内容
 						embedding: [],
 						metadata: {
-							startLine: Number(chunk.metadata.loc.lines.from),
-							endLine: Number(chunk.metadata.loc.lines.to),
+							startLine: Number(chunk.metadata.loc?.lines?.from || chunk.metadata.startLine),
+							endLine: Number(chunk.metadata.loc?.lines?.to || chunk.metadata.endLine),
 						},
 					}
 				})
@@ -795,34 +933,33 @@ export class VectorManager {
 
 						const embeddedBatch: InsertVector[] = []
 
-						await backOff(
-							async () => {
-								// 在嵌入之前处理 markdown，只处理一次
-								const cleanedBatchData = batchChunks.map(chunk => {
-									const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
-									return { chunk, cleanContent }
-								}).filter(({ cleanContent }) => cleanContent && cleanContent.trim().length > 0)
+													await backOff(
+								async () => {
+									// 内容已经在前面清理和合并过了，直接使用
+									const validBatchData = batchChunks.filter(chunk => 
+										chunk.content && chunk.content.trim().length > 0
+									)
 
-								if (cleanedBatchData.length === 0) {
-									return
-								}
-
-								const batchTexts = cleanedBatchData.map(({ cleanContent }) => cleanContent)
-								const batchEmbeddings = await embeddingModel.getBatchEmbeddings(batchTexts)
-
-								// 合并embedding结果到chunk数据
-								for (let j = 0; j < cleanedBatchData.length; j++) {
-									const { chunk, cleanContent } = cleanedBatchData[j]
-									const embeddedChunk: InsertVector = {
-										path: chunk.path,
-										mtime: chunk.mtime,
-										content: cleanContent, // 使用已经清理过的内容
-										embedding: batchEmbeddings[j],
-										metadata: chunk.metadata,
+									if (validBatchData.length === 0) {
+										return
 									}
-									embeddedBatch.push(embeddedChunk)
-								}
-							},
+
+									const batchTexts = validBatchData.map(chunk => chunk.content)
+									const batchEmbeddings = await embeddingModel.getBatchEmbeddings(batchTexts)
+
+									// 合并embedding结果到chunk数据
+									for (let j = 0; j < validBatchData.length; j++) {
+										const chunk = validBatchData[j]
+										const embeddedChunk: InsertVector = {
+											path: chunk.path,
+											mtime: chunk.mtime,
+											content: chunk.content, // 使用已经清理和合并后的内容
+											embedding: batchEmbeddings[j],
+											metadata: chunk.metadata,
+										}
+										embeddedBatch.push(embeddedChunk)
+									}
+								},
 							{
 								numOfAttempts: 3, // 减少重试次数
 								startingDelay: 500, // 减少延迟
@@ -864,18 +1001,18 @@ export class VectorManager {
 								try {
 									await backOff(
 										async () => {
-											// 在嵌入之前处理 markdown
-											const cleanContent = removeMarkdown(chunk.content).replace(/\0/g, '')
-											// 跳过清理后为空的内容
-											if (!cleanContent || cleanContent.trim().length === 0) {
+											// 内容已经在前面清理和合并过了，直接使用
+											const content = chunk.content.trim()
+											// 跳过空内容
+											if (!content || content.length === 0) {
 												return
 											}
 
-											const embedding = await embeddingModel.getEmbedding(cleanContent)
+											const embedding = await embeddingModel.getEmbedding(content)
 											const embeddedChunk = {
 												path: chunk.path,
 												mtime: chunk.mtime,
-												content: cleanContent, // 使用清理后的内容
+												content: content, // 使用已经清理和合并后的内容
 												embedding,
 												metadata: chunk.metadata,
 											}
