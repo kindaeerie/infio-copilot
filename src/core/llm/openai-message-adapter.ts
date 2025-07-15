@@ -22,7 +22,7 @@ export class OpenAIMessageAdapter {
     client: OpenAI,
     request: LLMRequestNonStreaming,
 		options?: LLMOptions,
-		extraParams?: Record<string, any>,
+		extraParams?: Record<string, unknown>,
   ): Promise<LLMResponseNonStreaming> {
     const response = await client.chat.completions.create(
       {
@@ -50,7 +50,7 @@ export class OpenAIMessageAdapter {
     client: OpenAI,
     request: LLMRequestStreaming,
 		options?: LLMOptions,
-		extraParams?: Record<string, any>,
+		extraParams?: Record<string, unknown>,
   ): Promise<AsyncIterable<LLMResponseStreaming>> {
     const stream = await client.chat.completions.create(
       {

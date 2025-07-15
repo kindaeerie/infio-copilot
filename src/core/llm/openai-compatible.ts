@@ -19,7 +19,7 @@ import { OpenAIMessageAdapter } from './openai-message-adapter'
 
 export class OpenAICompatibleProvider implements BaseLLMProvider {
   private adapter: OpenAIMessageAdapter
-  private client: OpenAI
+  private client: OpenAI | NoStainlessOpenAI
   private apiKey: string
   private baseURL: string
 
@@ -54,8 +54,8 @@ export class OpenAICompatibleProvider implements BaseLLMProvider {
   }
 
   // 获取提供商特定的额外参数
-  private getExtraParams(isStreaming: boolean): Record<string, any> {
-    const extraParams: Record<string, any> = {}
+  private getExtraParams(isStreaming: boolean): Record<string, unknown> {
+    const extraParams: Record<string, unknown> = {}
     
     // 阿里云Qwen API需要在非流式调用中设置 enable_thinking: false
     if (this.isAlibabaQwen() && !isStreaming) {
@@ -77,7 +77,7 @@ export class OpenAICompatibleProvider implements BaseLLMProvider {
     }
 
     const extraParams = this.getExtraParams(false) // 非流式调用
-    return this.adapter.generateResponse(this.client, request, options, extraParams)
+    return this.adapter.generateResponse(this.client as OpenAI, request, options, extraParams)
   }
 
   async streamResponse(
@@ -92,6 +92,6 @@ export class OpenAICompatibleProvider implements BaseLLMProvider {
     }
 
     const extraParams = this.getExtraParams(true) // 流式调用
-    return this.adapter.streamResponse(this.client, request, options, extraParams)
+    return this.adapter.streamResponse(this.client as OpenAI, request, options, extraParams)
   }
 }

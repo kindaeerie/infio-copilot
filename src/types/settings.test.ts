@@ -216,6 +216,13 @@ describe('parseSmartCopilotSettings', () => {
 				useCustomUrl: false,
 				models: [],
 			},
+			moonshotProvider: {
+				name: 'Moonshot',
+				apiKey: '',
+				baseUrl: '',
+				useCustomUrl: false,
+				models: [],
+			},
 			siliconflowProvider: {
 				name: 'SiliconFlow',
 				apiKey: '',
@@ -453,6 +460,13 @@ describe('settings migration', () => {
 			},
 			openrouterProvider: {
 				name: 'OpenRouter',
+				apiKey: '',
+				baseUrl: '',
+				useCustomUrl: false,
+				models: [],
+			},
+			moonshotProvider: {
+				name: 'Moonshot',
 				apiKey: '',
 				baseUrl: '',
 				useCustomUrl: false,

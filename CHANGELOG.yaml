@@ -1,4 +1,8 @@
 releases:
+  - version: "0.7.4"
+    fixes:
+      - "fix moonshot provider cors error"
+      - "add bm25 search support"
   - version: "0.7.3"
     features:
       - "add idb support"
