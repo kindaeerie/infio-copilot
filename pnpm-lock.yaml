@@ -123,9 +123,6 @@ importers:
       handlebars:
         specifier: ^4.7.7
         version: 4.7.8
-      jieba-wasm:
-        specifier: ^2.2.0
-        version: 2.2.0
       js-tiktoken:
         specifier: ^1.0.15
         version: 1.0.20
@@ -4731,9 +4728,6 @@ packages:
     peerDependenciesMeta:
       node-notifier:
         optional: true
-
-  jieba-wasm@2.2.0:
-    resolution: {integrity: sha512-IwxgUf+EMutjLair3k41i0ApM33qeHNY9EFBKlI5/XtHcISkGt5YPmUvpDJe3hUflwRYhy9g29ZzTetGZw6XgQ==}
 
   js-base64@3.7.7:
     resolution: {integrity: sha512-7rCnleh0z2CkXhH67J8K1Ytz0b2Y+yxTPL+/KOJoa20hfnVQ/3/T6W/KflYI4bRHRagNeXeU2bkNGI3v1oS/lw==}
@@ -11804,8 +11798,6 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - ts-node
-
-  jieba-wasm@2.2.0: {}
 
   js-base64@3.7.7: {}
 
