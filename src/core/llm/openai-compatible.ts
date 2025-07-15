@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 
-import { ALIBABA_QWEN_BASE_URL } from '../../constants'
+import { ALIBABA_QWEN_BASE_URL, MOONSHOT_BASE_URL } from '../../constants'
 import { LLMModel } from '../../types/llm/model'
 import {
   LLMOptions,
@@ -14,6 +14,7 @@ import {
 
 import { BaseLLMProvider } from './base'
 import { LLMBaseUrlNotSetException } from './exception'
+import { NoStainlessOpenAI } from './ollama'
 import { OpenAIMessageAdapter } from './openai-message-adapter'
 
 export class OpenAICompatibleProvider implements BaseLLMProvider {
@@ -23,14 +24,27 @@ export class OpenAICompatibleProvider implements BaseLLMProvider {
   private baseURL: string
 
   constructor(apiKey: string, baseURL: string) {
-		this.adapter = new OpenAIMessageAdapter()
-    this.client = new OpenAI({
-      apiKey: apiKey,
-      baseURL: baseURL,
-      dangerouslyAllowBrowser: true,
-    })
+    this.adapter = new OpenAIMessageAdapter()
     this.apiKey = apiKey
     this.baseURL = baseURL
+    
+    // 判断是否需要使用 NoStainlessOpenAI 来解决 CORS 问题
+    const needsCorsAdapter = baseURL === MOONSHOT_BASE_URL || 
+                           baseURL?.includes('api.moonshot.cn')
+    
+    if (needsCorsAdapter) {
+      this.client = new NoStainlessOpenAI({
+        apiKey: apiKey,
+        baseURL: baseURL,
+        dangerouslyAllowBrowser: true,
+      })
+    } else {
+      this.client = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseURL,
+        dangerouslyAllowBrowser: true,
+      })
+    }
   }
 
   // 检查是否为阿里云Qwen API

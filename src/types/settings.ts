@@ -184,6 +184,20 @@ const GrokProviderSchema = z.object({
 	models: []
 })
 
+const MoonshotProviderSchema = z.object({
+	name: z.literal('Moonshot'),
+	apiKey: z.string().catch(''),
+	baseUrl: z.string().catch(''),
+	useCustomUrl: z.boolean().catch(false),
+	models: z.array(z.string()).catch([])
+}).catch({
+	name: 'Moonshot',
+	apiKey: '',
+	baseUrl: '',
+	useCustomUrl: false,
+	models: []
+})
+
 const LocalProviderSchema = z.object({
 	name: z.literal('LocalProvider'),
 	apiKey: z.string().catch(''),
@@ -271,6 +285,7 @@ export const InfioSettingsSchema = z.object({
 	ollamaProvider: OllamaProviderSchema,
 	groqProvider: GroqProviderSchema,
 	grokProvider: GrokProviderSchema,
+	moonshotProvider: MoonshotProviderSchema,
 	openaicompatibleProvider: OpenAICompatibleProviderSchema,
 	localproviderProvider: LocalProviderSchema,
 

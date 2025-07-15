@@ -24,7 +24,10 @@ import { OpenAIMessageAdapter } from './openai-message-adapter'
 
 export class NoStainlessOpenAI extends OpenAI {
 	defaultHeaders() {
+		// 获取父类的默认头部，包含 Authorization
+		const parentHeaders = super.defaultHeaders()
 		return {
+			...parentHeaders,
 			Accept: 'application/json',
 			'Content-Type': 'application/json',
 		}

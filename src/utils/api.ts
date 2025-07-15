@@ -1645,6 +1645,89 @@ export const grokModels = {
 	}
 } as const satisfies Record<string, ModelInfo>
 
+// Moonshot
+// https://platform.moonshot.cn/docs/pricing
+export type MoonshotModelId = keyof typeof moonshotModels
+export const moonshotDefaultModelId: MoonshotModelId = "kimi-k2-0711-preview"
+export const moonshotDefaultInsightModelId: MoonshotModelId = "kimi-latest"
+export const moonshotDefaultAutoCompleteModelId: MoonshotModelId = "kimi-latest"
+export const moonshotDefaultEmbeddingModelId = null // this is not supported embedding model
+
+export const moonshotModels = {
+	"kimi-k2-0711-preview": {
+		maxTokens: 8192,
+		contextWindow: 128_000,
+		supportsImages: false,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "128k context length MoE architecture foundation model with strong coding and Agent capabilities, total parameters 1T, active parameters 32B"
+	},
+	"kimi-latest": {
+		maxTokens: 8192,
+		contextWindow: 128_000,
+		supportsImages: true,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "Latest Kimi model version with 128k context length and image understanding capabilities"
+	},
+	"kimi-thinking-preview": {
+		maxTokens: 8192,
+		contextWindow: 128_000,
+		supportsImages: true,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "Multimodal reasoning model with 128k context length, excels at deep reasoning tasks"
+	},
+	"moonshot-v1-8k": {
+		maxTokens: 8192,
+		contextWindow: 8_000,
+		supportsImages: false,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "8k context length model optimized for short text generation"
+	},
+	"moonshot-v1-32k": {
+		maxTokens: 8192,
+		contextWindow: 32_000,
+		supportsImages: false,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "32k context length model optimized for longer text generation"
+	},
+	"moonshot-v1-128k": {
+		maxTokens: 8192,
+		contextWindow: 128_000,
+		supportsImages: false,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "128k context length model optimized for very long text generation"
+	},
+	"moonshot-v1-8k-vision-preview": {
+		maxTokens: 8192,
+		contextWindow: 8_000,
+		supportsImages: true,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "8k context length vision model with image understanding capabilities"
+	},
+	"moonshot-v1-32k-vision-preview": {
+		maxTokens: 8192,
+		contextWindow: 32_000,
+		supportsImages: true,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "32k context length vision model with image understanding capabilities"
+	},
+	"moonshot-v1-128k-vision-preview": {
+		maxTokens: 8192,
+		contextWindow: 128_000,
+		supportsImages: true,
+		supportsComputerUse: true,
+		supportsPromptCache: true,
+		description: "128k context length vision model with image understanding capabilities"
+	}
+} as const satisfies Record<string, ModelInfo>
+
 // LocalProvider (本地嵌入模型)
 export const localProviderDefaultModelId = null // this is not supported for chat/autocomplete
 export const localProviderDefaultInsightModelId = null // this is not supported for insight
@@ -1687,6 +1770,7 @@ export const GetAllProviders = (): ApiProvider[] => {
 		ApiProvider.SiliconFlow,
 		ApiProvider.Deepseek,
 		ApiProvider.Groq,
+		ApiProvider.Moonshot,
 		ApiProvider.Ollama,
 		ApiProvider.OpenAICompatible,
 		ApiProvider.LocalProvider,
@@ -1731,6 +1815,8 @@ export const GetProviderModels = async (provider: ApiProvider, settings?: InfioS
 			return groqModels
 		case ApiProvider.Grok:
 			return grokModels
+		case ApiProvider.Moonshot:
+			return moonshotModels
 		case ApiProvider.Ollama:
 			return {}
 		case ApiProvider.OpenAICompatible:
@@ -1767,6 +1853,8 @@ export const GetProviderModelsWithSettings = async (provider: ApiProvider, setti
 			return groqModels
 		case ApiProvider.Grok:
 			return grokModels
+		case ApiProvider.Moonshot:
+			return moonshotModels
 		case ApiProvider.Ollama:
 			return {}
 		case ApiProvider.OpenAICompatible:
@@ -1887,6 +1975,13 @@ export const GetDefaultModelId = (provider: ApiProvider): { chat: string, insigh
 				"insight": grokDefaultInsightModelId,
 				"autoComplete": grokDefaultAutoCompleteModelId,
 				"embedding": grokDefaultEmbeddingModelId,
+			}
+		case ApiProvider.Moonshot:
+			return {
+				"chat": moonshotDefaultModelId,
+				"insight": moonshotDefaultInsightModelId,
+				"autoComplete": moonshotDefaultAutoCompleteModelId,
+				"embedding": moonshotDefaultEmbeddingModelId,
 			}
 		case ApiProvider.Ollama:
 			return {
