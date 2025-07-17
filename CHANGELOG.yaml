@@ -1,4 +1,7 @@
 releases:
+  - version: "0.7.5"
+    features:
+      - "fix insight model error"
   - version: "0.7.4"
     fixes:
       - "fix moonshot provider cors error"

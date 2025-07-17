@@ -340,7 +340,7 @@ export class TransEngine {
 		this.llmManager = new LLMManager(settings);
 		this.insightManager = dbManager.getInsightManager();
 		this.embeddingManager = embeddingManager;
-		
+
 		// 初始化 embedding model
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
@@ -362,7 +362,7 @@ export class TransEngine {
 	setSettings(settings: InfioSettings) {
 		this.settings = settings;
 		this.llmManager = new LLMManager(settings);
-		
+
 		// 重新初始化 embedding model
 		if (settings.embeddingModelId && settings.embeddingModelId.trim() !== '') {
 			try {
@@ -442,13 +442,13 @@ export class TransEngine {
 		try {
 			const existingInsights = await this.insightManager.getInsightsBySourcePath(sourcePath, this.embeddingModel);
 			console.log("existingInsights", existingInsights);
-			
+
 			// 查找匹配的转换类型和修改时间的洞察
 			const matchingInsight = existingInsights.find(insight =>
 				insight.insight_type === transformationType.toString() &&
 				insight.source_mtime === sourceMtime
 			);
-			
+
 			if (matchingInsight) {
 				// 找到匹配的缓存结果，直接返回
 				console.log(`使用缓存的转换结果: ${transformationType} for ${sourcePath}`);
@@ -615,7 +615,7 @@ export class TransEngine {
 
 				case 'folder': {
 					sourcePath = filePath;
-					
+
 					// 计算文件夹的真实 mtime（基于所有子项目的最大 mtime）
 					const folderItems = await this.collectFolderItems(filePath);
 					let maxMtime = 0;
@@ -679,8 +679,8 @@ export class TransEngine {
 
 			// 使用默认模型或传入的模型
 			const llmModel: LLMModel = model || {
-				provider: this.settings.applyModelProvider,
-				modelId: this.settings.applyModelId,
+				provider: this.settings.insightModelProvider,
+				modelId: this.settings.insightModelId,
 			};
 
 			// 创建 LLM 客户端
@@ -783,7 +783,7 @@ export class TransEngine {
 			if (directFiles.length > 0) {
 				content += `## File Content Summaries\n\n`;
 				const fileSummaries: string[] = [];
-				
+
 				for (const file of directFiles) {
 					const fileResult = await this.runTransformation({
 						filePath: file.path,
@@ -800,7 +800,7 @@ export class TransEngine {
 				}
 
 				content += fileSummaries.join('\n\n');
-				
+
 				if (directSubfolders.length > 0) {
 					content += '\n\n';
 				}
@@ -937,7 +937,7 @@ export class TransEngine {
 		try {
 			// 生成查询向量
 			const queryVector = await this.embeddingModel.getEmbedding(query)
-			
+
 			// 构建 sourcePaths 过滤条件
 			let sourcePaths: string[] | undefined
 			if (scope) {
@@ -952,7 +952,7 @@ export class TransEngine {
 						const folder = this.app.vault.getAbstractFileByPath(normalizePath(folderPath))
 						if (folder && folder instanceof TFolder) {
 							// 获取文件夹下的所有 Markdown 文件
-							const folderFiles = this.app.vault.getMarkdownFiles().filter(file => 
+							const folderFiles = this.app.vault.getMarkdownFiles().filter(file =>
 								file.path.startsWith(folderPath + '/')
 							)
 							sourcePaths.push(...folderFiles.map(f => f.path))
@@ -1065,7 +1065,7 @@ export class TransEngine {
 
 		// 并行处理直接子文件
 		if (directFiles.length > 0) {
-			const filePromises = directFiles.map(file => 
+			const filePromises = directFiles.map(file =>
 				concurrencyLimiter.execute(async () => {
 					if (signal?.aborted) {
 						throw new Error('Operation was aborted')
@@ -1087,7 +1087,7 @@ export class TransEngine {
 
 		// 并行处理直接子文件夹
 		if (directSubfolders.length > 0) {
-			const folderPromises = directSubfolders.map(subfolder => 
+			const folderPromises = directSubfolders.map(subfolder =>
 				concurrencyLimiter.execute(async () => {
 					if (signal?.aborted) {
 						throw new Error('Operation was aborted')
@@ -1225,8 +1225,8 @@ export class TransEngine {
 	 * 生成分层摘要
 	 */
 	private async generateHierarchicalSummary(
-		combinedContent: string, 
-		contextLabel: string, 
+		combinedContent: string,
+		contextLabel: string,
 		llmModel: LLMModel
 	): Promise<string> {
 		const client = new TransformationLLMClient(this.llmManager, llmModel)
@@ -1313,7 +1313,7 @@ export class TransEngine {
 
 			if (workspace) {
 				workspaceName = workspace.name
-				
+
 				// 添加工作区本身的洞察路径
 				sourcePaths.push(`workspace:${workspaceName}`)
 
@@ -1321,15 +1321,15 @@ export class TransEngine {
 				for (const contentItem of workspace.content) {
 					if (contentItem.type === 'folder') {
 						const folderPath = contentItem.content
-						
+
 						// 添加文件夹路径本身
 						sourcePaths.push(folderPath)
-						
+
 						// 获取文件夹下的所有文件
-						const files = this.app.vault.getMarkdownFiles().filter(file => 
+						const files = this.app.vault.getMarkdownFiles().filter(file =>
 							file.path.startsWith(folderPath === '/' ? '' : folderPath + '/')
 						)
-						
+
 						// 添加所有文件路径
 						files.forEach(file => {
 							sourcePaths.push(file.path)
@@ -1341,7 +1341,7 @@ export class TransEngine {
 							if (dirPath && dirPath !== folderPath) {
 								let currentPath = folderPath === '/' ? '' : folderPath
 								const pathParts = dirPath.substring(currentPath.length).split('/').filter(Boolean)
-								
+
 								for (let i = 0; i < pathParts.length; i++) {
 									currentPath += (currentPath ? '/' : '') + pathParts[i]
 									if (!sourcePaths.includes(currentPath)) {
@@ -1354,16 +1354,16 @@ export class TransEngine {
 					} else if (contentItem.type === 'tag') {
 						// 获取标签对应的所有文件
 						const tagFiles = this.getFilesByTag(contentItem.content)
-						
+
 						tagFiles.forEach(file => {
 							sourcePaths.push(file.path)
-							
+
 							// 添加文件所在的文件夹路径
 							const dirPath = file.path.substring(0, file.path.lastIndexOf('/'))
 							if (dirPath) {
 								const pathParts = dirPath.split('/').filter(Boolean)
 								let currentPath = ''
-								
+
 								for (let i = 0; i < pathParts.length; i++) {
 									currentPath += (currentPath ? '/' : '') + pathParts[i]
 									if (!sourcePaths.includes(currentPath)) {
@@ -1378,15 +1378,15 @@ export class TransEngine {
 				// 处理默认 vault 工作区 - 删除所有洞察
 				workspaceName = 'vault'
 				sourcePaths.push(`workspace:${workspaceName}`)
-				
+
 				// 获取所有洞察来确定删除数量
 				const allInsights = await this.insightManager.getAllInsights(this.embeddingModel)
-				
+
 				// 对于 vault 工作区，删除所有洞察
 				await this.insightManager.clearAllInsights(this.embeddingModel)
-				
+
 				console.log(`已删除 vault 工作区的所有 ${allInsights.length} 个转换`)
-				
+
 				return {
 					success: true,
 					deletedCount: allInsights.length
@@ -1395,10 +1395,10 @@ export class TransEngine {
 
 			// 去重路径
 			const uniquePaths = [...new Set(sourcePaths)]
-			
+
 			// 获取将要删除的洞察数量
 			const existingInsights = await this.insightManager.getAllInsights(this.embeddingModel)
-			const insightsToDelete = existingInsights.filter(insight => 
+			const insightsToDelete = existingInsights.filter(insight =>
 				uniquePaths.includes(insight.source_path)
 			)
 			const deletedCount = insightsToDelete.length
@@ -1446,10 +1446,10 @@ export class TransEngine {
 		try {
 			// 删除工作区本身的洞察
 			const workspaceInsightPath = `workspace:${workspaceName}`
-			
+
 			// 获取所有洞察并筛选出该工作区相关的
 			const allInsights = await this.insightManager.getAllInsights(this.embeddingModel)
-			const workspaceInsights = allInsights.filter(insight => 
+			const workspaceInsights = allInsights.filter(insight =>
 				insight.source_path === workspaceInsightPath
 			)
 
@@ -1493,7 +1493,7 @@ export class TransEngine {
 		try {
 			// 直接按ID删除洞察
 			await this.insightManager.deleteInsightById(insightId, this.embeddingModel)
-			
+
 			console.log(`已删除洞察 ID: ${insightId}`)
 
 			return {
@@ -1514,12 +1514,12 @@ export class TransEngine {
 	 */
 	async initWorkspaceInsight(params: InitWorkspaceInsightParams): Promise<InitWorkspaceInsightResult> {
 		const { workspace, model, onProgress } = params;
-		
+
 		// 统计信息
 		let processedFiles = 0;
 		let processedFolders = 0;
 		let skippedItems = 0;
-		
+
 		try {
 			// 1. 深度分析工作区内容，统计所有需要处理的项目
 			onProgress?.({
@@ -1529,7 +1529,7 @@ export class TransEngine {
 				currentItem: '深度扫描文件和文件夹...',
 				percentage: 0
 			});
-			
+
 			// 收集所有需要处理的项目（深度递归）
 			const allItems: Array<{
 				type: 'file' | 'folder';
@@ -1537,32 +1537,32 @@ export class TransEngine {
 				name: string;
 				mtime: number;
 			}> = [];
-			
+
 			// 收集工作区顶层配置的项目（仅用于最终摘要）
 			const topLevelFiles: Array<{
 				path: string;
 				name: string;
 			}> = [];
-			
+
 			const topLevelFolders: Array<{
 				path: string;
 				name: string;
 			}> = [];
-			
+
 			// 解析 workspace 的 content 配置
 			const seenPaths = new Set<string>();
-			
+
 			for (const contentItem of workspace.content) {
 				if (contentItem.type === 'folder') {
 					const folderPath = contentItem.content;
 					const folderName = folderPath.split('/').pop() || folderPath;
-					
+
 					// 收集顶层文件夹（用于最终摘要）
 					topLevelFolders.push({
 						path: folderPath,
 						name: folderName
 					});
-					
+
 					// 深度遍历收集所有项目（用于进度统计和处理）
 					const items = await this.collectFolderItems(folderPath);
 					for (const item of items) {
@@ -1604,12 +1604,12 @@ export class TransEngine {
 					skippedItems: 0
 				};
 			}
-			
+
 			// 分离文件和文件夹
 			const files = allItems.filter(item => item.type === 'file');
 			const folders = allItems.filter(item => item.type === 'folder');
 			const totalItems = allItems.length;
-			
+
 			onProgress?.({
 				stage: '分析完成',
 				current: 1,
@@ -1617,15 +1617,15 @@ export class TransEngine {
 				currentItem: `深度扫描完成：${files.length} 个文件，${folders.length} 个文件夹`,
 				percentage: 5
 			});
-			
+
 			// 用于收集顶层摘要（仅用于工作区摘要）
 			const topLevelSummaries: string[] = [];
 			let currentProgress = 0;
-			
+
 			// 2. 处理所有文件（深度递归的结果）
 			for (const file of files) {
 				currentProgress++;
-				
+
 				onProgress?.({
 					stage: '处理文件',
 					current: currentProgress,
@@ -1633,7 +1633,7 @@ export class TransEngine {
 					currentItem: `📄 ${file.name}`,
 					percentage: Math.round((currentProgress / totalItems) * 90) + 5 // 5-95%
 				});
-				
+
 				try {
 					const fileResult = await this.runTransformation({
 						filePath: file.path,
@@ -1642,7 +1642,7 @@ export class TransEngine {
 						model: model,
 						saveToDatabase: true
 					});
-					
+
 					if (fileResult.success && fileResult.result) {
 						// 检查是否是顶层文件（标签文件），如果是则添加到顶层摘要
 						const isTopLevelFile = topLevelFiles.some(f => f.path === file.path);
@@ -1667,17 +1667,17 @@ export class TransEngine {
 					skippedItems++;
 				}
 			}
-			
+
 			// 3. 处理所有文件夹（深度递归的结果，从最深层开始）
 			const sortedFolders = folders.sort((a, b) => {
 				const depthA = a.path.split('/').length;
 				const depthB = b.path.split('/').length;
 				return depthB - depthA; // 深度大的先处理
 			});
-			
+
 			for (const folder of sortedFolders) {
 				currentProgress++;
-				
+
 				onProgress?.({
 					stage: '处理文件夹',
 					current: currentProgress,
@@ -1685,7 +1685,7 @@ export class TransEngine {
 					currentItem: `📂 ${folder.name}`,
 					percentage: Math.round((currentProgress / totalItems) * 90) + 5 // 5-95%
 				});
-				
+
 				try {
 					const folderResult = await this.runTransformation({
 						filePath: folder.path,
@@ -1694,7 +1694,7 @@ export class TransEngine {
 						model: model,
 						saveToDatabase: true
 					});
-					
+
 					if (folderResult.success && folderResult.result) {
 						// 检查是否是顶层文件夹，如果是则添加到顶层摘要
 						const isTopLevelFolder = topLevelFolders.some(f => f.path === folder.path);
@@ -1719,7 +1719,7 @@ export class TransEngine {
 					skippedItems++;
 				}
 			}
-			
+
 			// 4. 生成工作区整体洞察
 			onProgress?.({
 				stage: '生成工作区洞察',
@@ -1728,7 +1728,7 @@ export class TransEngine {
 				currentItem: '汇总分析工作区内容...',
 				percentage: 95
 			});
-			
+
 			// 构建工作区内容描述
 			let workspaceContent = `# Workspace: ${workspace.name}\n\n`;
 
@@ -1738,10 +1738,10 @@ export class TransEngine {
 			} else {
 				workspaceContent += '*No top-level content summaries available.*';
 			}
-			
+
 			// 5. 生成工作区的整体洞察
 			const sourcePath = `workspace:${workspace.name}`;
-			
+
 			// 计算所有项目的最大 mtime
 			let maxMtime = 0;
 			for (const item of allItems) {
@@ -1750,10 +1750,10 @@ export class TransEngine {
 				}
 			}
 			console.log('maxMtime', maxMtime);
-			
+
 			// 如果没有找到任何有效的 mtime，使用当前时间
 			const sourceMtime = maxMtime > 0 ? maxMtime : 0;
-			
+
 			// 验证内容
 			const contentValidation = DocumentProcessor.validateContent(workspaceContent);
 			if (contentValidation.isErr()) {
@@ -1766,21 +1766,21 @@ export class TransEngine {
 					skippedItems
 				};
 			}
-			
+
 			// 处理文档内容（检查 token 数量并截断）
 			const processedDocument = await DocumentProcessor.processContent(workspaceContent);
-			
+
 			// 查询数据库中是否存在工作区洞察
 			const cacheCheckResult = await this.checkDatabaseCache(
 				sourcePath,
 				sourceMtime,
 				TransformationType.HIERARCHICAL_SUMMARY
 			);
-			
+
 			if (cacheCheckResult.foundCache && cacheCheckResult.result.success) {
 				// 找到缓存的工作区洞察，直接返回
 				console.log(`使用缓存的工作区洞察: ${workspace.name}`);
-				
+
 				onProgress?.({
 					stage: '使用缓存洞察',
 					current: 1,
@@ -1788,18 +1788,18 @@ export class TransEngine {
 					currentItem: '已找到缓存的工作区洞察',
 					percentage: 100
 				});
-				
+
 				// 尝试获取洞察ID
 				let insightId: number | undefined;
 				if (this.insightManager) {
 					const recentInsights = await this.insightManager.getInsightsBySourcePath(sourcePath, this.embeddingModel);
-					const latestInsight = recentInsights.find(insight => 
-						insight.insight_type === TransformationType.HIERARCHICAL_SUMMARY.toString() && 
+					const latestInsight = recentInsights.find(insight =>
+						insight.insight_type === TransformationType.HIERARCHICAL_SUMMARY.toString() &&
 						insight.source_mtime === sourceMtime
 					);
 					insightId = latestInsight?.id;
 				}
-				
+
 				return {
 					success: true,
 					processedFiles,
@@ -1812,13 +1812,13 @@ export class TransEngine {
 
 			// 使用默认模型或传入的模型
 			const llmModel: LLMModel = model || {
-				provider: this.settings.applyModelProvider,
-				modelId: this.settings.applyModelId,
+				provider: this.settings.insightModelProvider,
+				modelId: this.settings.insightModelId,
 			};
-			
+
 			// 创建 LLM 客户端
 			const client = new TransformationLLMClient(this.llmManager, llmModel);
-			
+
 			// 构建请求消息
 			const transformationConfig = TRANSFORMATIONS[TransformationType.HIERARCHICAL_SUMMARY];
 			const messages: RequestMessage[] = [
@@ -1831,10 +1831,10 @@ export class TransEngine {
 					content: processedDocument.processedContent
 				}
 			];
-			
+
 			// 调用 LLM 执行转换
 			const result = await client.queryChatModel(messages);
-			
+
 			if (result.isErr()) {
 				return {
 					success: false,
@@ -1845,10 +1845,10 @@ export class TransEngine {
 					skippedItems
 				};
 			}
-			
+
 			// 后处理结果
 			const processedResult = this.postProcessResult(result.value, TransformationType.HIERARCHICAL_SUMMARY);
-			
+
 			// 6. 保存工作区洞察到数据库
 			onProgress?.({
 				stage: '保存洞察结果',
@@ -1857,9 +1857,9 @@ export class TransEngine {
 				currentItem: '保存到数据库...',
 				percentage: 98
 			});
-			
+
 			let insightId: number | undefined;
-			
+
 			try {
 				await this.saveResultToDatabase(
 					processedResult,
@@ -1868,12 +1868,12 @@ export class TransEngine {
 					sourceMtime,
 					'folder' // workspace 在数据库中存储为 folder 类型
 				);
-				
+
 				// 尝试获取刚保存的洞察ID（可选）
 				if (this.insightManager) {
 					const recentInsights = await this.insightManager.getInsightsBySourcePath(sourcePath, this.embeddingModel);
-					const latestInsight = recentInsights.find(insight => 
-						insight.insight_type === TransformationType.HIERARCHICAL_SUMMARY.toString() && 
+					const latestInsight = recentInsights.find(insight =>
+						insight.insight_type === TransformationType.HIERARCHICAL_SUMMARY.toString() &&
 						insight.source_mtime === sourceMtime
 					);
 					insightId = latestInsight?.id;
@@ -1882,7 +1882,7 @@ export class TransEngine {
 				console.warn('保存洞察到数据库失败:', error);
 				// 不影响主流程，仅记录警告
 			}
-			
+
 			// 7. 完成
 			onProgress?.({
 				stage: '完成',
@@ -1891,7 +1891,7 @@ export class TransEngine {
 				currentItem: '工作区洞察初始化完成',
 				percentage: 100
 			});
-			
+
 			return {
 				success: true,
 				processedFiles,
@@ -1900,7 +1900,7 @@ export class TransEngine {
 				skippedItems,
 				insightId
 			};
-			
+
 		} catch (error) {
 			return {
 				success: false,
@@ -1955,7 +1955,7 @@ export class TransEngine {
 
 			// 收集直接子文件夹
 			const subfolders = folder.children.filter((child): child is TFolder => child instanceof TFolder);
-			
+
 			// 递归处理子文件夹
 			for (const subfolder of subfolders) {
 				// 递归收集子文件夹中的内容（包含子文件夹本身）
@@ -1970,7 +1970,7 @@ export class TransEngine {
 					maxMtime = item.mtime;
 				}
 			}
-			
+
 			items.push({
 				type: 'folder',
 				path: folderPath,
