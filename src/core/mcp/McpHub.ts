@@ -119,6 +119,21 @@ const McpSettingsSchema = z.object({
 	mcpServers: z.record(ServerConfigSchema),
 })
 
+// Add type definitions for better type safety
+type ConfigObject = Record<string, unknown> & {
+	command?: string
+	url?: string
+	type?: string
+	args?: string[]
+	env?: Record<string, string>
+	headers?: Record<string, string>
+	disabled?: boolean
+	timeout?: number
+	alwaysAllow?: string[]
+	watchPaths?: string[]
+	cwd?: string
+}
+
 // 内置服务器工具的 API 响应类型
 interface BuiltInToolResponse {
 	name: string
@@ -199,11 +214,13 @@ export class McpHub {
 			throw new Error("Server configuration must be an object.");
 		}
 
-		// 使用类型保护而不是类型断言
+		// Use type guard to ensure config is an object
 		if (typeof config !== 'object' || config === null || Array.isArray(config)) {
 			throw new Error("Server configuration must be an object.");
 		}
-		const configObj = config;
+		
+		// Use proper type assertion with better typing
+		const configObj = config as ConfigObject;
 
 		// Detect configuration issues before validation
 		const hasStdioFields = configObj.command !== undefined
@@ -214,7 +231,7 @@ export class McpHub {
 			throw new Error(mixedFieldsErrorMessage)
 		}
 
-		const mutableConfig = { ...configObj }; // Create a mutable copy
+		const mutableConfig: ConfigObject = { ...configObj }; // Create a mutable copy with proper type
 
 		// Check if it's a stdio or SSE config and add type if missing
 		if (!mutableConfig.type) {
@@ -380,7 +397,7 @@ export class McpHub {
 				try {
 					const oldFolderContents = await this.app.vault.adapter.list(normalizePath(oldMcpFolderPath))
 					if (oldFolderContents.files.length === 0 && oldFolderContents.folders.length === 0) {
-						await this.app.vault.adapter.rmdir(normalizePath(oldMcpFolderPath))
+						await this.app.vault.adapter.rmdir(normalizePath(oldMcpFolderPath), false)
 						console.log("Removed empty old MCP configuration directory")
 					}
 				} catch (error) {
@@ -416,12 +433,14 @@ export class McpHub {
 			console.log('Attempting to open MCP settings file:', filePath);
 
 			// 检查文件是否已经打开
-			let existingLeaf = null;
+			let existingLeaf: any = null;
 			this.app.workspace.iterateAllLeaves((leaf) => {
 				if (leaf.view.getViewType() === JSON_VIEW_TYPE) {
 					// 检查视图状态中的文件路径
 					const viewState = leaf.view.getState();
-					if (viewState && (viewState as { filePath?: string }).filePath === filePath) {
+					if (viewState && typeof viewState === 'object' && 'filePath' in viewState && 
+						viewState !== null && !Array.isArray(viewState) &&
+						(viewState as { filePath: unknown }).filePath === filePath) {
 						existingLeaf = leaf;
 						return false; // 停止遍历
 					}
@@ -488,8 +507,14 @@ export class McpHub {
 				try {
 					// 安全地处理未验证的配置
 					const serversToConnect = config.mcpServers;
-					if (serversToConnect && typeof serversToConnect === 'object' && !Array.isArray(serversToConnect)) {
-						await this.updateServerConnections(serversToConnect as Record<string, unknown>);
+					if (serversToConnect && typeof serversToConnect === 'object' && 
+						!Array.isArray(serversToConnect) && serversToConnect !== null) {
+						// Use type guard to ensure it's a proper record
+						const servers: Record<string, unknown> = {};
+						for (const [key, value] of Object.entries(serversToConnect)) {
+							servers[key] = value;
+						}
+						await this.updateServerConnections(servers);
 					} else {
 						await this.updateServerConnections({});
 					}
@@ -1232,8 +1257,10 @@ export class McpHub {
 
 			// Remove the server from the settings
 			if (config.mcpServers[serverName]) {
-				// 使用 Reflect.deleteProperty 而不是 delete 操作符
-				Reflect.deleteProperty(config.mcpServers as object, serverName)
+				// Use delete operator safely with type guard
+				if (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)) {
+					delete config.mcpServers[serverName];
+				}
 
 				// Write the entire config back
 				const updatedConfig = {
@@ -1243,7 +1270,13 @@ export class McpHub {
 				await this.app.vault.adapter.write(configPath, JSON.stringify(updatedConfig, null, 2))
 
 				// Update server connections with the correct source
-				await this.updateServerConnections(config.mcpServers as Record<string, unknown>, serverSource)
+				const servers: Record<string, unknown> = {};
+				if (config.mcpServers && typeof config.mcpServers === 'object' && !Array.isArray(config.mcpServers)) {
+					for (const [key, value] of Object.entries(config.mcpServers)) {
+						servers[key] = value;
+					}
+				}
+				await this.updateServerConnections(servers, serverSource)
 
 				// vscode.window.showInformationMessage(t("common:info.mcp_server_deleted", { serverName }))
 			} else {
@@ -1324,7 +1357,14 @@ export class McpHub {
 			await this.app.vault.adapter.write(configPath, JSON.stringify(updatedConfig, null, 2))
 
 			// Update server connections to connect to the new server
-			await this.updateServerConnections(currentConfig.mcpServers as Record<string, unknown>, source)
+			const servers: Record<string, unknown> = {};
+			if (currentConfig.mcpServers && typeof currentConfig.mcpServers === 'object' && 
+				!Array.isArray(currentConfig.mcpServers)) {
+				for (const [key, value] of Object.entries(currentConfig.mcpServers)) {
+					servers[key] = value;
+				}
+			}
+			await this.updateServerConnections(servers, source)
 
 			console.log(`Successfully created and connected to MCP server: ${name}`)
 		} catch (error) {
