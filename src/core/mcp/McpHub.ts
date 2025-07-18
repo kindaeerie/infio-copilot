@@ -1,5 +1,4 @@
 
-import { App, EventRef, Notice, TFile, normalizePath } from 'obsidian';
 import * as path from "path";
 
 // SDK / External Libraries
@@ -16,17 +15,17 @@ import {
 import chokidar, { FSWatcher } from "chokidar"; // Keep chokidar
 import delay from "delay"; // Keep delay
 import deepEqual from "fast-deep-equal"; // Keep fast-deep-equal
+import { App, EventRef, Notice, TFile, normalizePath } from 'obsidian';
 import ReconnectingEventSource from "reconnecting-eventsource"; // Keep reconnecting-eventsource
 import { EnvironmentVariables, shellEnvSync } from 'shell-env';
 import { z } from "zod"; // Keep zod
-// Internal/Project imports
 
+// Internal/Project imports
 import { INFIO_BASE_URL, JSON_VIEW_TYPE } from '../../constants';
 import { t } from "../../lang/helpers";
 import InfioPlugin from "../../main";
-// Assuming path is correct and will be resolved, if not, this will remain an error.
-// Users should verify this path if issues persist.
 import { injectEnv } from "../../utils/config";
+import { ROOT_DIR } from '../prompts/constants';
 
 import {
 	McpResource,
@@ -36,7 +35,6 @@ import {
 	McpTool,
 	McpToolCallResponse,
 } from "./type";
-
 
 export type McpConnection = {
 	server: McpServer
@@ -164,7 +162,7 @@ export class McpHub {
 		// Ensure the MCP configuration directory exists
 		await this.ensureMcpFileExists()
 		await this.watchMcpSettingsFile();
-		// this.setupWorkspaceWatcher();
+		this.setupWorkspaceWatcher();
 		await this.initializeGlobalMcpServers();
 		// 初始化内置服务器
 		await this.initializeBuiltInServer();
@@ -202,7 +200,10 @@ export class McpHub {
 		}
 
 		// 使用类型保护而不是类型断言
-		const configObj = config as Record<string, unknown>;
+		if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+			throw new Error("Server configuration must be an object.");
+		}
+		const configObj = config;
 
 		// Detect configuration issues before validation
 		const hasStdioFields = configObj.command !== undefined
@@ -327,17 +328,68 @@ export class McpHub {
 	}
 
 	async ensureMcpFileExists(): Promise<void> {
-		const mcpFolderPath = ".infio_json_db/mcp"
-		if (!await this.app.vault.adapter.exists(normalizePath(mcpFolderPath))) {
-			await this.app.vault.createFolder(normalizePath(mcpFolderPath));
+		// 新的配置目录和文件路径
+		const newMcpFolderPath = ROOT_DIR
+		const newMcpSettingsFilePath = normalizePath(path.join(newMcpFolderPath, "mcp_settings.json"))
+		
+		// 老的配置目录和文件路径
+		const oldMcpFolderPath = ".infio_json_db/mcp"
+		const oldMcpSettingsFilePath = normalizePath(path.join(oldMcpFolderPath, "settings.json"))
+		
+		// 检查老的配置文件是否存在
+		const oldFileExists = await this.app.vault.adapter.exists(oldMcpSettingsFilePath)
+		let configContent = JSON.stringify({ mcpServers: {} }, null, 2)
+		
+		if (oldFileExists) {
+			try {
+				// 读取老的配置文件内容
+				configContent = await this.app.vault.adapter.read(oldMcpSettingsFilePath)
+				console.log("Found old MCP configuration file, migrating to new location...")
+			} catch (error) {
+				console.error("Failed to read old MCP configuration file:", error)
+				// 如果读取失败，使用默认配置
+				configContent = JSON.stringify({ mcpServers: {} }, null, 2)
+			}
 		}
-		this.mcpSettingsFilePath = normalizePath(path.join(mcpFolderPath, "settings.json"))
-		const fileExists = await this.app.vault.adapter.exists(normalizePath(this.mcpSettingsFilePath));
-		if (!fileExists) {
+		
+		// 确保新的配置目录存在
+		if (!await this.app.vault.adapter.exists(normalizePath(newMcpFolderPath))) {
+			await this.app.vault.createFolder(normalizePath(newMcpFolderPath));
+		}
+		
+		// 设置新的配置文件路径
+		this.mcpSettingsFilePath = newMcpSettingsFilePath
+		
+		// 检查新的配置文件是否存在
+		const newFileExists = await this.app.vault.adapter.exists(newMcpSettingsFilePath)
+		if (!newFileExists) {
+			// 创建新的配置文件（使用从老配置文件读取的内容或默认内容）
 			await this.app.vault.create(
-				normalizePath(this.mcpSettingsFilePath),
-				JSON.stringify({ mcpServers: {} }, null, 2)
-			);
+				newMcpSettingsFilePath,
+				configContent
+			)
+		}
+		
+		// 如果成功迁移了老的配置文件，删除老的配置文件和目录
+		if (oldFileExists) {
+			try {
+				await this.app.vault.adapter.remove(oldMcpSettingsFilePath)
+				console.log("Removed old MCP configuration file")
+				
+				// 尝试删除老的配置目录（如果为空）
+				try {
+					const oldFolderContents = await this.app.vault.adapter.list(normalizePath(oldMcpFolderPath))
+					if (oldFolderContents.files.length === 0 && oldFolderContents.folders.length === 0) {
+						await this.app.vault.adapter.rmdir(normalizePath(oldMcpFolderPath))
+						console.log("Removed empty old MCP configuration directory")
+					}
+				} catch (error) {
+					// 删除目录失败不是致命错误，可能还有其他文件
+					console.warn("Could not remove old MCP configuration directory:", error)
+				}
+			} catch (error) {
+				console.error("Failed to remove old MCP configuration file:", error)
+			}
 		}
 	}
 
@@ -354,8 +406,8 @@ export class McpHub {
 	}
 
 	/**
- * Opens the MCP settings file in Obsidian
- */
+	* Opens the MCP settings file in Obsidian
+	*/
 	async openMcpSettingsFile(): Promise<void> {
 		try {
 			await this.ensureMcpFileExists();
@@ -364,12 +416,12 @@ export class McpHub {
 			console.log('Attempting to open MCP settings file:', filePath);
 
 			// 检查文件是否已经打开
-			let existingLeaf: any = null;
+			let existingLeaf = null;
 			this.app.workspace.iterateAllLeaves((leaf) => {
 				if (leaf.view.getViewType() === JSON_VIEW_TYPE) {
 					// 检查视图状态中的文件路径
 					const viewState = leaf.view.getState();
-					if (viewState && viewState.filePath === filePath) {
+					if (viewState && (viewState as { filePath?: string }).filePath === filePath) {
 						existingLeaf = leaf;
 						return false; // 停止遍历
 					}
@@ -389,14 +441,14 @@ export class McpHub {
 			} else {
 				// 如果文件没有打开，创建新的 leaf
 				const leaf = this.app.workspace.getLeaf(true);
-				
+
 				if (leaf) {
 					await leaf.setViewState({
 						type: JSON_VIEW_TYPE,
 						active: true,
 						state: { filePath } // 传递文件路径到视图
 					});
-					
+
 					this.app.workspace.revealLeaf(leaf);
 					console.log('Successfully opened MCP settings file in JSON view:', filePath);
 				} else {
@@ -436,8 +488,8 @@ export class McpHub {
 				try {
 					// 安全地处理未验证的配置
 					const serversToConnect = config.mcpServers;
-					if (serversToConnect && typeof serversToConnect === 'object') {
-						await this.updateServerConnections(serversToConnect);
+					if (serversToConnect && typeof serversToConnect === 'object' && !Array.isArray(serversToConnect)) {
+						await this.updateServerConnections(serversToConnect as Record<string, unknown>);
 					} else {
 						await this.updateServerConnections({});
 					}
@@ -483,8 +535,8 @@ export class McpHub {
 			// Inject environment variables to the config
 			let configInjected = { ...config };
 			try {
-				// injectEnv might return a modified structure, so we re-validate.
-				const tempConfigAfterInject = await injectEnv(config as Record<string, unknown>);
+							// injectEnv might return a modified structure, so we re-validate.
+			const tempConfigAfterInject = await injectEnv(config);
 				const validatedInjectedConfig = ServerConfigSchema.safeParse(tempConfigAfterInject);
 				if (validatedInjectedConfig.success) {
 					configInjected = validatedInjectedConfig.data;
@@ -703,7 +755,7 @@ export class McpHub {
 			try {
 				if (actualSource === "project") {
 					// Get project MCP config path
-					const projectMcpPath = normalizePath(".infio_json_db/mcp/mcp.json")
+					const projectMcpPath = normalizePath(path.join(ROOT_DIR, "mcp", "mcp_settings.json"))
 					if (await this.app.vault.adapter.exists(projectMcpPath)) {
 						configPath = projectMcpPath
 						const content = await this.app.vault.adapter.read(configPath)
@@ -712,7 +764,7 @@ export class McpHub {
 					}
 				} else {
 					// Get global MCP settings path
-					configPath = normalizePath(".infio_json_db/mcp/settings.json")
+					configPath = this.mcpSettingsFilePath
 					const content = await this.app.vault.adapter.read(configPath)
 					const config = JSON.parse(content)
 					alwaysAllowConfig = config.mcpServers?.[serverName]?.alwaysAllow || []
@@ -1072,7 +1124,7 @@ export class McpHub {
 		// Determine which config file to update
 		let configPath: string
 		if (source === "project") {
-			const projectMcpPath = normalizePath(".infio_json_db/mcp/mcp.json")
+			const projectMcpPath = normalizePath(path.join(ROOT_DIR, "mcp", "mcp_settings.json"))
 			if (!await this.app.vault.adapter.exists(projectMcpPath)) {
 				throw new Error("Project MCP configuration file not found")
 			}
@@ -1156,7 +1208,7 @@ export class McpHub {
 
 			if (isProjectServer) {
 				// Get project MCP config path
-				const projectMcpPath = normalizePath(".infio_json_db/mcp/mcp.json")
+				const projectMcpPath = normalizePath(path.join(ROOT_DIR, "mcp", "mcp_settings.json"))
 				if (!await this.app.vault.adapter.exists(projectMcpPath)) {
 					throw new Error("Project MCP configuration file not found")
 				}
@@ -1181,7 +1233,7 @@ export class McpHub {
 			// Remove the server from the settings
 			if (config.mcpServers[serverName]) {
 				// 使用 Reflect.deleteProperty 而不是 delete 操作符
-				Reflect.deleteProperty(config.mcpServers, serverName)
+				Reflect.deleteProperty(config.mcpServers as object, serverName)
 
 				// Write the entire config back
 				const updatedConfig = {
@@ -1191,7 +1243,7 @@ export class McpHub {
 				await this.app.vault.adapter.write(configPath, JSON.stringify(updatedConfig, null, 2))
 
 				// Update server connections with the correct source
-				await this.updateServerConnections(config.mcpServers, serverSource)
+				await this.updateServerConnections(config.mcpServers as Record<string, unknown>, serverSource)
 
 				// vscode.window.showInformationMessage(t("common:info.mcp_server_deleted", { serverName }))
 			} else {
@@ -1229,7 +1281,7 @@ export class McpHub {
 			// Determine which config file to update
 			let configPath: string
 			if (source === "project") {
-				const projectMcpPath = normalizePath(".infio_json_db/mcp/mcp.json")
+				const projectMcpPath = normalizePath(path.join(ROOT_DIR, "mcp", "mcp_settings.json"))
 				if (!await this.app.vault.adapter.exists(projectMcpPath)) {
 					// Create project config file if it doesn't exist
 					await this.app.vault.adapter.write(
@@ -1272,7 +1324,7 @@ export class McpHub {
 			await this.app.vault.adapter.write(configPath, JSON.stringify(updatedConfig, null, 2))
 
 			// Update server connections to connect to the new server
-			await this.updateServerConnections(currentConfig.mcpServers, source)
+			await this.updateServerConnections(currentConfig.mcpServers as Record<string, unknown>, source)
 
 			console.log(`Successfully created and connected to MCP server: ${name}`)
 		} catch (error) {
@@ -1455,7 +1507,7 @@ export class McpHub {
 			let configPath: string
 			if (source === "project") {
 				// Get project MCP config path
-				const projectMcpPath = normalizePath(".infio_json_db/mcp/mcp.json")
+				const projectMcpPath = normalizePath(path.join(ROOT_DIR, "mcp", "mcp_settings.json"))
 				if (!await this.app.vault.adapter.exists(projectMcpPath)) {
 					throw new Error("Project MCP configuration file not found")
 				}
