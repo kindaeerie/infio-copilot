@@ -1,4 +1,7 @@
 releases:
+  - version: "0.7.6"
+    features:
+      - "update mcp settings file watcher"
   - version: "0.7.5"
     features:
       - "fix insight model error"
