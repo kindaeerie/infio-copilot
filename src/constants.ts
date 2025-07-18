@@ -3,21 +3,9 @@ import { LLMModel } from './types/llm/model'
 export const CHAT_VIEW_TYPE = 'infio-chat-view'
 export const APPLY_VIEW_TYPE = 'infio-apply-view'
 export const PREVIEW_VIEW_TYPE = 'infio-preview-view'
+export const JSON_VIEW_TYPE = 'infio-json-view'
 
 export const DEFAULT_MODELS: LLMModel[] = []
-
-// export const PROVIDERS: ApiProvider[] = [
-// 	'Infio',
-// 	'OpenRouter',
-// 	'SiliconFlow',
-// 	'Anthropic',
-// 	'Deepseek',
-// 	'OpenAI',
-// 	'Google',
-// 	'Groq',
-// 	'Ollama',
-// 	'OpenAICompatible',
-// ]
 
 export const SUPPORT_EMBEDDING_SIMENTION: number[] = [
 	384,

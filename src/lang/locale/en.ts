@@ -529,6 +529,13 @@ export default {
 		parameters: "Parameters",
 		toolNoDescription: "No description",
 		useMcpToolFrom: "Use MCP tool from",
+		configurationFile: "Configuration File",
+		configurationFileDescription: "Directly edit the MCP servers configuration file to add, modify, or remove servers.",
+		openConfigFile: "Open Configuration File",
+		configFileOpened: "Configuration file opened in Obsidian",
+		configFileNotFound: "Configuration file not found",
+		failedToOpenConfig: "Failed to open configuration file",
+		openedWithSystemApp: "Configuration file opened with system default application",
 	},
 	semanticSearch: {
 		title: "Semantic Index",

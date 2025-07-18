@@ -6,7 +6,7 @@ import { Editor, MarkdownView, Modal, Notice, Plugin, TFile } from 'obsidian'
 import { ApplyView } from './ApplyView'
 import { ChatView } from './ChatView'
 import { ChatProps } from './components/chat-view/ChatView'
-import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE, PREVIEW_VIEW_TYPE } from './constants'
+import { APPLY_VIEW_TYPE, CHAT_VIEW_TYPE, JSON_VIEW_TYPE, PREVIEW_VIEW_TYPE } from './constants'
 import { getDiffStrategy } from "./core/diff/DiffStrategy"
 import { InlineEdit } from './core/edit/inline-edit-processor'
 import { McpHub } from './core/mcp/McpHub'
@@ -16,6 +16,7 @@ import { DBManager } from './database/database-manager'
 import { migrateToJsonDatabase } from './database/json/migrateToJsonDatabase'
 import { EmbeddingManager } from './embedworker/EmbeddingManager'
 import EventListener from "./event-listener"
+import JsonView from './JsonFileView'
 import { t } from './lang/helpers'
 import { PreviewView } from './PreviewView'
 import CompletionKeyWatcher from "./render-plugin/completion-key-watcher"
@@ -88,6 +89,7 @@ export default class InfioPlugin extends Plugin {
 		this.registerView(CHAT_VIEW_TYPE, (leaf) => new ChatView(leaf, this))
 		this.registerView(APPLY_VIEW_TYPE, (leaf) => new ApplyView(leaf))
 		this.registerView(PREVIEW_VIEW_TYPE, (leaf) => new PreviewView(leaf))
+		this.registerView(JSON_VIEW_TYPE, (leaf) => new JsonView(leaf, this))
 
 		// register markdown processor for Inline Edit
 		this.inlineEdit = new InlineEdit(this, this.settings);

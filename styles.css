@@ -2598,3 +2598,21 @@ button.infio-chat-input-model-select {
   max-width: 80vw;
   max-height: 80vh;
 }
+
+/*
+ * JSON View Styles
+ */
+.datafile-source-view.mod-cm6 .cm-gutters {
+	flex: 0 0 auto;
+	background-color: transparent;
+	color: var(--text-faint) !important;
+	border-right: none !important;
+	margin-inline-end: var(--file-folding-offset);
+	font-size: var(--font-ui-smaller);
+	z-index: 1;
+	font-variant: tabular-nums;
+}
+
+.cm-gutterElement.cm-activeLineGutter {
+	background-color: transparent;
+}

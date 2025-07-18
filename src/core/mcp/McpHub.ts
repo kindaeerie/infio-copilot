@@ -1,7 +1,5 @@
-// Obsidian
-import { App, EventRef, Notice, TFile, normalizePath } from 'obsidian';
 
-// Node built-in
+import { App, EventRef, Notice, TFile, normalizePath } from 'obsidian';
 import * as path from "path";
 
 // SDK / External Libraries
@@ -23,7 +21,7 @@ import { EnvironmentVariables, shellEnvSync } from 'shell-env';
 import { z } from "zod"; // Keep zod
 // Internal/Project imports
 
-import { INFIO_BASE_URL } from '../../constants'
+import { INFIO_BASE_URL, JSON_VIEW_TYPE } from '../../constants';
 import { t } from "../../lang/helpers";
 import InfioPlugin from "../../main";
 // Assuming path is correct and will be resolved, if not, this will remain an error.
@@ -331,24 +329,16 @@ export class McpHub {
 	async ensureMcpFileExists(): Promise<void> {
 		const mcpFolderPath = ".infio_json_db/mcp"
 		if (!await this.app.vault.adapter.exists(normalizePath(mcpFolderPath))) {
-			await this.app.vault.createFolder(mcpFolderPath);
+			await this.app.vault.createFolder(normalizePath(mcpFolderPath));
 		}
 		this.mcpSettingsFilePath = normalizePath(path.join(mcpFolderPath, "settings.json"))
-		const fileExists = await this.app.vault.adapter.exists(this.mcpSettingsFilePath);
+		const fileExists = await this.app.vault.adapter.exists(normalizePath(this.mcpSettingsFilePath));
 		if (!fileExists) {
-			await this.app.vault.adapter.write(
-				this.mcpSettingsFilePath,
+			await this.app.vault.create(
+				normalizePath(this.mcpSettingsFilePath),
 				JSON.stringify({ mcpServers: {} }, null, 2)
 			);
 		}
-		// this.globalMcpFilePath = normalizePath(path.join(mcpFolderPath, "global.json"))
-		// const fileExists1 = await this.app.vault.adapter.exists(this.globalMcpFilePath);
-		// if (!fileExists1) {
-		// 	await this.app.vault.adapter.write(
-		// 		this.globalMcpFilePath,
-		// 		JSON.stringify({ mcpServers: {} }, null, 2)
-		// 	);
-		// }
 	}
 
 	async getMcpSettingsFilePath(): Promise<string> {
@@ -361,6 +351,61 @@ export class McpHub {
 				await this.handleConfigFileChange(this.mcpSettingsFilePath)
 			}
 		}));
+	}
+
+	/**
+ * Opens the MCP settings file in Obsidian
+ */
+	async openMcpSettingsFile(): Promise<void> {
+		try {
+			await this.ensureMcpFileExists();
+			const filePath = this.mcpSettingsFilePath;
+
+			console.log('Attempting to open MCP settings file:', filePath);
+
+			// 检查文件是否已经打开
+			let existingLeaf: any = null;
+			this.app.workspace.iterateAllLeaves((leaf) => {
+				if (leaf.view.getViewType() === JSON_VIEW_TYPE) {
+					// 检查视图状态中的文件路径
+					const viewState = leaf.view.getState();
+					if (viewState && viewState.filePath === filePath) {
+						existingLeaf = leaf;
+						return false; // 停止遍历
+					}
+				}
+			});
+
+			if (existingLeaf) {
+				// 如果文件已经打开，重新加载最新内容并激活 leaf
+				await existingLeaf.setViewState({
+					type: JSON_VIEW_TYPE,
+					active: true,
+					state: { filePath } // 重新设置状态以触发重新加载
+				});
+				this.app.workspace.setActiveLeaf(existingLeaf);
+				this.app.workspace.revealLeaf(existingLeaf);
+				console.log('MCP settings file is already open, reloading content and activating existing view:', filePath);
+			} else {
+				// 如果文件没有打开，创建新的 leaf
+				const leaf = this.app.workspace.getLeaf(true);
+				
+				if (leaf) {
+					await leaf.setViewState({
+						type: JSON_VIEW_TYPE,
+						active: true,
+						state: { filePath } // 传递文件路径到视图
+					});
+					
+					this.app.workspace.revealLeaf(leaf);
+					console.log('Successfully opened MCP settings file in JSON view:', filePath);
+				} else {
+					console.error('Failed to get workspace leaf for JSON view');
+				}
+			}
+		} catch (error) {
+			console.error('Failed to open MCP settings file:', error);
+		}
 	}
 
 	// Combined and simplified initializeMcpServers, only for global scope

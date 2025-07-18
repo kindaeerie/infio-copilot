@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, ChevronRight, FileText, Folder, Power, RotateCcw, Trash2, Wrench } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight, ExternalLink, FileText, Folder, Power, RotateCcw, Trash2, Wrench } from 'lucide-react'
 import { Notice } from 'obsidian'
 import React, { useEffect, useState } from 'react'
 
@@ -108,6 +108,17 @@ const McpHubView = () => {
 		}
 	}
 
+	const handleOpenConfigFile = async () => {
+		const hub = await getMcpHub();
+		if (hub) {
+			try {
+				await hub.openMcpSettingsFile();
+			} catch (error) {
+				console.error('Failed to open config file:', error)
+			}
+		}
+	}
+
 	const toggleServerExpansion = (serverKey: string) => {
 		setExpandedServers(prev => ({ ...prev, [serverKey]: !prev[serverKey] }));
 		if (!expandedServers[serverKey] && !activeServerDetailTab[serverKey]) {
@@ -196,7 +207,15 @@ const McpHubView = () => {
 		<div className="infio-mcp-hub-container">
 			{/* Header Section */}
 			<div className="infio-mcp-hub-header">
-				<h2 className="infio-mcp-hub-title">{t('mcpHub.title')}</h2>
+				<h3 className="infio-mcp-hub-title">{t('mcpHub.title')}</h3>
+				<div className="infio-mcp-hub-actions">
+					<button
+						onClick={fetchServers}
+						className="obsidian-insight-refresh-btn"
+					>
+						<RotateCcw size={16} />
+					</button>
+				</div>
 			</div>
 
 			{/* MCP Settings */}
@@ -218,6 +237,15 @@ const McpHubView = () => {
 						</a>
 					</p>
 				</div>
+				
+				{/* Configuration File Access */}
+				<button
+					onClick={handleOpenConfigFile}
+					className="infio-mcp-config-button"
+				>
+					<ExternalLink size={16} />
+					<span>{t('mcpHub.openConfigFile')}</span>
+				</button>
 			</div>
 
 			{/* Create New Server Section */}
@@ -446,6 +474,57 @@ const McpHubView = () => {
 					font-size: 14px;
 					color: var(--text-muted);
 					line-height: 1.4;
+				}
+
+				.infio-mcp-hub-actions {
+					display: flex;
+					gap: var(--size-2-2);
+				}
+
+				.obsidian-insight-refresh-btn {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					background-color: transparent !important;
+					border: none !important;
+					box-shadow: none !important;
+					color: var(--text-muted);
+					padding: 0 !important;
+					margin: 0 !important;
+					width: 24px !important;
+					height: 24px !important;
+
+					&:hover {
+						background-color: var(--background-modifier-hover) !important;
+					}
+				}
+
+				.obsidian-insight-refresh-btn:hover:not(:disabled) {
+					background-color: var(--interactive-hover);
+				}
+
+				.infio-mcp-config-button {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					background-color: var(--interactive-normal);
+					color: var(--text-normal);
+					border: 1px solid var(--background-modifier-border);
+					border-radius: var(--radius-s);
+					padding: 8px 16px;
+					font-size: 14px;
+					font-weight: 500;
+					cursor: pointer;
+					transition: all 0.2s ease;
+				}
+
+				.infio-mcp-config-button:hover {
+					background-color: var(--interactive-hover);
+					border-color: var(--interactive-accent);
+				}
+
+				.infio-mcp-config-button:active {
+					transform: translateY(1px);
 				}
 
 				/* Search Section */
