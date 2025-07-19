@@ -1607,7 +1607,7 @@ export class McpHub {
 					name: this.BUILTIN_SERVER_NAME,
 					config: JSON.stringify({ type: "builtin" }),
 					status: "connected",
-					disabled: false,
+					disabled: true,
 					source: "global",
 					tools: tools,
 					resources: [], // 内置服务器暂不支持资源
