@@ -150,6 +150,7 @@ export class McpHub {
 	private mcpSettingsFilePath: string | null = null
 	// private globalMcpFilePath: string | null = null
 	private fileWatchers: Map<string, FSWatcher[]> = new Map()
+	private configFileChangeTimeout: NodeJS.Timeout | null = null
 	private isDisposed: boolean = false
 	connections: McpConnection[] = []
 	// 添加内置服务器连接
@@ -177,7 +178,7 @@ export class McpHub {
 		// Ensure the MCP configuration directory exists
 		await this.ensureMcpFileExists()
 		await this.watchMcpSettingsFile();
-		this.setupWorkspaceWatcher();
+		// this.setupWorkspaceWatcher();
 		await this.initializeGlobalMcpServers();
 		// 初始化内置服务器
 		await this.initializeBuiltInServer();
@@ -287,7 +288,6 @@ export class McpHub {
 		this.eventRefs.push(this.app.vault.on('modify', async (file) => {
 			// Adjusted to use the new config file name and path logic
 			const configFilePath = await this.getMcpSettingsFilePath();
-			console.log("configFilePath", configFilePath)
 			if (file instanceof TFile && file.path === configFilePath) {
 				await this.handleConfigFileChange(file.path);
 			}
@@ -295,7 +295,6 @@ export class McpHub {
 	}
 
 	private async handleConfigFileChange(filePath: string): Promise<void> {
-		console.log("handleConfigFileChange", filePath)
 		try {
 			const content = await this.app.vault.adapter.read(filePath);
 			const config = JSON.parse(content)
@@ -347,7 +346,6 @@ export class McpHub {
 	}
 
 	async ensureMcpFileExists(): Promise<void> {
-		console.log("ensureMcpFileExists")
 		// 新的配置目录和文件路径
 		const newMcpFolderPath = ROOT_DIR
 		const newMcpSettingsFilePath = normalizePath(path.join(newMcpFolderPath, "mcp_settings.json"))

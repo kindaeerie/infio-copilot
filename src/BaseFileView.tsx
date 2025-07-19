@@ -11,6 +11,7 @@ export default abstract class BaseView extends TextFileView {
 	protected state: { filePath?: string } | null = null;
 	protected isEditorLoaded: boolean = false;
 	protected currentFilePath: string | null = null;
+	protected isClosing: boolean = false;
 
 	protected constructor(leaf: WorkspaceLeaf, plugin: InfioPlugin) {
 		super(leaf);
@@ -79,7 +80,7 @@ export default abstract class BaseView extends TextFileView {
 
 	async onLoadFile(file: TFile): Promise<void> {
 		try {
-			const content = await this.app.vault.read(file);
+			const content = await this.app.vault.cachedRead(file);
 			this.setViewData(content, true);
 		} catch (error) {
 			console.error('Failed to load file content:', error);
@@ -103,7 +104,19 @@ export default abstract class BaseView extends TextFileView {
 	}
 
 	async save(clear?: boolean): Promise<void> {
+		// Prevent saving if the view is closing
+		if (this.isClosing) {
+			console.log("save() called during close, skipping to prevent data loss");
+			return;
+		}
+
 		const content = this.getViewData();
+		
+		// Additional safety check: don't save if content is empty and we had content before
+		if (!content.trim() && this.currentFilePath) {
+			console.log("Refusing to save empty content, potential data loss prevented");
+			return;
+		}
 		
 		if (this.file) {
 			// Regular file in vault
@@ -133,6 +146,7 @@ export default abstract class BaseView extends TextFileView {
 	}
 
 	onClose(): Promise<void> {
+		this.isClosing = true;
 		return super.onClose();
 	}
 
@@ -145,7 +159,7 @@ export default abstract class BaseView extends TextFileView {
 	}
 
 	protected onEditorUpdate(update: ViewUpdate): void {
-		if (update.docChanged) {
+		if (update.docChanged && !this.isClosing) {
 			this.requestSave();
 		}
 	}
