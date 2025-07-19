@@ -287,6 +287,7 @@ export class McpHub {
 		this.eventRefs.push(this.app.vault.on('modify', async (file) => {
 			// Adjusted to use the new config file name and path logic
 			const configFilePath = await this.getMcpSettingsFilePath();
+			console.log("configFilePath", configFilePath)
 			if (file instanceof TFile && file.path === configFilePath) {
 				await this.handleConfigFileChange(file.path);
 			}
@@ -294,6 +295,7 @@ export class McpHub {
 	}
 
 	private async handleConfigFileChange(filePath: string): Promise<void> {
+		console.log("handleConfigFileChange", filePath)
 		try {
 			const content = await this.app.vault.adapter.read(filePath);
 			const config = JSON.parse(content)
@@ -345,6 +347,7 @@ export class McpHub {
 	}
 
 	async ensureMcpFileExists(): Promise<void> {
+		console.log("ensureMcpFileExists")
 		// 新的配置目录和文件路径
 		const newMcpFolderPath = ROOT_DIR
 		const newMcpSettingsFilePath = normalizePath(path.join(newMcpFolderPath, "mcp_settings.json"))
@@ -352,22 +355,6 @@ export class McpHub {
 		// 老的配置目录和文件路径
 		const oldMcpFolderPath = ".infio_json_db/mcp"
 		const oldMcpSettingsFilePath = normalizePath(path.join(oldMcpFolderPath, "settings.json"))
-		
-		// 检查老的配置文件是否存在
-		const oldFileExists = await this.app.vault.adapter.exists(oldMcpSettingsFilePath)
-		let configContent = JSON.stringify({ mcpServers: {} }, null, 2)
-		
-		if (oldFileExists) {
-			try {
-				// 读取老的配置文件内容
-				configContent = await this.app.vault.adapter.read(oldMcpSettingsFilePath)
-				console.log("Found old MCP configuration file, migrating to new location...")
-			} catch (error) {
-				console.error("Failed to read old MCP configuration file:", error)
-				// 如果读取失败，使用默认配置
-				configContent = JSON.stringify({ mcpServers: {} }, null, 2)
-			}
-		}
 		
 		// 确保新的配置目录存在
 		if (!await this.app.vault.adapter.exists(normalizePath(newMcpFolderPath))) {
@@ -379,19 +366,21 @@ export class McpHub {
 		
 		// 检查新的配置文件是否存在
 		const newFileExists = await this.app.vault.adapter.exists(newMcpSettingsFilePath)
-		if (!newFileExists) {
-			// 创建新的配置文件（使用从老配置文件读取的内容或默认内容）
-			await this.app.vault.create(
-				newMcpSettingsFilePath,
-				configContent
-			)
-		}
+		const oldFileExists = await this.app.vault.adapter.exists(oldMcpSettingsFilePath)
 		
-		// 如果成功迁移了老的配置文件，删除老的配置文件和目录
-		if (oldFileExists) {
+		// 处理迁移逻辑
+		if (oldFileExists && !newFileExists) {
+			// 情况1：只有老配置文件存在，需要迁移
 			try {
+				const oldConfigContent = await this.app.vault.adapter.read(oldMcpSettingsFilePath)
+				console.log("Found old MCP configuration file, migrating to new location...")
+				
+				// 创建新配置文件，使用老配置的内容
+				await this.app.vault.create(newMcpSettingsFilePath, oldConfigContent)
+				
+				// 删除老配置文件
 				await this.app.vault.adapter.remove(oldMcpSettingsFilePath)
-				console.log("Removed old MCP configuration file")
+				console.log("Successfully migrated MCP configuration and removed old file")
 				
 				// 尝试删除老的配置目录（如果为空）
 				try {
@@ -401,13 +390,30 @@ export class McpHub {
 						console.log("Removed empty old MCP configuration directory")
 					}
 				} catch (error) {
-					// 删除目录失败不是致命错误，可能还有其他文件
 					console.warn("Could not remove old MCP configuration directory:", error)
 				}
 			} catch (error) {
+				console.error("Failed to migrate old MCP configuration file:", error)
+				// 迁移失败时创建默认配置
+				const defaultConfig = JSON.stringify({ mcpServers: {} }, null, 2)
+				await this.app.vault.create(newMcpSettingsFilePath, defaultConfig)
+			}
+		} else if (oldFileExists && newFileExists) {
+			// 情况2：两个配置文件都存在，优先保留新配置，删除老配置
+			console.log("Both old and new MCP configuration files exist. Keeping new file and removing old file.")
+			try {
+				await this.app.vault.adapter.remove(oldMcpSettingsFilePath)
+				console.log("Removed old MCP configuration file")
+			} catch (error) {
 				console.error("Failed to remove old MCP configuration file:", error)
 			}
+		} else if (!newFileExists) {
+			// 情况3：新配置文件不存在，老配置文件也不存在，创建默认配置
+			console.log("No MCP configuration file found, creating default configuration...")
+			const defaultConfig = JSON.stringify({ mcpServers: {} }, null, 2)
+			await this.app.vault.create(newMcpSettingsFilePath, defaultConfig)
 		}
+		// 情况4：只有新配置文件存在，什么都不做
 	}
 
 	async getMcpSettingsFilePath(): Promise<string> {
@@ -1038,53 +1044,7 @@ export class McpHub {
 		this.isConnecting = false
 	}
 
-	// private async notifyWebviewOfServerChanges(): Promise<void> {
-	// 	// Get global server order from settings file
-	// 	const settingsPath = await this.getMcpSettingsFilePath()
-	// 	const content = await fs.readFile(settingsPath, "utf-8")
-	// 	const config = JSON.parse(content)
-	// 	const globalServerOrder = Object.keys(config.mcpServers || {})
-
-	// 	// Get project server order if available
-	// 	const projectMcpPath = await this.getProjectMcpPath()
-	// 	let projectServerOrder: string[] = []
-	// 	if (projectMcpPath) {
-	// 		try {
-	// 			const projectContent = await fs.readFile(projectMcpPath, "utf-8")
-	// 			const projectConfig = JSON.parse(projectContent)
-	// 			projectServerOrder = Object.keys(projectConfig.mcpServers || {})
-	// 		} catch (error) {
-	// 			// Silently continue with empty project server order
-	// 		}
-	// 	}
-
-	// 	// Sort connections: first project servers in their defined order, then global servers in their defined order
-	// 	// This ensures that when servers have the same name, project servers are prioritized
-	// 	const sortedConnections = [...this.connections].sort((a, b) => {
-	// 		const aIsGlobal = a.server.source === "global" || !a.server.source
-	// 		const bIsGlobal = b.server.source === "global" || !b.server.source
-
-	// 		// If both are global or both are project, sort by their respective order
-	// 		if (aIsGlobal && bIsGlobal) {
-	// 			const indexA = globalServerOrder.indexOf(a.server.name)
-	// 			const indexB = globalServerOrder.indexOf(b.server.name)
-	// 			return indexA - indexB
-	// 		} else if (!aIsGlobal && !bIsGlobal) {
-	// 			const indexA = projectServerOrder.indexOf(a.server.name)
-	// 			const indexB = projectServerOrder.indexOf(b.server.name)
-	// 			return indexA - indexB
-	// 		}
-
-	// 		// Project servers come before global servers (reversed from original)
-	// 		return aIsGlobal ? 1 : -1
-	// 	})
-
-	// 	// Send sorted servers to webview
-	// 	await this.providerRef.deref()?.postMessageToWebview({
-	// 		type: "mcpServers",
-	// 		mcpServers: sortedConnections.map((connection) => connection.server),
-	// 	})
-	// }
+	
 
 	public async toggleServerDisabled(
 		serverName: string,
